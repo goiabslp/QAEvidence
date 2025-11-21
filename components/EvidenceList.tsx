@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { EvidenceItem, TestStatus } from '../types';
 import { STATUS_CONFIG, SEVERITY_COLORS } from '../constants';
-import { Trash2, ExternalLink, Calendar, User, Tag, Monitor, ChevronDown, ChevronUp, Plus, Layers, FileText, ChevronRight, Pencil, ListChecks, Image as ImageIcon } from 'lucide-react';
+import { Trash2, ExternalLink, Calendar, User, Tag, Monitor, ChevronDown, ChevronUp, Plus, Layers, FileText, ChevronRight, Pencil, ListChecks, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 
 interface EvidenceListProps {
   evidences: EvidenceItem[];
@@ -235,16 +235,31 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
 
                         {isCaseOpen && (
                           <div className="px-12 pb-8 pt-2 bg-slate-50/30 text-sm animate-fade-in border-b border-slate-100">
+                             {/* NEW: Failure Reason Display */}
+                             {testCaseDetails?.failureReason && (testCaseDetails.result === 'Fracasso' || testCaseDetails.result === 'Impedimento') && (
+                                <div className={`mb-6 p-4 rounded-xl border ${
+                                    evidence.status === TestStatus.FAIL 
+                                    ? 'bg-red-50 border-red-100 text-red-900' 
+                                    : 'bg-amber-50 border-amber-100 text-amber-900'
+                                }`}>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                                        <AlertTriangle className="w-4 h-4" />
+                                        Motivo do {testCaseDetails.result}
+                                    </h4>
+                                    <p className="leading-relaxed whitespace-pre-line font-medium">{testCaseDetails.failureReason}</p>
+                                </div>
+                             )}
+
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
                                 <div className="space-y-4">
                                   <div>
                                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Pré-Requisito</span>
-                                    <p className="text-slate-800 mt-1">{testCaseDetails?.preRequisite || '-'}</p>
+                                    <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.preRequisite || '-'}</p>
                                   </div>
                                   <div className="w-full h-px bg-slate-100"></div>
                                   <div>
-                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Condição</span>
-                                    <p className="text-slate-800 mt-1">{testCaseDetails?.condition || '-'}</p>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Descrição do Teste</span>
+                                    <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.condition || '-'}</p>
                                   </div>
                                 </div>
 

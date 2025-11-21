@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 
 interface TestScenarioWizardProps {
@@ -23,6 +23,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   const [isOpen, setIsOpen] = useState(false);
   const [currentScenarioNum, setCurrentScenarioNum] = useState(1);
   const [caseNumOverride, setCaseNumOverride] = useState<number | null>(null);
+  const [isPreReqExpanded, setIsPreReqExpanded] = useState(false);
 
   const [formData, setFormData] = useState<Partial<TestCaseDetails>>({
     caseId: generateCaseId(),
@@ -31,8 +32,11 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     objective: '',
     preRequisite: '',
     condition: '',
-    expectedResult: ''
+    expectedResult: '',
+    failureReason: ''
   });
+  
+  const [preReqInput, setPreReqInput] = useState('');
 
   const [isTestStarted, setIsTestStarted] = useState(false);
   const [steps, setSteps] = useState<TestStep[]>([]);
@@ -61,10 +65,12 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
           preRequisite: '',
           condition: '',
           expectedResult: '',
-          result: 'Sucesso'
+          result: 'Sucesso',
+          failureReason: ''
         }));
         setSteps([]);
         setIsTestStarted(false);
+        setPreReqInput('');
       }
     }
   }, [wizardTrigger]);
@@ -84,14 +90,42 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
       objective: '',
       preRequisite: '',
       condition: '',
-      expectedResult: ''
+      expectedResult: '',
+      failureReason: ''
     });
     setSteps([]);
     setIsTestStarted(false);
+    setPreReqInput('');
+    setIsPreReqExpanded(false);
   };
 
   const handleInputChange = (field: keyof TestCaseDetails, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Helper to manage pre-requisite list
+  const preReqList = formData.preRequisite ? formData.preRequisite.split('\n').filter(Boolean) : [];
+  const maxVisiblePreReqs = 3;
+  const visiblePreReqs = isPreReqExpanded ? preReqList : preReqList.slice(0, maxVisiblePreReqs);
+  const hiddenCount = Math.max(0, preReqList.length - maxVisiblePreReqs);
+
+  const handleAddPreReq = () => {
+    if (!preReqInput.trim()) return;
+    const newList = [...preReqList, preReqInput.trim()];
+    handleInputChange('preRequisite', newList.join('\n'));
+    setPreReqInput('');
+  };
+
+  const handleRemovePreReq = (index: number) => {
+    const newList = preReqList.filter((_, i) => i !== index);
+    handleInputChange('preRequisite', newList.join('\n'));
+  };
+
+  const handlePreReqKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddPreReq();
+    }
   };
 
   const handleStartTest = () => {
@@ -159,13 +193,15 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         preRequisite: formData.preRequisite || 'N/A',
         condition: formData.condition || 'N/A',
         expectedResult: formData.expectedResult || 'N/A',
+        // Only save failure reason if result is NOT Success
+        failureReason: (formData.result !== 'Sucesso' ? formData.failureReason : undefined),
         steps: steps.length > 0 ? steps : undefined
     };
 
     let status = TestStatus.PASS;
     let severity = Severity.LOW;
     
-    if (testDetails.result === 'Fracassou') {
+    if (testDetails.result === 'Fracasso') {
         status = TestStatus.FAIL;
         severity = Severity.HIGH;
     } else if (testDetails.result === 'Impedimento') {
@@ -292,8 +328,9 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
                 {/* Form Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
+                    {/* Row 1: Tela de Teste */}
                     <div className="md:col-span-2">
-                        <label className={labelClass}>Tela de Teste / Contexto</label>
+                        <label className={labelClass}>Tela de Teste</label>
                         <div className="relative">
                             <Monitor className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                             <input 
@@ -301,12 +338,13 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                                 value={formData.screen}
                                 onChange={(e) => handleInputChange('screen', e.target.value)}
                                 className={`${inputClass} pl-10`}
-                                placeholder="Ex: Tela de Login, Checkout, Dashboard..."
+                                placeholder="Aprovação, Prestação de Contas, Cliente..."
                             />
                         </div>
                     </div>
 
-                    <div className="md:col-span-2">
+                    {/* Row 2: Objetivo & Pré-Requisito */}
+                    <div>
                         <label className={labelClass}>Objetivo / Funcionalidade</label>
                         <textarea 
                             rows={3}
@@ -317,36 +355,83 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                         />
                     </div>
 
-                    <div>
+                    <div className="flex flex-col gap-2">
                         <label className={labelClass}>Pré-Requisito</label>
-                        <input 
-                            type="text"
-                            value={formData.preRequisite}
-                            onChange={(e) => handleInputChange('preRequisite', e.target.value)}
-                            className={inputClass}
-                            placeholder="Ex: Usuário logado"
-                        />
+                        <div className="flex gap-2">
+                            <input 
+                                type="text"
+                                value={preReqInput}
+                                onChange={(e) => setPreReqInput(e.target.value)}
+                                onKeyDown={handlePreReqKeyDown}
+                                className={inputClass}
+                                placeholder="Ex: Ativar Preferencia, Ativar Dicionários"
+                            />
+                            <button 
+                                type="button" 
+                                onClick={handleAddPreReq}
+                                className="bg-indigo-50 text-indigo-600 px-3 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {preReqList.length > 0 && (
+                            <div className="mt-1 p-2 bg-slate-50 rounded-lg border border-slate-100 transition-all">
+                                <div className="flex flex-wrap gap-2">
+                                    {visiblePreReqs.map((req, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-slate-200 text-xs font-medium text-slate-700 shadow-sm animate-fade-in">
+                                            <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0"></span>
+                                            <span className="max-w-[150px] truncate" title={req}>{req}</span>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleRemovePreReq(idx)}
+                                                className="text-slate-400 hover:text-red-500 ml-1 flex-shrink-0"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                {preReqList.length > maxVisiblePreReqs && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsPreReqExpanded(!isPreReqExpanded)}
+                                        className="w-full flex items-center justify-center gap-1 mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-indigo-600 hover:bg-slate-100 py-1 rounded transition-colors"
+                                    >
+                                        {isPreReqExpanded ? (
+                                            <>Mostrar menos <ChevronUp className="w-3 h-3" /></>
+                                        ) : (
+                                            <>Ver mais {hiddenCount} itens <ChevronDown className="w-3 h-3" /></>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
+                    {/* Row 3: Descrição & Resultado Esperado */}
                     <div>
-                        <label className={labelClass}>Condição</label>
-                        <input 
-                            type="text"
+                        <label className={labelClass}>Descrição do Teste</label>
+                        <textarea 
+                            rows={4}
                             value={formData.condition}
                             onChange={(e) => handleInputChange('condition', e.target.value)}
                             className={inputClass}
-                            placeholder="Ex: Dados válidos"
+                            placeholder={`DADO que estou na tela de Aprovação;
+QUANDO acesso uma solicitação;
+E seleciono um item;
+E seleciono a opção Aprovar;`}
                         />
                     </div>
 
-                    <div className="md:col-span-2">
-                        <label className={labelClass}>Resultado Esperado</label>
+                    <div>
+                        <label className={labelClass}>Resultado Esperado / Critério de Aceitação</label>
                         <textarea 
-                            rows={3}
+                            rows={4}
                             value={formData.expectedResult}
                             onChange={(e) => handleInputChange('expectedResult', e.target.value)}
                             className={inputClass}
-                            placeholder="O que deve acontecer ao final?"
+                            placeholder="Ex: ENTÃO o item deve ser aprovado com sucesso"
                         />
                     </div>
                 </div>
@@ -440,7 +525,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                 <div className="md:col-span-2 pt-6 border-t border-slate-100">
                         <label className={labelClass}>Resultado Final do Caso</label>
                         <div className="flex gap-4">
-                            {['Sucesso', 'Fracassou', 'Impedimento'].map((res) => (
+                            {['Sucesso', 'Fracasso', 'Impedimento'].map((res) => (
                                 <button
                                     key={res}
                                     type="button"
@@ -448,19 +533,36 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                                     className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
                                         formData.result === res 
                                         ? res === 'Sucesso' ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-200 ring-2 ring-emerald-100'
-                                        : res === 'Fracassou' ? 'bg-red-600 text-white border-red-600 shadow-red-200 ring-2 ring-red-100'
+                                        : res === 'Fracasso' ? 'bg-red-600 text-white border-red-600 shadow-red-200 ring-2 ring-red-100'
                                         : 'bg-amber-500 text-white border-amber-500 shadow-amber-200 ring-2 ring-amber-100'
                                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
                                     {res === 'Sucesso' && <CheckCircle className="w-4 h-4" />}
-                                    {res === 'Fracassou' && <XCircle className="w-4 h-4" />}
+                                    {res === 'Fracasso' && <XCircle className="w-4 h-4" />}
                                     {res === 'Impedimento' && <AlertTriangle className="w-4 h-4" />}
                                     {res}
                                 </button>
                             ))}
                         </div>
                     </div>
+
+                    {/* Reason Field (Conditional) */}
+                    {(formData.result === 'Fracasso' || formData.result === 'Impedimento') && (
+                         <div className="md:col-span-2 mt-4 animate-fade-in">
+                            <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider ml-1 flex items-center gap-1">
+                                 <AlertTriangle className="w-3 h-3 text-red-500" />
+                                 Informe o motivo do {formData.result}
+                            </label>
+                            <textarea
+                                rows={2}
+                                value={formData.failureReason || ''}
+                                onChange={(e) => handleInputChange('failureReason', e.target.value)}
+                                className={`${inputClass} border-red-200 bg-red-50/30 focus:border-red-500 focus:ring-red-200`}
+                                placeholder="Descreva o motivo..."
+                            />
+                         </div>
+                    )}
 
             </div>
         </div>

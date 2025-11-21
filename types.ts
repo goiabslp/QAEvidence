@@ -1,4 +1,5 @@
 
+
 export enum TestStatus {
   PASS = 'PASS',
   FAIL = 'FAIL',
@@ -41,11 +42,12 @@ export interface TestCaseDetails {
   caseNumber: number;
   caseId: string; // Gerado automaticamente
   screen: string;
-  result: 'Sucesso' | 'Fracassou' | 'Impedimento';
+  result: 'Sucesso' | 'Fracasso' | 'Impedimento';
   objective: string;
   preRequisite: string;
   condition: string;
   expectedResult: string;
+  failureReason?: string;
   steps?: TestStep[];
 }
 

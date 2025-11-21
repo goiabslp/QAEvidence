@@ -4,7 +4,7 @@ import Footer from './components/Footer';
 import EvidenceForm from './components/EvidenceForm';
 import EvidenceList from './components/EvidenceList';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket } from './types';
-import { FileCheck, AlertTriangle, Archive, RefreshCw, Calendar, Edit3, ArrowRight, X, User } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, RefreshCw, Calendar, Edit3, ArrowRight, X, User, CheckCheck, FileText } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -27,6 +27,8 @@ const App: React.FC = () => {
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false); // New state for PDF modal
+  
   const reportRef = useRef<HTMLDivElement>(null);
   
   const [wizardTrigger, setWizardTrigger] = useState<WizardTriggerContext | null>(null);
@@ -101,12 +103,10 @@ const App: React.FC = () => {
   };
 
   const handleCancelEdit = () => {
-    if (evidences.length > 0 || editingHistoryId) {
-        const confirmMessage = editingHistoryId 
-            ? 'Deseja cancelar a edição? As alterações não salvas serão perdidas.'
-            : 'Tem certeza que deseja limpar todos os dados e cancelar este registro?';
-            
-        if (!confirm(confirmMessage)) return;
+    if (!editingHistoryId && evidences.length > 0) {
+        if (!window.confirm('Tem certeza que deseja limpar todos os dados e cancelar este registro?')) {
+            return;
+        }
     }
     
     setEvidences([]);
@@ -146,8 +146,17 @@ const App: React.FC = () => {
         return;
     }
     
-    setIsGeneratingPdf(true);
+    // Show confirmation modal instead of executing immediately
+    setShowPdfModal(true);
+  };
 
+  const executePdfGeneration = () => {
+    if (!reportRef.current) return;
+
+    setShowPdfModal(false);
+    setIsGeneratingPdf(true);
+    
+    const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
     const ticketTitle = masterTicketInfo.ticketTitle;
     const safeFilename = ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
 
@@ -215,6 +224,15 @@ const App: React.FC = () => {
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Helper to get current ticket info for modal display
+  const getCurrentTicketInfo = () => {
+    if (evidences.length > 0) return evidences[0].ticketInfo;
+    if (formTicketInfoRef.current) return formTicketInfoRef.current;
+    return null;
+  };
+  
+  const modalTicketInfo = getCurrentTicketInfo();
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
@@ -308,7 +326,11 @@ const App: React.FC = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {ticketHistory.map((ticket) => (
-                <div key={ticket.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group">
+                <div 
+                  key={ticket.id} 
+                  onClick={() => handleOpenArchivedTicket(ticket)}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-100"
+                >
                   <div className="p-6 flex-1">
                     <div className="flex justify-between items-start mb-4">
                       <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
@@ -337,7 +359,7 @@ const App: React.FC = () => {
                   
                   <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between items-center group-hover:bg-indigo-50/30 transition-colors">
                     <button 
-                       onClick={() => handleOpenArchivedTicket(ticket)}
+                       type="button"
                        className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-2 transition-colors"
                     >
                       <Edit3 className="w-4 h-4" /> Abrir e Editar
@@ -352,6 +374,88 @@ const App: React.FC = () => {
 
       </main>
       <Footer />
+
+      {/* PDF FINALIZATION CONFIRMATION MODAL */}
+      {showPdfModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-fade-in">
+          <div 
+            className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowPdfModal(false)}
+          ></div>
+          
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-0 overflow-hidden transform transition-all scale-100 border border-slate-100">
+             
+             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <CheckCheck className="w-32 h-32 transform rotate-12 translate-x-8 -translate-y-8" />
+                </div>
+                <div className="flex items-center gap-4 relative z-10">
+                    <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+                        <CheckCheck className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-bold leading-tight">Finalizar Chamado</h3>
+                        <p className="text-emerald-100 text-sm font-medium">Confirme os dados para geração do PDF</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => setShowPdfModal(false)}
+                    className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1 transition-colors"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+             </div>
+
+             <div className="p-8">
+                 <div className="flex flex-col gap-6">
+                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-5 space-y-4">
+                        <div className="flex items-start gap-3">
+                            <FileText className="w-5 h-5 text-slate-400 mt-0.5" />
+                            <div>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Chamado & Título</span>
+                                <p className="font-bold text-slate-800 text-lg leading-tight">
+                                    <span className="text-indigo-600 mr-2">{modalTicketInfo?.ticketId}</span> 
+                                    {modalTicketInfo?.ticketTitle}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="w-full h-px bg-slate-200/50"></div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Evidências</span>
+                                <p className="font-medium text-slate-700">{evidences.length} registros</p>
+                            </div>
+                            <div>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Analista</span>
+                                <p className="font-medium text-slate-700">{modalTicketInfo?.analyst}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p className="text-sm text-slate-500 text-center px-4">
+                        Ao confirmar, o documento PDF será gerado automaticamente e o registro será salvo no histórico local.
+                    </p>
+
+                    <div className="flex gap-3 mt-2">
+                        <button 
+                        onClick={() => setShowPdfModal(false)}
+                        className="flex-1 px-4 py-3.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+                        >
+                        Voltar e Editar
+                        </button>
+                        <button 
+                        onClick={executePdfGeneration}
+                        className="flex-1 px-4 py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg hover:shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                        >
+                        <CheckCheck className="w-5 h-5" />
+                        Gerar Documento
+                        </button>
+                    </div>
+                 </div>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

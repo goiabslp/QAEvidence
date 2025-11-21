@@ -490,7 +490,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                                 <p className="text-slate-800">{details.preRequisite || 'N/A'}</p>
                                              </div>
                                              <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                                <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Condição</span>
+                                                <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Descrição do Teste</span>
                                                 <p className="text-slate-800">{details.condition || 'N/A'}</p>
                                              </div>
                                              <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 shadow-sm">
