@@ -236,7 +236,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                         {isCaseOpen && (
                           <div className="px-12 pb-8 pt-2 bg-slate-50/30 text-sm animate-fade-in border-b border-slate-100">
                              {/* NEW: Failure Reason Display */}
-                             {testCaseDetails?.failureReason && (testCaseDetails.result === 'Fracasso' || testCaseDetails.result === 'Impedimento') && (
+                             {testCaseDetails?.failureReason && (testCaseDetails.result === 'Falha' || testCaseDetails.result === 'Impedimento') && (
                                 <div className={`mb-6 p-4 rounded-xl border ${
                                     evidence.status === TestStatus.FAIL 
                                     ? 'bg-red-50 border-red-100 text-red-900' 

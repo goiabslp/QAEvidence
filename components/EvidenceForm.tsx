@@ -471,7 +471,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                           {item.status === TestStatus.FAIL && <XCircle className="w-3 h-3 mr-1" />}
                                           {item.status === TestStatus.BLOCKED && <AlertCircle className="w-3 h-3 mr-1" />}
                                           {item.status === TestStatus.SKIPPED && <MinusCircle className="w-3 h-3 mr-1" />}
-                                          {item.status === 'PASS' ? 'Aprovado' : item.status === 'FAIL' ? 'Falhou' : item.status === 'BLOCKED' ? 'Bloqueado' : 'Pulado'}
+                                          {item.status === 'PASS' ? 'Sucesso' : item.status === 'FAIL' ? 'Falha' : item.status === 'BLOCKED' ? 'Impedimento' : 'Pulado'}
                                        </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">

@@ -230,8 +230,8 @@ const App: React.FC = () => {
     const hasFailure = items.some(i => i.status === TestStatus.FAIL);
     const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
     
-    if (hasFailure) return { label: 'Falhou', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle };
-    if (hasBlocker) return { label: 'Bloqueado', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: AlertCircle };
+    if (hasFailure) return { label: 'Falha', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle };
+    if (hasBlocker) return { label: 'Impedimento', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: AlertCircle };
     return { label: 'Sucesso', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 };
   };
 

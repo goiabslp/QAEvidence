@@ -217,7 +217,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     let status = TestStatus.PASS;
     let severity = Severity.LOW;
     
-    if (testDetails.result === 'Fracasso') {
+    if (testDetails.result === 'Falha') {
         status = TestStatus.FAIL;
         severity = Severity.HIGH;
     } else if (testDetails.result === 'Impedimento') {
@@ -554,7 +554,7 @@ E seleciono a opção Aprovar;`}
                 <div className="md:col-span-2 pt-6 border-t border-slate-100">
                         <label className={labelClass}>Resultado Final do Caso</label>
                         <div className="flex gap-4">
-                            {['Sucesso', 'Fracasso', 'Impedimento'].map((res) => (
+                            {['Sucesso', 'Falha', 'Impedimento'].map((res) => (
                                 <button
                                     key={res}
                                     type="button"
@@ -562,13 +562,13 @@ E seleciono a opção Aprovar;`}
                                     className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
                                         formData.result === res 
                                         ? res === 'Sucesso' ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-200 ring-2 ring-emerald-100'
-                                        : res === 'Fracasso' ? 'bg-red-600 text-white border-red-600 shadow-red-200 ring-2 ring-red-100'
+                                        : res === 'Falha' ? 'bg-red-600 text-white border-red-600 shadow-red-200 ring-2 ring-red-100'
                                         : 'bg-amber-500 text-white border-amber-500 shadow-amber-200 ring-2 ring-amber-100'
                                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
                                     {res === 'Sucesso' && <CheckCircle className="w-4 h-4" />}
-                                    {res === 'Fracasso' && <XCircle className="w-4 h-4" />}
+                                    {res === 'Falha' && <XCircle className="w-4 h-4" />}
                                     {res === 'Impedimento' && <AlertTriangle className="w-4 h-4" />}
                                     {res}
                                 </button>
@@ -577,7 +577,7 @@ E seleciono a opção Aprovar;`}
                     </div>
 
                     {/* Reason Field (Conditional) */}
-                    {(formData.result === 'Fracasso' || formData.result === 'Impedimento') && (
+                    {(formData.result === 'Falha' || formData.result === 'Impedimento') && (
                          <div className="md:col-span-2 mt-4 animate-fade-in">
                             <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider ml-1 flex items-center gap-1">
                                  <AlertTriangle className="w-3 h-3 text-red-500" />

@@ -3,17 +3,17 @@ import { CheckCircle2, XCircle, AlertCircle, MinusCircle } from 'lucide-react';
 
 export const STATUS_CONFIG = {
   [TestStatus.PASS]: {
-    label: 'Aprovado',
+    label: 'Sucesso',
     color: 'bg-green-100 text-green-800 border-green-200',
     icon: CheckCircle2
   },
   [TestStatus.FAIL]: {
-    label: 'Falhou',
+    label: 'Falha',
     color: 'bg-red-100 text-red-800 border-red-200',
     icon: XCircle
   },
   [TestStatus.BLOCKED]: {
-    label: 'Bloqueado',
+    label: 'Impedimento',
     color: 'bg-orange-100 text-orange-800 border-orange-200',
     icon: AlertCircle
   },

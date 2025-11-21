@@ -42,7 +42,7 @@ export interface TestCaseDetails {
   caseNumber: number;
   caseId: string; // Gerado automaticamente
   screen: string;
-  result: 'Sucesso' | 'Fracasso' | 'Impedimento';
+  result: 'Sucesso' | 'Falha' | 'Impedimento';
   objective: string;
   preRequisite: string;
   condition: string;
