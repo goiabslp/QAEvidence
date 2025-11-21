@@ -1,0 +1,5 @@
+{
+  "name": "QA Evidence Tracker",
+  "description": "Uma aplicação profissional para gerenciamento e documentação de evidências de testes de QA, com suporte a análise de imagens via IA.",
+  "requestFramePermissions": []
+}
