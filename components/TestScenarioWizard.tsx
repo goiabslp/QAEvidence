@@ -4,7 +4,7 @@ import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pe
 import { WizardTriggerContext } from '../App';
 
 interface TestScenarioWizardProps {
-  onSave: (items: EvidenceItem[]) => void;
+  onSave: (items: Omit<EvidenceItem, 'createdBy'>[]) => void;
   baseTicketInfo?: TicketInfo;
   wizardTrigger?: WizardTriggerContext | null;
   onClearTrigger?: () => void;
@@ -250,7 +250,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
     const isEditMode = wizardTrigger?.mode === 'edit';
 
-    const newItem: EvidenceItem = {
+    const newItem: Omit<EvidenceItem, 'createdBy'> = {
         id: isEditMode && wizardTrigger?.evidenceId ? wizardTrigger.evidenceId : crypto.randomUUID(),
         title: `Cenário de Teste ${testDetails.scenarioNumber}: ${testDetails.screen}`,
         description: testDetails.objective, 

@@ -1,5 +1,4 @@
 
-
 export enum TestStatus {
   PASS = 'PASS',
   FAIL = 'FAIL',
@@ -12,6 +11,16 @@ export enum Severity {
   MEDIUM = 'MEDIUM',
   HIGH = 'HIGH',
   CRITICAL = 'CRITICAL'
+}
+
+export type UserRole = 'ADMIN' | 'USER';
+
+export interface User {
+  id: string;
+  acronym: string; // 3 letters
+  name: string;
+  password: string; // Simple storage for simulation
+  role: UserRole;
 }
 
 export interface TicketInfo {
@@ -64,6 +73,7 @@ export interface EvidenceItem {
   ticketInfo: TicketInfo;
   // Campos opcionais do fluxo de Cenário de Teste
   testCaseDetails?: TestCaseDetails;
+  createdBy: string; // User acronym
 }
 
 export interface ArchivedTicket {
@@ -71,6 +81,7 @@ export interface ArchivedTicket {
   ticketInfo: TicketInfo;
   items: EvidenceItem[];
   archivedAt: number;
+  createdBy: string; // User acronym
 }
 
 export interface AIAnalysisResult {

@@ -6,8 +6,8 @@ import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, Ch
 import { WizardTriggerContext } from '../App';
 
 interface EvidenceFormProps {
-  onSubmit: (evidence: Omit<EvidenceItem, 'id' | 'timestamp'>) => void;
-  onWizardSave: (items: EvidenceItem[]) => void;
+  onSubmit: (evidence: Omit<EvidenceItem, 'id' | 'timestamp' | 'createdBy'>) => void;
+  onWizardSave: (items: Omit<EvidenceItem, 'createdBy'>[]) => void;
   wizardTrigger?: WizardTriggerContext | null;
   onClearTrigger?: () => void;
   evidences?: EvidenceItem[];

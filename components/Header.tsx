@@ -1,7 +1,14 @@
-import React from 'react';
-import { ClipboardCheck, ShieldCheck } from 'lucide-react';
 
-const Header: React.FC = () => {
+import React from 'react';
+import { ClipboardCheck, LogOut, User as UserIcon, Shield } from 'lucide-react';
+import { User } from '../types';
+
+interface HeaderProps {
+  user?: User | null;
+  onLogout?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,10 +25,26 @@ const Header: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-300 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-              Sistema Operacional
-            </div>
+            {user && (
+              <div className="flex items-center gap-4">
+                 <div className="flex flex-col items-end mr-2">
+                    <span className="text-sm font-bold text-white leading-tight">{user.name}</span>
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 rounded border border-slate-700 flex items-center gap-1">
+                       {user.role === 'ADMIN' ? <Shield className="w-3 h-3 text-purple-400" /> : <UserIcon className="w-3 h-3 text-blue-400" />}
+                       {user.acronym}
+                    </span>
+                 </div>
+                 <div className="h-8 w-px bg-slate-700 mx-2"></div>
+                 <button 
+                    onClick={onLogout}
+                    className="flex items-center gap-2 text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-2 rounded-lg border border-red-500/20 transition-all"
+                    title="Sair do Sistema"
+                 >
+                    <LogOut className="w-4 h-4" />
+                    SAIR
+                 </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

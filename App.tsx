@@ -1,10 +1,13 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import EvidenceForm from './components/EvidenceForm';
 import EvidenceList from './components/EvidenceList';
-import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus } from './types';
-import { FileCheck, AlertTriangle, Archive, RefreshCw, Calendar, Edit3, ArrowRight, X, User, CheckCheck, FileText, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import Login from './components/Login';
+import UserManagement from './components/UserManagement';
+import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -18,6 +21,13 @@ export interface WizardTriggerContext {
 }
 
 const App: React.FC = () => {
+  // --- AUTHENTICATION & USER STATE ---
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [ticketHistory, setTicketHistory] = useState<ArchivedTicket[]>([]);
   
@@ -27,7 +37,7 @@ const App: React.FC = () => {
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const [showPdfModal, setShowPdfModal] = useState(false); // New state for PDF modal
+  const [showPdfModal, setShowPdfModal] = useState(false);
   
   const reportRef = useRef<HTMLDivElement>(null);
   
@@ -35,24 +45,125 @@ const App: React.FC = () => {
   
   const formTicketInfoRef = useRef<TicketInfo | null>(null);
 
-  const handleAddEvidence = (newEvidence: Omit<EvidenceItem, 'id' | 'timestamp'>) => {
+  // --- PERSISTENCE & INITIALIZATION ---
+  useEffect(() => {
+    // Load Users
+    const storedUsers = localStorage.getItem('narnia_users');
+    if (storedUsers) {
+      setUsers(JSON.parse(storedUsers));
+    } else {
+      // Seed default admins requested
+      const defaultAdmins: User[] = [
+        { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN' },
+        { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN' },
+        { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN' },
+        { id: 'admin-rfp', acronym: 'RFP', name: 'Renan', password: 'RFP', role: 'ADMIN' },
+        { id: 'admin-eds', acronym: 'EDS', name: 'Everton', password: 'EDS', role: 'ADMIN' },
+        { id: 'admin-yeb', acronym: 'YEB', name: 'Ygor', password: 'YEB', role: 'ADMIN' }
+      ];
+      setUsers(defaultAdmins);
+      localStorage.setItem('narnia_users', JSON.stringify(defaultAdmins));
+    }
+
+    // Load Tickets
+    const storedTickets = localStorage.getItem('narnia_tickets');
+    if (storedTickets) {
+      setTicketHistory(JSON.parse(storedTickets));
+    }
+  }, []);
+
+  // Save Users when changed
+  useEffect(() => {
+    if (users.length > 0) {
+      localStorage.setItem('narnia_users', JSON.stringify(users));
+    }
+  }, [users]);
+
+  // Save Tickets when changed
+  useEffect(() => {
+    if (ticketHistory.length > 0 || (ticketHistory.length === 0 && localStorage.getItem('narnia_tickets'))) {
+      localStorage.setItem('narnia_tickets', JSON.stringify(ticketHistory));
+    }
+  }, [ticketHistory]);
+
+
+  // --- AUTH HANDLERS ---
+  const handleLogin = (acronym: string, pass: string) => {
+    const user = users.find(u => u.acronym === acronym && u.password === pass);
+    if (user) {
+      setCurrentUser(user);
+      setLoginError(null);
+      // Reset form info to current user defaults
+      setEditingTicketInfo({
+         ...editingTicketInfo!,
+         analyst: user.name
+      });
+    } else {
+      setLoginError('Credenciais inválidas. Verifique sigla e senha.');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setEvidences([]); // Clear current workspace
+    setEditingTicketInfo(null);
+    setEditingHistoryId(null);
+    setShowAdminPanel(false);
+  };
+
+  const handleAddUser = (user: User) => {
+    setUsers([...users, user]);
+  };
+
+  const handleDeleteUser = (id: string) => {
+    if (confirm('Tem certeza que deseja remover este usuário?')) {
+       setUsers(users.filter(u => u.id !== id));
+    }
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+  };
+
+
+  // --- EVIDENCE HANDLERS ---
+
+  const handleAddEvidence = (newEvidence: Omit<EvidenceItem, 'id' | 'timestamp' | 'createdBy'>) => {
+    if (!currentUser) return;
+
     const item: EvidenceItem = {
       ...newEvidence,
       id: crypto.randomUUID(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      createdBy: currentUser.acronym,
+      ticketInfo: {
+        ...newEvidence.ticketInfo,
+        analyst: currentUser.name // Force analyst to be current user name
+      }
     };
     setEvidences([item, ...evidences]);
     setPdfError(null); 
   };
 
-  const handleWizardSave = (items: EvidenceItem[]) => {
+  const handleWizardSave = (items: Omit<EvidenceItem, 'createdBy'>[]) => {
+    if (!currentUser) return;
+
+    const itemsWithUser = items.map(item => ({
+        ...item,
+        createdBy: currentUser.acronym,
+        ticketInfo: {
+            ...item.ticketInfo,
+            analyst: currentUser.name
+        }
+    }));
+
     if (wizardTrigger?.mode === 'edit') {
-      const updatedItem = items[0]; 
+      const updatedItem = itemsWithUser[0]; 
       setEvidences(prevEvidences => 
         prevEvidences.map(ev => ev.id === updatedItem.id ? updatedItem : ev)
       );
     } else {
-      setEvidences([...items, ...evidences]);
+      setEvidences([...itemsWithUser, ...evidences]);
     }
     
     setWizardTrigger(null);
@@ -131,7 +242,7 @@ const App: React.FC = () => {
        { key: 'ticketId', label: 'Chamado (ID)' },
        { key: 'sprint', label: 'Sprint' },
        { key: 'requester', label: 'Solicitante' },
-       { key: 'analyst', label: 'Analista de Teste' },
+       // Analyst is auto-filled by system now, but good to check
        { key: 'ticketTitle', label: 'Título do Chamado' }
     ];
 
@@ -146,12 +257,11 @@ const App: React.FC = () => {
         return;
     }
     
-    // Show confirmation modal instead of executing immediately
     setShowPdfModal(true);
   };
 
   const executePdfGeneration = () => {
-    if (!reportRef.current) return;
+    if (!reportRef.current || !currentUser) return;
 
     setShowPdfModal(false);
     setIsGeneratingPdf(true);
@@ -172,7 +282,8 @@ const App: React.FC = () => {
     html2pdf().set(opt).from(reportRef.current).save().then(() => {
       const consistentEvidences = evidences.map(ev => ({
          ...ev,
-         ticketInfo: masterTicketInfo
+         ticketInfo: masterTicketInfo,
+         createdBy: currentUser.acronym
       }));
 
       if (editingHistoryId) {
@@ -182,7 +293,8 @@ const App: React.FC = () => {
                     ...t,
                     ticketInfo: masterTicketInfo,
                     items: consistentEvidences,
-                    archivedAt: Date.now()
+                    archivedAt: Date.now(),
+                    createdBy: currentUser.acronym
                 };
             }
             return t;
@@ -192,7 +304,8 @@ const App: React.FC = () => {
             id: crypto.randomUUID(),
             ticketInfo: masterTicketInfo,
             items: consistentEvidences,
-            archivedAt: Date.now()
+            archivedAt: Date.now(),
+            createdBy: currentUser.acronym
           };
           setTicketHistory(prev => [archivedTicket, ...prev]);
       }
@@ -225,7 +338,6 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Helper to determine ticket status based on items
   const getTicketAggregateStatus = (items: EvidenceItem[]) => {
     const hasFailure = items.some(i => i.status === TestStatus.FAIL);
     const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
@@ -235,7 +347,6 @@ const App: React.FC = () => {
     return { label: 'Sucesso', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 };
   };
 
-  // Helper to get current ticket info for modal display
   const getCurrentTicketInfo = () => {
     if (evidences.length > 0) return evidences[0].ticketInfo;
     if (formTicketInfoRef.current) return formTicketInfoRef.current;
@@ -244,191 +355,216 @@ const App: React.FC = () => {
   
   const modalTicketInfo = getCurrentTicketInfo();
 
+  // --- FILTERING FOR UI ---
+  // Admin sees ALL tickets. User sees ONLY their tickets.
+  const displayedHistory = currentUser?.role === 'ADMIN' 
+      ? ticketHistory 
+      : ticketHistory.filter(t => t.createdBy === currentUser?.acronym);
+
+  // --- RENDER ---
+
+  if (!currentUser) {
+     return <Login onLogin={handleLogin} error={loginError} />;
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <Header />
+      <Header user={currentUser} onLogout={handleLogout} />
       
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
-        {/* Main Content */}
-        <div className="space-y-10 pb-8" ref={reportRef}>
-          <EvidenceForm 
-            key={formKey}
-            onSubmit={handleAddEvidence} 
-            onWizardSave={handleWizardSave}
-            wizardTrigger={wizardTrigger}
-            onClearTrigger={() => setWizardTrigger(null)}
-            evidences={evidences}
-            initialTicketInfo={editingTicketInfo}
-            onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
-          />
-          
-          <div>
-             {evidences.length > 0 && (
-                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-3">
-                   <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
-                   Cenário de Teste do Chamado
-                </h3>
-             )}
-            <EvidenceList 
-              evidences={evidences} 
-              onDelete={handleDeleteEvidence} 
-              onAddCase={handleAddCase}
-              onEditCase={handleEditCase}
+        {/* Admin Panel Toggle */}
+        {currentUser.role === 'ADMIN' && (
+            <div className="mb-8 flex justify-end">
+                <button 
+                    onClick={() => setShowAdminPanel(!showAdminPanel)}
+                    className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm"
+                >
+                    <ShieldCheck className="w-4 h-4" />
+                    {showAdminPanel ? 'Ocultar Painel Admin' : 'Gerenciar Usuários'}
+                </button>
+            </div>
+        )}
+
+        {showAdminPanel && currentUser.role === 'ADMIN' ? (
+            <UserManagement 
+                users={users} 
+                onAddUser={handleAddUser} 
+                onDeleteUser={handleDeleteUser}
+                onUpdateUser={handleUpdateUser}
+                currentUserId={currentUser.id}
             />
-          </div>
-        </div>
+        ) : (
+            <>
+                {/* Main Evidence Form Content */}
+                <div className="space-y-10 pb-8" ref={reportRef}>
+                <EvidenceForm 
+                    key={formKey}
+                    onSubmit={handleAddEvidence} 
+                    onWizardSave={handleWizardSave}
+                    wizardTrigger={wizardTrigger}
+                    onClearTrigger={() => setWizardTrigger(null)}
+                    evidences={evidences}
+                    initialTicketInfo={editingTicketInfo || (currentUser ? { analyst: currentUser.name } as TicketInfo : null)}
+                    onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
+                />
+                
+                <div>
+                    {evidences.length > 0 && (
+                        <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-3">
+                        <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                        Cenário de Teste do Chamado
+                        </h3>
+                    )}
+                    <EvidenceList 
+                    evidences={evidences} 
+                    onDelete={handleDeleteEvidence} 
+                    onAddCase={handleAddCase}
+                    onEditCase={handleEditCase}
+                    />
+                </div>
+                </div>
 
-        {/* Action Buttons */}
-        <div className="mt-12 border-t border-slate-200 pt-8 flex flex-col items-center">
-           {pdfError && (
-             <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-5 py-3 rounded-xl flex items-start gap-3 animate-shake max-w-xl shadow-sm">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
-                <span className="text-sm font-semibold">{pdfError}</span>
-             </div>
-           )}
+                {/* Action Buttons */}
+                <div className="mt-12 border-t border-slate-200 pt-8 flex flex-col items-center">
+                {pdfError && (
+                    <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-5 py-3 rounded-xl flex items-start gap-3 animate-shake max-w-xl shadow-sm">
+                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
+                        <span className="text-sm font-semibold">{pdfError}</span>
+                    </div>
+                )}
 
-           <div className="flex gap-4">
-               {editingHistoryId && (
-                   <button
-                      onClick={handleCancelEdit}
-                      disabled={isGeneratingPdf}
-                      className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all"
-                   >
-                      <X className="w-5 h-5" />
-                      <span>Cancelar Edição</span>
-                   </button>
-               )}
+                <div className="flex gap-4">
+                    {editingHistoryId && (
+                        <button
+                            onClick={handleCancelEdit}
+                            disabled={isGeneratingPdf}
+                            className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all"
+                        >
+                            <X className="w-5 h-5" />
+                            <span>Cancelar Edição</span>
+                        </button>
+                    )}
 
-               <button
-                  onClick={handleCloseAndGeneratePDF}
-                  disabled={evidences.length === 0 || isGeneratingPdf}
-                  className={`flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0 ${
-                     evidences.length === 0 || isGeneratingPdf
-                     ? 'bg-slate-400 cursor-not-allowed shadow-none' 
-                     : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 hover:shadow-emerald-200'
-                  }`}
-               >
-                  {isGeneratingPdf ? (
-                     <>
-                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                       {editingHistoryId ? 'Atualizando...' : 'Gerando PDF...'}
-                     </>
-                  ) : (
-                     <>
-                       <FileCheck className="w-5 h-5" />
-                       <span>{editingHistoryId ? 'Salvar Edição e Gerar PDF' : 'Fechar Evidência e Gerar PDF'}</span>
-                     </>
-                  )}
-               </button>
-           </div>
-        </div>
+                    <button
+                        onClick={handleCloseAndGeneratePDF}
+                        disabled={evidences.length === 0 || isGeneratingPdf}
+                        className={`flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0 ${
+                            evidences.length === 0 || isGeneratingPdf
+                            ? 'bg-slate-400 cursor-not-allowed shadow-none' 
+                            : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 hover:shadow-emerald-200'
+                        }`}
+                    >
+                        {isGeneratingPdf ? (
+                            <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            {editingHistoryId ? 'Atualizando...' : 'Gerando PDF...'}
+                            </>
+                        ) : (
+                            <>
+                            <FileCheck className="w-5 h-5" />
+                            <span>{editingHistoryId ? 'Salvar Edição e Gerar PDF' : 'Fechar Evidência e Gerar PDF'}</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+                </div>
 
-        {/* HISTÓRICO */}
-        {ticketHistory.length > 0 && (
-          <div className="mt-20 pt-10 border-t-2 border-dashed border-slate-200">
-            <h2 className="text-2xl font-bold text-slate-800 mb-8 flex items-center gap-3">
-              <div className="bg-slate-200 p-2 rounded-lg">
-                 <Archive className="w-6 h-6 text-slate-600" />
-              </div>
-              Histórico de Evidências
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ticketHistory.map((ticket) => {
-                const status = getTicketAggregateStatus(ticket.items);
-                const uniqueScenarios = new Set(ticket.items.map(i => i.testCaseDetails?.scenarioNumber)).size;
-                const caseIds = ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean);
-                const displayDate = ticket.ticketInfo.evidenceDate 
-                    ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
-                    : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
-
-                return (
-                  <div 
-                    key={ticket.id} 
-                    onClick={() => handleOpenArchivedTicket(ticket)}
-                    className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-100 relative"
-                  >
-                    <div className="p-5 flex-1">
-                       {/* Header: Status & Date */}
-                       <div className="flex justify-between items-start mb-4">
-                          <div className="flex flex-col">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Data da Evidência</span>
-                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 w-fit">
-                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                {displayDate}
-                             </div>
-                          </div>
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${status.color}`}>
-                            <status.icon className="w-3 h-3 mr-1.5" />
-                            {status.label}
-                          </span>
-                       </div>
-                       
-                       {/* Ticket Info */}
-                       <div className="mb-5">
-                          <div className="flex items-center gap-2 mb-2">
-                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                {ticket.ticketInfo.ticketId}
-                             </span>
-                          </div>
-                          <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors" title={ticket.ticketInfo.ticketTitle}>
-                             {ticket.ticketInfo.ticketTitle}
-                          </h3>
-                       </div>
-
-                       {/* Stats Grid */}
-                       <div className="grid grid-cols-2 gap-3 mb-5">
-                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
-                             <Layers className="w-4 h-4 text-slate-400 mb-1" />
-                             <span className="text-lg font-bold text-slate-700">{uniqueScenarios}</span>
-                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Cenários</span>
-                          </div>
-                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
-                             <ListChecks className="w-4 h-4 text-slate-400 mb-1" />
-                             <span className="text-lg font-bold text-slate-700">{ticket.items.length}</span>
-                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Casos</span>
-                          </div>
-                       </div>
-
-                       {/* Analyst */}
-                       <div className="flex items-center gap-3 py-3 border-t border-dashed border-slate-200">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 border border-white shadow-sm">
-                             <User className="w-4 h-4" />
-                          </div>
-                          <div className="flex flex-col">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase">Analista</span>
-                             <span className="text-xs font-semibold text-slate-700">{ticket.ticketInfo.analyst || 'N/A'}</span>
-                          </div>
-                       </div>
-
-                       {/* Case IDs */}
-                       {caseIds.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-slate-100">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">IDs dos Casos</span>
-                             <div className="flex flex-wrap gap-1.5">
-                                {caseIds.slice(0, 4).map((id, idx) => (
-                                   <span key={`${id}-${idx}`} className="inline-block px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-mono font-medium text-slate-500">
-                                      {id}
-                                   </span>
-                                ))}
-                                {caseIds.length > 4 && (
-                                   <span className="inline-block px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-500">
-                                      +{caseIds.length - 4}
-                                   </span>
-                                )}
-                             </div>
-                          </div>
-                       )}
+                {/* HISTÓRICO */}
+                {displayedHistory.length > 0 && (
+                <div className="mt-20 pt-10 border-t-2 border-dashed border-slate-200">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                            <div className="bg-slate-200 p-2 rounded-lg">
+                                <Archive className="w-6 h-6 text-slate-600" />
+                            </div>
+                            Histórico de Evidências {currentUser.role === 'ADMIN' ? '(Geral)' : '(Meus)'}
+                        </h2>
                     </div>
                     
-                    {/* Hover Effect Overlay */}
-                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayedHistory.map((ticket) => {
+                        const status = getTicketAggregateStatus(ticket.items);
+                        const uniqueScenarios = new Set(ticket.items.map(i => i.testCaseDetails?.scenarioNumber)).size;
+                        const caseIds = ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean);
+                        const displayDate = ticket.ticketInfo.evidenceDate 
+                            ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
+                            : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
+
+                        return (
+                        <div 
+                            key={ticket.id} 
+                            onClick={() => handleOpenArchivedTicket(ticket)}
+                            className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-100 relative"
+                        >
+                            <div className="p-5 flex-1">
+                            {/* Header: Status & Date */}
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Data da Evidência</span>
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 w-fit">
+                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                        {displayDate}
+                                    </div>
+                                </div>
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${status.color}`}>
+                                    <status.icon className="w-3 h-3 mr-1.5" />
+                                    {status.label}
+                                </span>
+                            </div>
+                            
+                            {/* Ticket Info */}
+                            <div className="mb-5">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                        {ticket.ticketInfo.ticketId}
+                                    </span>
+                                    {currentUser.role === 'ADMIN' && ticket.createdBy && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                            <UserIcon className="w-3 h-3 mr-1" /> {ticket.createdBy}
+                                        </span>
+                                    )}
+                                </div>
+                                <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors" title={ticket.ticketInfo.ticketTitle}>
+                                    {ticket.ticketInfo.ticketTitle}
+                                </h3>
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-3 mb-5">
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
+                                    <Layers className="w-4 h-4 text-slate-400 mb-1" />
+                                    <span className="text-lg font-bold text-slate-700">{uniqueScenarios}</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Cenários</span>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
+                                    <ListChecks className="w-4 h-4 text-slate-400 mb-1" />
+                                    <span className="text-lg font-bold text-slate-700">{ticket.items.length}</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Casos</span>
+                                </div>
+                            </div>
+
+                            {/* Analyst */}
+                            <div className="flex items-center gap-3 py-3 border-t border-dashed border-slate-200">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 border border-white shadow-sm">
+                                    <UserIcon className="w-4 h-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Analista</span>
+                                    <span className="text-xs font-semibold text-slate-700">{ticket.ticketInfo.analyst || 'N/A'}</span>
+                                </div>
+                            </div>
+                            </div>
+                            
+                            {/* Hover Effect Overlay */}
+                            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+                        </div>
+                        );
+                    })}
+                    </div>
+                </div>
+                )}
+            </>
         )}
 
       </main>
