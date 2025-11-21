@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { EvidenceItem, TestStatus } from '../types';
 import { STATUS_CONFIG, SEVERITY_COLORS } from '../constants';
@@ -11,7 +10,6 @@ interface EvidenceListProps {
   onEditCase?: (id: string) => void;
 }
 
-// Interface auxiliar para o agrupamento
 interface ScenarioGroup {
   type: 'scenario';
   scenarioNumber: number;
@@ -27,13 +25,9 @@ interface ManualItem {
 type GroupedItem = ScenarioGroup | ManualItem;
 
 const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddCase, onEditCase }) => {
-  // Controla quais Scenarios (Grupos) estão abertos
   const [expandedScenarios, setExpandedScenarios] = useState<Set<number>>(new Set());
-  
-  // Controla quais Casos (Detalhes) estão abertos
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
 
-  // Agrupamento inteligente das evidências
   const groupedEvidences = useMemo(() => {
     const groups: GroupedItem[] = [];
     const scenarioMap = new Map<number, ScenarioGroup>();
@@ -57,7 +51,6 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
       }
     });
 
-    // Ordena os grupos: Cenários primeiro (ordenados pelo ID), depois manuais
     groups.sort((a, b) => {
         if (a.type === 'scenario' && b.type === 'scenario') {
             return a.scenarioNumber - b.scenarioNumber;
@@ -67,7 +60,6 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
         return 0;
     });
 
-    // Ordena os casos dentro dos grupos
     groups.forEach(g => {
       if (g.type === 'scenario') {
         g.items.sort((a, b) => (a.testCaseDetails?.caseNumber || 0) - (b.testCaseDetails?.caseNumber || 0));
@@ -99,61 +91,55 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
 
   if (evidences.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300 shadow-sm">
-        <div className="mx-auto h-12 w-12 text-gray-400">
-          <Layers className="w-12 h-12" />
+      <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+        <div className="mx-auto h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+          <Layers className="w-8 h-8 text-slate-300" />
         </div>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma evidência registrada</h3>
-        <p className="mt-1 text-sm text-gray-500">Preencha o formulário ou use o Assistente de Cenários.</p>
+        <h3 className="text-lg font-medium text-slate-900">Nenhuma evidência registrada</h3>
+        <p className="mt-2 text-slate-500 max-w-sm mx-auto">Utilize o formulário acima para registrar casos de teste ou evidências manuais.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {groupedEvidences.map((group, index) => {
+    <div className="flex flex-col gap-8">
+      {groupedEvidences.map((group) => {
         
-        // --- RENDERIZAÇÃO DE CENÁRIO AGRUPADO (CASCATA) ---
         if (group.type === 'scenario') {
           const isScenarioOpen = expandedScenarios.has(group.scenarioNumber);
-          const firstItem = group.items[0]; // Usado para pegar infos gerais do ticket
+          const firstItem = group.items[0];
           
           return (
-            <div key={`scenario-${group.scenarioNumber}`} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+            <div key={`scenario-${group.scenarioNumber}`} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
               
-              {/* Header do Cenário (Pai) */}
+              {/* Header do Cenário */}
               <div 
-                className="bg-gray-50 p-4 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer border-b border-gray-100 gap-4"
+                className="bg-gradient-to-r from-slate-50 to-white p-5 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer border-b border-slate-100 gap-4"
                 onClick={() => toggleScenario(group.scenarioNumber)}
               >
-                <div className="flex items-start gap-3">
-                  <div className="bg-indigo-100 p-2 rounded-lg mt-1">
-                    <Layers className="w-5 h-5 text-indigo-600" />
+                <div className="flex items-start gap-4">
+                  <div className="bg-indigo-600 p-2.5 rounded-xl shadow-md shadow-indigo-200 mt-0.5">
+                    <Layers className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    {/* Título Padronizado */}
-                    <h3 className="text-base font-bold text-gray-900">
-                      Cenário de Teste #{group.scenarioNumber}
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Cenário #{group.scenarioNumber}
                     </h3>
                     
-                    {/* IDs em forma de TAG */}
                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                        {/* Contexto da Tela como primeira tag/label */}
-                        <span className="inline-flex items-center text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded border border-gray-200 mr-1">
-                           <Monitor className="w-3 h-3 mr-1.5" />
+                        <span className="inline-flex items-center text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 mr-1">
+                           <Monitor className="w-3 h-3 mr-1.5 text-slate-400" />
                            {group.screen}
                         </span>
 
-                        {/* Lista de IDs dos casos */}
                         {group.items.map((item) => (
                             <span 
                                 key={item.id} 
-                                className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium border shadow-sm ${
+                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border shadow-sm ${
                                     item.status === TestStatus.FAIL 
                                     ? 'bg-red-50 text-red-700 border-red-100' 
-                                    : 'bg-white text-gray-600 border-gray-200'
+                                    : 'bg-white text-slate-500 border-slate-200'
                                 }`}
-                                title={`Caso ${item.testCaseDetails?.caseNumber}: ${item.testCaseDetails?.objective}`}
                             >
                                 {item.testCaseDetails?.caseId}
                             </span>
@@ -162,68 +148,66 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pl-11 sm:pl-0">
+                <div className="flex items-center justify-end gap-3 pl-14 sm:pl-0">
                   {onAddCase && (
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Usa o ID do primeiro item como referência para clonar infos
                         onAddCase(firstItem.id);
                       }}
-                      className="flex items-center gap-1.5 text-xs bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg border border-gray-200 hover:border-indigo-200 transition-all shadow-sm font-medium mr-2 whitespace-nowrap"
+                      className="flex items-center gap-1.5 text-xs bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all shadow-sm font-bold uppercase tracking-wide mr-2"
                     >
                       <Plus className="w-3 h-3" />
-                      Novo Caso
+                      Adicionar Caso
                     </button>
                   )}
-                  <div className={`transform transition-transform duration-200 text-gray-400 ${isScenarioOpen ? 'rotate-180' : ''}`}>
+                  <div className={`p-2 rounded-full hover:bg-slate-100 transition-all ${isScenarioOpen ? 'bg-slate-100 rotate-180 text-indigo-600' : 'text-slate-400'}`}>
                     <ChevronDown className="w-5 h-5" />
                   </div>
                 </div>
               </div>
 
-              {/* Lista de Casos (Filhos) - Cascata */}
+              {/* Lista de Casos */}
               {isScenarioOpen && (
-                <div className="bg-white divide-y divide-gray-100 border-t border-gray-100 animate-slide-down">
+                <div className="bg-white divide-y divide-slate-100 animate-slide-down">
                   {group.items.map((evidence) => {
                     const isCaseOpen = expandedCases.has(evidence.id);
                     const { testCaseDetails, ticketInfo } = evidence;
                     const hasSteps = testCaseDetails?.steps && testCaseDetails.steps.length > 0;
                     
                     return (
-                      <div key={evidence.id} className="group transition-colors hover:bg-gray-50/50">
-                        {/* Linha de Resumo do Caso */}
+                      <div key={evidence.id} className="group transition-colors hover:bg-slate-50/50">
                         <div 
-                          className="px-4 py-3 flex items-center gap-4 cursor-pointer"
+                          className="px-5 py-4 flex items-center gap-5 cursor-pointer"
                           onClick={() => toggleCaseDetails(evidence.id)}
                         >
-                           {/* Ícone de Seta para Expandir Detalhes */}
-                           <div className={`text-gray-300 transition-transform duration-200 ${isCaseOpen ? 'rotate-90 text-indigo-500' : ''}`}>
-                              <ChevronRight className="w-4 h-4" />
+                           <div className={`text-slate-300 transition-transform duration-200 ${isCaseOpen ? 'rotate-90 text-indigo-500' : ''}`}>
+                              <ChevronRight className="w-5 h-5" />
                            </div>
 
-                           {/* Badge Status */}
                            <div 
-                             className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_CONFIG[evidence.status].color.split(' ')[0].replace('bg-', 'bg-')}`}
-                             title={STATUS_CONFIG[evidence.status].label}
+                             className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-offset-white ${
+                                evidence.status === TestStatus.PASS ? 'bg-emerald-500 ring-emerald-100' :
+                                evidence.status === TestStatus.FAIL ? 'bg-red-500 ring-red-100' :
+                                evidence.status === TestStatus.BLOCKED ? 'bg-amber-500 ring-amber-100' : 'bg-slate-300'
+                             }`}
                            ></div>
 
-                           {/* Info do Caso */}
                            <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                              <div className="md:col-span-3 flex items-center gap-2">
-                                <span className="font-mono text-xs font-bold text-gray-600 bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                  Caso {testCaseDetails?.caseNumber}
+                              <div className="md:col-span-3 flex items-center gap-2.5">
+                                <span className="font-bold text-xs text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
+                                  CASO {testCaseDetails?.caseNumber}
                                 </span>
-                                <span className="text-xs text-gray-400 font-mono">{testCaseDetails?.caseId}</span>
+                                <span className="text-xs text-slate-400 font-mono">{testCaseDetails?.caseId}</span>
                                 {hasSteps && (
-                                    <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full ml-1" title={`${testCaseDetails?.steps?.length} passos registrados`}>
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-1">
                                         <ListChecks className="w-3 h-3" /> {testCaseDetails?.steps?.length}
                                     </span>
                                 )}
                               </div>
 
                               <div className="md:col-span-7">
-                                <p className="text-sm text-gray-700 truncate" title={testCaseDetails?.objective}>
+                                <p className="text-sm font-medium text-slate-700 truncate" title={testCaseDetails?.objective}>
                                   {testCaseDetails?.objective || 'Sem objetivo definido'}
                                 </p>
                               </div>
@@ -232,7 +216,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 {onEditCase && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onEditCase(evidence.id); }}
-                                        className="text-gray-300 hover:text-blue-500 p-1.5 rounded-md hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
+                                        className="text-slate-300 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
                                         title="Editar Caso"
                                     >
                                         <Pencil className="w-4 h-4" />
@@ -240,7 +224,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 )}
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); onDelete(evidence.id); }}
-                                  className="text-gray-300 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                  className="text-slate-300 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                                   title="Excluir Caso"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -249,67 +233,67 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                            </div>
                         </div>
 
-                        {/* Detalhes Expandidos do Caso */}
                         {isCaseOpen && (
-                          <div className="px-10 pb-6 pt-2 bg-gray-50/30 text-sm animate-fade-in border-b border-gray-100">
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <div className="space-y-3">
+                          <div className="px-12 pb-8 pt-2 bg-slate-50/30 text-sm animate-fade-in border-b border-slate-100">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                                <div className="space-y-4">
                                   <div>
-                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pré-Requisito</span>
-                                    <p className="text-gray-800 bg-white p-2 rounded border border-gray-200 mt-1">{testCaseDetails?.preRequisite || '-'}</p>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Pré-Requisito</span>
+                                    <p className="text-slate-800 mt-1">{testCaseDetails?.preRequisite || '-'}</p>
                                   </div>
+                                  <div className="w-full h-px bg-slate-100"></div>
                                   <div>
-                                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Condição</span>
-                                    <p className="text-gray-800 bg-white p-2 rounded border border-gray-200 mt-1">{testCaseDetails?.condition || '-'}</p>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Condição</span>
+                                    <p className="text-slate-800 mt-1">{testCaseDetails?.condition || '-'}</p>
                                   </div>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="space-y-4 border-l border-slate-100 pl-8">
                                   <div>
-                                    <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Resultado Esperado</span>
-                                    <p className="text-blue-900 bg-blue-50 p-2 rounded border border-blue-100 mt-1">{testCaseDetails?.expectedResult || '-'}</p>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Resultado Esperado</span>
+                                    <p className="text-indigo-900 bg-indigo-50/50 p-3 rounded-lg border border-indigo-50 mt-1 leading-relaxed">
+                                        {testCaseDetails?.expectedResult || '-'}
+                                    </p>
                                   </div>
                                   <div className="flex items-center justify-between pt-2">
-                                     <div className="flex items-center gap-2 text-xs text-gray-400">
-                                        <User className="w-3 h-3" /> {ticketInfo.analyst}
-                                        <span className="mx-1">•</span>
-                                        <Calendar className="w-3 h-3" /> {new Date(ticketInfo.evidenceDate).toLocaleDateString('pt-BR')}
+                                     <div className="flex items-center gap-3 text-xs text-slate-400">
+                                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> {ticketInfo.analyst}</span>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(ticketInfo.evidenceDate).toLocaleDateString('pt-BR')}</span>
                                      </div>
                                   </div>
                                 </div>
                              </div>
 
-                             {/* RENDERIZAÇÃO DOS PASSOS (TIMELINE) */}
                              {hasSteps && (
-                                 <div className="mt-4 border-t border-gray-200 pt-4">
-                                     <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2 mb-3">
-                                         <ListChecks className="w-4 h-4" /> Execução Detalhada
+                                 <div className="mt-6">
+                                     <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2 mb-4">
+                                         <ListChecks className="w-4 h-4" /> Timeline de Execução
                                      </h4>
-                                     <div className="space-y-4">
+                                     <div className="space-y-0 relative pl-2">
+                                         <div className="absolute left-[27px] top-2 bottom-4 w-0.5 bg-slate-200"></div>
+                                         
                                          {testCaseDetails?.steps?.map((step, idx) => (
-                                             <div key={idx} className="flex gap-4 relative">
-                                                 {/* Linha vertical conectora (Timeline) */}
-                                                 {idx !== (testCaseDetails.steps?.length || 0) - 1 && (
-                                                     <div className="absolute left-[15px] top-8 bottom-[-16px] w-0.5 bg-gray-200"></div>
-                                                 )}
-                                                 
-                                                 <div className="flex-shrink-0 w-8 h-8 bg-white border-2 border-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-600 shadow-sm z-10">
-                                                     {step.stepNumber}
+                                             <div key={idx} className="flex gap-6 relative pb-6 last:pb-0 group/step">
+                                                 <div className="flex-shrink-0 w-14 flex flex-col items-center relative z-10">
+                                                     <div className="w-8 h-8 bg-white border-2 border-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-600 shadow-sm group-hover/step:border-indigo-400 group-hover/step:text-indigo-700 transition-colors">
+                                                        {step.stepNumber}
+                                                     </div>
                                                  </div>
                                                  
-                                                 <div className="flex-1 bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                                                     <p className="text-gray-800 mb-2">{step.description || <span className="text-gray-400 italic">Sem descrição</span>}</p>
+                                                 <div className="flex-1 bg-white p-4 rounded-xl border border-slate-200 shadow-sm group-hover/step:shadow-md transition-all">
+                                                     <p className="text-slate-800 mb-3 leading-relaxed">{step.description || <span className="text-slate-400 italic">Sem descrição</span>}</p>
                                                      {step.imageUrl && (
-                                                         <div className="relative group w-fit">
+                                                         <div className="relative group-img w-fit overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                                                             <img 
                                                                 src={step.imageUrl} 
                                                                 alt={`Passo ${step.stepNumber}`} 
-                                                                className="h-32 w-auto object-contain rounded border border-gray-200 bg-gray-50 cursor-zoom-in"
+                                                                className="h-40 w-auto object-contain cursor-zoom-in transition-transform duration-500 hover:scale-105"
                                                                 onClick={() => window.open(step.imageUrl || '', '_blank')}
                                                             />
-                                                            <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                                                <ImageIcon className="w-3 h-3 inline mr-1" />
-                                                                Clique para ampliar
+                                                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-2 py-1 opacity-0 group-hover-img:opacity-100 transition-opacity pointer-events-none flex items-center justify-center backdrop-blur-sm">
+                                                                <ImageIcon className="w-3 h-3 mr-1" />
+                                                                Ampliar Evidência
                                                             </div>
                                                          </div>
                                                      )}
@@ -319,7 +303,6 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                      </div>
                                  </div>
                              )}
-
                           </div>
                         )}
                       </div>
@@ -331,94 +314,84 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
           );
         }
 
-        // --- RENDERIZAÇÃO DE CARD MANUAL (LEGADO/FOTO) ---
         const { item: evidence } = group;
         const { ticketInfo } = evidence;
         const StatusIcon = STATUS_CONFIG[evidence.status].icon;
 
         return (
-          <div key={evidence.id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col md:flex-row overflow-hidden">
-             {/* Imagem lateral no desktop */}
-            <div className="relative h-48 md:h-auto md:w-1/3 bg-gray-100 group">
+          <div key={evidence.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row overflow-hidden group">
+            <div className="relative h-48 md:h-auto md:w-1/3 bg-slate-100 overflow-hidden">
               {evidence.imageUrl ? (
                 <img 
                   src={evidence.imageUrl} 
                   alt={evidence.title} 
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-400 text-sm bg-gray-50 flex-col gap-2">
-                  <FileText className="w-8 h-8 opacity-20" />
-                  <span>Evidência Manual</span>
+                <div className="flex items-center justify-center h-full text-slate-400 flex-col gap-3">
+                  <div className="p-4 bg-white rounded-full shadow-sm">
+                    <FileText className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <span className="text-sm font-medium">Evidência Manual</span>
                 </div>
               )}
               
-              {evidence.imageUrl && (
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <a 
-                    href={evidence.imageUrl} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <ExternalLink className="h-5 w-5 text-gray-700" />
-                  </a>
-                </div>
-              )}
-              <div className="absolute top-2 left-2">
-                  <span className="font-mono font-bold bg-white/90 backdrop-blur px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">
+              <div className="absolute top-3 left-3">
+                  <span className="font-mono font-bold bg-white/95 backdrop-blur px-2 py-1 rounded-lg text-xs text-slate-900 shadow-sm">
                     {ticketInfo.ticketId}
                   </span>
               </div>
             </div>
             
-            <div className="p-4 flex-1 flex flex-col">
-              <div className="flex justify-between items-start mb-2">
+            <div className="p-6 flex-1 flex flex-col">
+              <div className="flex justify-between items-start mb-3">
                  <div>
-                     <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider truncate max-w-[200px]" title={ticketInfo.ticketTitle}>
-                    {ticketInfo.ticketTitle}
-                    </p>
-                    <h3 className="text-base font-bold text-gray-900 line-clamp-1" title={evidence.title}>
+                     <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded">
+                            {ticketInfo.ticketTitle.split(' - ')[0] || 'TICKET'}
+                        </span>
+                     </div>
+                    <h3 className="text-lg font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-700 transition-colors" title={evidence.title}>
                         {evidence.title}
                     </h3>
                  </div>
-                 <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold shadow-sm ${STATUS_CONFIG[evidence.status].color}`}>
-                  <StatusIcon className="w-3 h-3 mr-1" />
+                 <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm border ${STATUS_CONFIG[evidence.status].color} border-transparent`}>
+                  <StatusIcon className="w-3 h-3 mr-1.5" />
                   {STATUS_CONFIG[evidence.status].label}
                 </span>
               </div>
               
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[evidence.severity]}`}>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold border ${SEVERITY_COLORS[evidence.severity]} border-transparent`}>
                   Severity: {evidence.severity}
                 </span>
                 {ticketInfo.environment && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                    <Tag className="w-3 h-3 mr-1" />
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    <Tag className="w-3 h-3 mr-1.5 text-slate-400" />
                     {ticketInfo.environment}
                     </span>
                 )}
               </div>
 
-              <div className="text-sm text-gray-600 mb-4 flex-1">
+              <div className="text-sm text-slate-600 mb-6 flex-1 leading-relaxed">
                  <p className="line-clamp-2">{evidence.description}</p>
                  {ticketInfo.solution && (
-                    <p className="mt-2 text-xs text-green-700 bg-green-50 p-1.5 rounded border border-green-100 line-clamp-1">
-                        <strong>Solução:</strong> {ticketInfo.solution}
+                    <p className="mt-3 text-xs text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-100 line-clamp-1">
+                        <strong className="text-emerald-900">Solução:</strong> {ticketInfo.solution}
                     </p>
                  )}
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100 mt-auto">
-                <div className="flex items-center text-xs text-gray-400">
-                   <User className="w-3 h-3 mr-1" /> {ticketInfo.analyst}
-                   <span className="mx-2">•</span>
-                   <Calendar className="w-3 h-3 mr-1" /> {new Date(ticketInfo.evidenceDate || evidence.timestamp).toLocaleDateString('pt-BR')}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
+                <div className="flex items-center text-xs text-slate-400 font-medium">
+                   <User className="w-3 h-3 mr-1.5" /> {ticketInfo.analyst}
+                   <span className="mx-3 text-slate-300">|</span>
+                   <Calendar className="w-3 h-3 mr-1.5" /> {new Date(ticketInfo.evidenceDate || evidence.timestamp).toLocaleDateString('pt-BR')}
                 </div>
                 <button 
                   onClick={() => onDelete(evidence.id)}
-                  className="text-gray-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50"
-                  title="Excluir"
+                  className="text-slate-300 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50"
+                  title="Excluir Evidência"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

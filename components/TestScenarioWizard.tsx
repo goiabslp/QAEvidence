@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
 import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2 } from 'lucide-react';
@@ -12,22 +11,19 @@ interface TestScenarioWizardProps {
 }
 
 const generateCaseId = () => {
-  // Gera um ID no formato QA-XXXXX (5 dígitos numéricos aleatórios)
   const randomNum = Math.floor(Math.random() * 90000) + 10000;
   return `QA-${randomNum}`;
 };
 
-// Estilo padronizado para inputs (Dark Theme igual ao EvidenceForm)
-const inputClass = "w-full rounded-lg border-gray-600 bg-gray-800 text-gray-100 px-3 py-2 text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none";
-const labelClass = "block text-xs font-medium text-gray-700 mb-1";
+// Modern Light Theme Input
+const inputClass = "w-full rounded-lg border border-slate-300 bg-white text-slate-700 px-3 py-2.5 text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm hover:border-indigo-300";
+const labelClass = "block text-xs font-bold text-indigo-900 mb-1.5 uppercase tracking-wider ml-1";
 
 const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTicketInfo, wizardTrigger, onClearTrigger }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentScenarioNum, setCurrentScenarioNum] = useState(1);
-  // Case number local para exibição, pode ser automático ou vindo do trigger
   const [caseNumOverride, setCaseNumOverride] = useState<number | null>(null);
 
-  // Form State
   const [formData, setFormData] = useState<Partial<TestCaseDetails>>({
     caseId: generateCaseId(),
     result: 'Sucesso',
@@ -38,11 +34,9 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     expectedResult: ''
   });
 
-  // Steps State
   const [isTestStarted, setIsTestStarted] = useState(false);
   const [steps, setSteps] = useState<TestStep[]>([]);
 
-  // Monitora o gatilho externo (Botão Novo Caso ou Editar da Lista)
   useEffect(() => {
     if (wizardTrigger) {
       setIsOpen(true);
@@ -50,11 +44,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
       setCaseNumOverride(wizardTrigger.nextCaseNumber);
 
       if (wizardTrigger.mode === 'edit' && wizardTrigger.existingDetails) {
-        // Modo Edição: Preenche com os dados existentes
-        setFormData({
-          ...wizardTrigger.existingDetails
-        });
-        // Carrega os steps se existirem
+        setFormData({ ...wizardTrigger.existingDetails });
         if (wizardTrigger.existingDetails.steps && wizardTrigger.existingDetails.steps.length > 0) {
             setSteps(wizardTrigger.existingDetails.steps);
             setIsTestStarted(true);
@@ -63,7 +53,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
             setIsTestStarted(false);
         }
       } else {
-        // Modo Criação/Adição: Gera novo ID
         setFormData(prev => ({ 
           ...prev, 
           caseId: generateCaseId(),
@@ -82,7 +71,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
   useEffect(() => {
     if (isOpen && !wizardTrigger) {
-        // Se abriu manualmente (novo cenário do zero), garante novo ID
        setFormData(prev => ({...prev, caseId: prev.caseId || generateCaseId()}));
        setCaseNumOverride(null);
     }
@@ -106,8 +94,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // --- Steps Logic ---
-
   const handleStartTest = () => {
     setIsTestStarted(true);
     if (steps.length === 0) {
@@ -116,10 +102,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   };
 
   const handleAddStep = () => {
-    setSteps(prev => [
-        ...prev, 
-        { stepNumber: prev.length + 1, description: '' }
-    ]);
+    setSteps(prev => [...prev, { stepNumber: prev.length + 1, description: '' }]);
   };
 
   const handleStepDescriptionChange = (index: number, text: string) => {
@@ -156,8 +139,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
      if (newSteps.length === 0) setIsTestStarted(false);
   };
 
-  // --- Save Logic ---
-
   const handleClose = () => {
     setIsOpen(false);
     if (onClearTrigger) onClearTrigger();
@@ -166,10 +147,8 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   };
 
   const handleSave = () => {
-    // Se tiver trigger, usa o número do caso fornecido, senão é sempre o caso 1 de um novo cenário
     const caseNumberToUse = caseNumOverride || 1;
 
-    // Mapeia TestCaseDetails garantindo valores default para evitar erros
     const testDetails: TestCaseDetails = {
         scenarioNumber: currentScenarioNum,
         caseNumber: caseNumberToUse,
@@ -183,7 +162,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         steps: steps.length > 0 ? steps : undefined
     };
 
-    // Define status/severity baseado no resultado
     let status = TestStatus.PASS;
     let severity = Severity.LOW;
     
@@ -195,10 +173,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         severity = Severity.MEDIUM;
     }
 
-    // Se tiver trigger, usa as infos do ticket que vieram de lá, senão usa o baseTicketInfo
     const sourceTicketInfo = wizardTrigger ? wizardTrigger.ticketInfo : baseTicketInfo;
-
-    // Ticket Default caso nada tenha sido passado
     const defaultTicketInfo: TicketInfo = {
         ticketId: 'N/A',
         ticketTitle: `Cenário de Teste #${testDetails.scenarioNumber}`,
@@ -217,7 +192,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
     const ticketInfoToUse: TicketInfo = sourceTicketInfo ? { 
         ...sourceTicketInfo,
-        // Fallbacks caso os campos base estejam vazios
         ticketId: sourceTicketInfo.ticketId || defaultTicketInfo.ticketId,
         ticketTitle: sourceTicketInfo.ticketTitle || defaultTicketInfo.ticketTitle,
     } : defaultTicketInfo;
@@ -228,7 +202,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         id: isEditMode && wizardTrigger?.evidenceId ? wizardTrigger.evidenceId : crypto.randomUUID(),
         title: `Cenário de Teste ${testDetails.scenarioNumber}: ${testDetails.screen}`,
         description: testDetails.objective, 
-        imageUrl: steps.length > 0 ? steps[steps.length-1].imageUrl || null : null, // Usa a imagem do último passo como capa se houver
+        imageUrl: steps.length > 0 ? steps[steps.length-1].imageUrl || null : null,
         status: status,
         severity: severity,
         timestamp: Date.now(), 
@@ -236,14 +210,11 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         ticketInfo: ticketInfoToUse
     };
 
-    // Salva imediatamente e fecha (minimiza)
     onSave([newItem]);
     
     if (wizardTrigger) {
-        // Se for inclusão de caso ou edição via trigger, apenas fecha
         handleClose();
     } else {
-        // Se for fluxo normal de criar cenários (novo fluxo), avança para o próximo
         setCurrentScenarioNum(prev => prev + 1);
         resetForm();
         setIsOpen(false);
@@ -252,83 +223,85 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
   if (!isOpen) {
     return (
-        <button 
-            type="button"
-            onClick={() => setIsOpen(true)}
-            className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-white shadow-lg transition-all hover:shadow-xl hover:scale-[1.01] active:scale-95 w-full md:w-auto"
-        >
-            <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
-            <div className="relative flex items-center justify-center gap-3 font-semibold tracking-wide">
-                <Play className="w-5 h-5 fill-current" />
-                Novo Cenário de Teste
-            </div>
-        </button>
+        <div className="flex justify-center w-full py-4">
+            <button 
+                type="button"
+                onClick={() => setIsOpen(true)}
+                className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-4 text-white shadow-lg transition-all hover:shadow-indigo-200 hover:scale-[1.01] active:scale-95 w-full md:w-auto"
+            >
+                <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
+                <div className="relative flex items-center justify-center gap-3 font-bold tracking-wide text-sm">
+                    <Play className="w-5 h-5 fill-current" />
+                    NOVO CENÁRIO DE TESTE
+                </div>
+            </button>
+        </div>
     );
   }
 
   const isEditMode = wizardTrigger?.mode === 'edit';
 
   return (
-    <div className="w-full bg-white rounded-xl border border-indigo-200 overflow-hidden shadow-sm animate-slide-down transition-all duration-300">
+    <div className="w-full bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-lg ring-1 ring-black/5 animate-slide-down transition-all duration-300">
         
-        {/* Header Inline */}
-        <div className={`px-6 py-4 border-b flex justify-between items-center ${wizardTrigger ? 'bg-blue-50 border-blue-200' : 'bg-indigo-50/50 border-indigo-100'}`}>
+        {/* Header */}
+        <div className={`px-6 py-4 border-b flex justify-between items-center ${wizardTrigger ? 'bg-blue-50/80 border-blue-100' : 'bg-indigo-50/80 border-indigo-100'} backdrop-blur-sm`}>
             <div>
-                <h2 className={`text-lg font-bold flex items-center gap-2 ${wizardTrigger ? 'text-blue-800' : 'text-gray-800'}`}>
+                <h2 className={`text-lg font-bold flex items-center gap-2 ${wizardTrigger ? 'text-blue-900' : 'text-indigo-900'}`}>
                     {isEditMode ? <Pencil className="w-5 h-5 text-blue-600" /> : <Layers className={`${wizardTrigger ? 'text-blue-600' : 'text-indigo-600'} w-5 h-5`} />}
                     {isEditMode ? 'Editar Caso de Teste' : (wizardTrigger ? 'Adicionar Caso ao Cenário' : 'Assistente de Cenários')}
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500 mt-1">
                     {isEditMode 
                      ? 'Atualize as informações do caso existente.' 
-                     : (wizardTrigger ? 'Adicionando novo caso de teste ao cenário existente.' : 'Preenchimento rápido de casos de teste.')}
+                     : (wizardTrigger ? 'Adicionando novo caso de teste ao cenário existente.' : 'Preenchimento rápido e padronizado.')}
                 </p>
             </div>
             
             <button 
                 type="button"
                 onClick={handleClose}
-                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-200 rounded transition-colors"
+                className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
             >
                 <X className="w-5 h-5" />
             </button>
         </div>
 
-        {/* Body Inline */}
+        {/* Body */}
         <div className="p-6 bg-white">
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-8 animate-fade-in">
                 {/* Status Cards */}
                 <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-sm">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Cenário</span>
-                        <div className="text-xl font-bold text-indigo-600">#{currentScenarioNum}</div>
+                    <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
+                        <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wider">Cenário</span>
+                        <div className="text-2xl font-bold text-indigo-700">#{currentScenarioNum}</div>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-sm">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Caso</span>
-                        <div className="text-xl font-bold text-blue-600 flex items-center gap-1">
+                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
+                        <span className="text-[10px] text-blue-400 uppercase font-bold tracking-wider">Caso</span>
+                        <div className="text-2xl font-bold text-blue-700 flex items-center gap-2">
                             #{caseNumOverride || 1}
-                            {wizardTrigger && !isEditMode && <span className="text-[10px] bg-blue-100 text-blue-800 px-1 rounded">+ Novo</span>}
-                            {isEditMode && <span className="text-[10px] bg-orange-100 text-orange-800 px-1 rounded">Edit</span>}
+                            {wizardTrigger && !isEditMode && <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full tracking-wide font-semibold">+ NOVO</span>}
+                            {isEditMode && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full tracking-wide font-semibold">EDIT</span>}
                         </div>
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-sm relative overflow-hidden">
-                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">ID Gerado</span>
-                        <div className="text-sm font-mono text-gray-700 mt-1 font-semibold">{formData.caseId}</div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ID Único</span>
+                        <div className="text-sm font-mono text-slate-600 mt-1 font-bold bg-white px-2 py-1 rounded border border-slate-200 inline-block">{formData.caseId}</div>
                     </div>
                 </div>
 
-                {/* Form Principal */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative">
+                {/* Form Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
                     <div className="md:col-span-2">
                         <label className={labelClass}>Tela de Teste / Contexto</label>
                         <div className="relative">
-                            <Monitor className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                            <Monitor className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                             <input 
                                 type="text" 
                                 value={formData.screen}
                                 onChange={(e) => handleInputChange('screen', e.target.value)}
                                 className={`${inputClass} pl-10`}
-                                placeholder="Ex: Tela de Login"
+                                placeholder="Ex: Tela de Login, Checkout, Dashboard..."
                             />
                         </div>
                     </div>
@@ -340,7 +313,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                             value={formData.objective}
                             onChange={(e) => handleInputChange('objective', e.target.value)}
                             className={inputClass}
-                            placeholder="Objetivo do teste..."
+                            placeholder="Qual o objetivo deste teste?"
                         />
                     </div>
 
@@ -351,7 +324,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                             value={formData.expectedResult}
                             onChange={(e) => handleInputChange('expectedResult', e.target.value)}
                             className={inputClass}
-                            placeholder="Comportamento esperado..."
+                            placeholder="O que deve acontecer ao final?"
                         />
                     </div>
 
@@ -378,30 +351,30 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                     </div>
                 </div>
 
-                {/* STEPS SECTION (TEST EXECUTION) */}
-                <div className="border-t border-gray-200 pt-6 mt-6">
-                    <div className="flex justify-between items-center mb-4">
-                         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                            <Play className="w-4 h-4 text-green-600" /> Execução do Teste
+                {/* STEPS SECTION */}
+                <div className="border-t border-slate-100 pt-8 mt-4">
+                    <div className="flex justify-between items-center mb-5">
+                         <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <Play className="w-4 h-4 text-emerald-500" /> Execução do Teste
                          </h3>
                          {!isTestStarted && (
                              <button 
                                 type="button"
                                 onClick={handleStartTest}
-                                className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all shadow-sm flex items-center gap-2 animate-pulse"
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wide px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg flex items-center gap-2"
                              >
-                                <Play className="w-4 h-4 fill-current" /> Iniciar Teste
+                                <Play className="w-3 h-3 fill-current" /> Iniciar Steps
                              </button>
                          )}
                     </div>
 
                     {isTestStarted && (
-                        <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <div className="space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
                             {steps.map((step, index) => (
-                                <div key={index} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm relative group animate-fade-in">
-                                    <div className="flex items-start gap-3">
-                                        <div className="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded mt-1 flex-shrink-0">
-                                            Step #{step.stepNumber}
+                                <div key={index} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group transition-all hover:shadow-md hover:border-slate-300">
+                                    <div className="flex items-start gap-4">
+                                        <div className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded mt-1 flex-shrink-0 shadow-sm">
+                                            STEP {step.stepNumber}
                                         </div>
                                         <div className="flex-1 space-y-3">
                                             <textarea
@@ -413,9 +386,9 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                                             />
                                             
                                             <div className="flex items-center gap-3">
-                                                <label className="cursor-pointer inline-flex items-center gap-2 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition-colors border border-blue-200">
+                                                <label className="cursor-pointer inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100">
                                                     <ImageIcon className="w-4 h-4" />
-                                                    {step.imageUrl ? 'Trocar Imagem' : 'Adicionar Evidência'}
+                                                    {step.imageUrl ? 'Trocar Imagem' : 'Anexar Evidência Visual'}
                                                     <input 
                                                         type="file" 
                                                         accept="image/*" 
@@ -427,23 +400,23 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                                                      <button 
                                                         type="button"
                                                         onClick={() => handleRemoveStepImage(index)}
-                                                        className="text-red-500 text-xs hover:underline"
+                                                        className="text-red-500 text-xs hover:text-red-700 font-medium"
                                                      >
-                                                        Remover imagem
+                                                        Remover
                                                      </button>
                                                 )}
                                             </div>
 
                                             {step.imageUrl && (
-                                                <div className="mt-2 relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                                                    <img src={step.imageUrl} alt={`Step ${step.stepNumber}`} className="w-full h-full object-cover" />
+                                                <div className="mt-3 relative w-full h-48 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 group-image">
+                                                    <img src={step.imageUrl} alt={`Step ${step.stepNumber}`} className="w-full h-full object-contain p-2" />
                                                 </div>
                                             )}
                                         </div>
                                         <button 
                                             type="button"
                                             onClick={() => handleRemoveStep(index)}
-                                            className="text-gray-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"
+                                            className="text-slate-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-all"
                                             title="Remover passo"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -455,7 +428,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                             <button 
                                 type="button"
                                 onClick={handleAddStep}
-                                className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-all text-sm font-medium flex items-center justify-center gap-2"
+                                className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30 transition-all text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-2"
                             >
                                 <Plus className="w-4 h-4" /> Adicionar Próximo Passo
                             </button>
@@ -463,26 +436,26 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                     )}
                 </div>
 
-                {/* RESULTADO FINAL (FOOTER DO FORM) */}
-                <div className="md:col-span-2 pt-2 border-t border-gray-100">
+                {/* FOOTER RESULT */}
+                <div className="md:col-span-2 pt-6 border-t border-slate-100">
                         <label className={labelClass}>Resultado Final do Caso</label>
-                        <div className="flex gap-3">
+                        <div className="flex gap-4">
                             {['Sucesso', 'Fracassou', 'Impedimento'].map((res) => (
                                 <button
                                     key={res}
                                     type="button"
                                     onClick={() => handleInputChange('result', res)}
-                                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                                    className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${
                                         formData.result === res 
-                                        ? res === 'Sucesso' ? 'bg-green-50 border-green-500 text-green-700 ring-1 ring-green-500'
-                                        : res === 'Fracassou' ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500'
-                                        : 'bg-orange-50 border-orange-500 text-orange-700 ring-1 ring-orange-500'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        ? res === 'Sucesso' ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-200 ring-2 ring-emerald-100'
+                                        : res === 'Fracassou' ? 'bg-red-600 text-white border-red-600 shadow-red-200 ring-2 ring-red-100'
+                                        : 'bg-amber-500 text-white border-amber-500 shadow-amber-200 ring-2 ring-amber-100'
+                                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
-                                    {res === 'Sucesso' && <CheckCircle className="w-3 h-3" />}
-                                    {res === 'Fracassou' && <XCircle className="w-3 h-3" />}
-                                    {res === 'Impedimento' && <AlertTriangle className="w-3 h-3" />}
+                                    {res === 'Sucesso' && <CheckCircle className="w-4 h-4" />}
+                                    {res === 'Fracassou' && <XCircle className="w-4 h-4" />}
+                                    {res === 'Impedimento' && <AlertTriangle className="w-4 h-4" />}
                                     {res}
                                 </button>
                             ))}
@@ -492,12 +465,12 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
             </div>
         </div>
 
-        {/* Footer Inline */}
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end items-center gap-3">
+        {/* Footer Buttons */}
+        <div className="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-end items-center gap-4">
             <button 
                 type="button"
                 onClick={handleClose}
-                className="text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                className="text-slate-600 hover:text-slate-800 px-5 py-2.5 rounded-xl hover:bg-slate-200/50 transition-colors text-sm font-semibold"
             >
                 Cancelar
             </button>
@@ -505,7 +478,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
             <button 
                 type="button"
                 onClick={handleSave}
-                className="bg-gray-800 text-white hover:bg-gray-900 px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm shadow-md hover:shadow-lg"
+                className="bg-slate-900 text-white hover:bg-black px-6 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
                 <CheckCircle className="w-4 h-4" />
                 {isEditMode ? 'Atualizar Caso' : 'Salvar Caso'}
