@@ -306,7 +306,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                         </div>
                     </div>
 
-                    <div>
+                    <div className="md:col-span-2">
                         <label className={labelClass}>Objetivo / Funcionalidade</label>
                         <textarea 
                             rows={3}
@@ -314,17 +314,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                             onChange={(e) => handleInputChange('objective', e.target.value)}
                             className={inputClass}
                             placeholder="Qual o objetivo deste teste?"
-                        />
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>Resultado Esperado</label>
-                        <textarea 
-                            rows={3}
-                            value={formData.expectedResult}
-                            onChange={(e) => handleInputChange('expectedResult', e.target.value)}
-                            className={inputClass}
-                            placeholder="O que deve acontecer ao final?"
                         />
                     </div>
 
@@ -347,6 +336,17 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                             onChange={(e) => handleInputChange('condition', e.target.value)}
                             className={inputClass}
                             placeholder="Ex: Dados válidos"
+                        />
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className={labelClass}>Resultado Esperado</label>
+                        <textarea 
+                            rows={3}
+                            value={formData.expectedResult}
+                            onChange={(e) => handleInputChange('expectedResult', e.target.value)}
+                            className={inputClass}
+                            placeholder="O que deve acontecer ao final?"
                         />
                     </div>
                 </div>

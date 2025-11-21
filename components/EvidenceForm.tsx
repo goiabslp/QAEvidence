@@ -44,6 +44,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const [solution, setSolution] = useState('');
   
   const [isTitleManuallyEdited, setIsTitleManuallyEdited] = useState(false);
+  const [isTicketInfoExpanded, setIsTicketInfoExpanded] = useState(true);
 
   const [status] = useState<TestStatus>(TestStatus.PASS);
   const [severity] = useState<Severity>(Severity.LOW);
@@ -163,7 +164,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       e.preventDefault();
       handleAddEnv(envInputValue);
     } else if (e.key === 'Backspace' && !envInputValue && selectedEnvs.length > 0) {
-      handleRemoveEnv(selectedEnvs[selectedEnvs.length - 1]);
+      handleRemoveEnv(selectedEnvs[selectedEnvs.length - 0]);
     }
   };
 
@@ -235,175 +236,187 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
           
           {/* SEÇÃO 1: INFORMAÇÕES DO CHAMADO */}
           <div className="space-y-6">
-            <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-               <div className="p-1.5 bg-indigo-50 rounded-md">
-                 <Ticket className="w-4 h-4 text-indigo-600" /> 
+            <div 
+                className="flex items-center justify-between pb-2 border-b border-slate-100 cursor-pointer group select-none"
+                onClick={() => setIsTicketInfoExpanded(!isTicketInfoExpanded)}
+            >
+               <div className="flex items-center gap-3">
+                 <div className="p-1.5 bg-indigo-50 rounded-md">
+                   <Ticket className="w-4 h-4 text-indigo-600" /> 
+                 </div>
+                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider group-hover:text-indigo-700 transition-colors">
+                    Informações do Chamado
+                 </h3>
                </div>
-               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Informações do Chamado
-               </h3>
+               <button type="button" className="text-slate-400 group-hover:text-indigo-600 transition-colors">
+                 {isTicketInfoExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+               </button>
             </div>
             
-            {/* LINHA 1: TÍTULO DO CHAMADO */}
-            <div className="w-full">
-              <label className={labelClass}>Título do Chamado</label>
-              <input 
-                type="text" 
-                value={ticketTitle} 
-                onChange={e => {
-                  setTicketTitle(e.target.value);
-                  setIsTitleManuallyEdited(true);
-                }} 
-                className={`${ticketInputClass} font-medium text-slate-900`} 
-                placeholder="Gerado automaticamente..." 
-              />
-            </div>
-
-            {/* LINHA 2: DATAS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div>
-                <label className={labelClass}>Data da Solicitação</label>
-                <input 
-                  type="date" 
-                  value={requestDate} 
-                  onChange={e => setRequestDate(e.target.value)} 
-                  className={ticketInputClass} 
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Data da Evidência</label>
-                <input 
-                  type="date" 
-                  value={evidenceDate} 
-                  onChange={e => setEvidenceDate(e.target.value)} 
-                  className={ticketInputClass} 
-                />
-              </div>
-            </div>
-
-            {/* LINHA 3 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div>
-                <label className={labelClass}>Chamado (ID)</label>
-                <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="#1234" />
-              </div>
-              <div>
-                <label className={labelClass}>Sprint</label>
-                <input type="text" value={sprint} onChange={e => setSprint(e.target.value)} className={ticketInputClass} placeholder="Ex: 24" />
-              </div>
-              <div>
-                <label className={labelClass}>Solicitante</label>
-                <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Nome" />
-              </div>
-              <div>
-                <label className={labelClass}>Analista de Teste</label>
-                <input type="text" value={analyst} onChange={e => setAnalyst(e.target.value)} className={ticketInputClass} placeholder="Nome" />
-              </div>
-            </div>
-
-            {/* LINHA 4 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div>
-                <label className={labelClass}>Resumo do Chamado</label>
-                <input 
-                  type="text" 
-                  value={ticketSummary} 
-                  onChange={e => setTicketSummary(e.target.value)} 
-                  className={ticketInputClass} 
-                  placeholder="Breve descrição" 
-                />
-              </div>
-               <div>
-                <label className={labelClass}>Cliente / Sistema</label>
-                <input type="text" value={clientSystem} onChange={e => setClientSystem(e.target.value)} className={ticketInputClass} placeholder="Ex: Portal Web" />
-              </div>
-            </div>
-
-            {/* LINHA 5 */}
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="relative z-20 md:col-span-2">
-                <label className={labelClass}>Ambiente do Commit</label>
-                <div 
-                  className="w-full min-h-[42px] rounded-lg border border-slate-300 bg-white flex flex-wrap items-center gap-2 px-2 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all shadow-sm hover:border-indigo-300"
-                  onClick={() => {
-                    envInputRef.current?.focus();
-                    setIsEnvListOpen(true);
-                  }}
-                >
-                  {selectedEnvs.map(env => (
-                    <span key={env} className="bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-medium rounded-md px-2 py-0.5 flex items-center gap-1">
-                      {env}
-                      <button 
-                        type="button" 
-                        onClick={(e) => { e.stopPropagation(); handleRemoveEnv(env); }} 
-                        className="hover:bg-indigo-200 rounded-full p-0.5 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <div className="flex-1 flex items-center min-w-[100px]">
-                     <input
-                        ref={envInputRef}
-                        type="text"
-                        value={envInputValue}
-                        onChange={(e) => setEnvInputValue(e.target.value)}
-                        onKeyDown={handleEnvKeyDown}
-                        onFocus={() => setIsEnvListOpen(true)}
-                        className="bg-transparent border-none text-slate-700 text-sm placeholder-slate-400 focus:ring-0 w-full p-0.5"
-                        placeholder={selectedEnvs.length === 0 ? "Selecione ou digite..." : ""}
-                     />
-                     <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isEnvListOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                </div>
-                
-                {isEnvListOpen && (
-                  <div ref={envDropdownRef} className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-30">
-                    <div className="p-1">
-                      {PREDEFINED_ENVS.filter(env => !selectedEnvs.includes(env) && env.toLowerCase().includes(envInputValue.toLowerCase())).map(env => (
-                        <button
-                          key={env}
-                          type="button"
-                          onClick={() => handleAddEnv(env)}
-                          className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-md transition-colors flex items-center justify-between group"
-                        >
-                          {env}
-                          <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 text-indigo-400" />
-                        </button>
-                      ))}
-                      {envInputValue && !selectedEnvs.includes(envInputValue) && !PREDEFINED_ENVS.includes(envInputValue) && (
-                         <button
-                           type="button"
-                           onClick={() => handleAddEnv(envInputValue)}
-                           className="w-full text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors border-t border-slate-100 mt-1 font-medium"
-                         >
-                           Adicionar "{envInputValue}"
-                         </button>
-                      )}
-                      {PREDEFINED_ENVS.filter(env => !selectedEnvs.includes(env)).length === 0 && !envInputValue && (
-                        <div className="px-3 py-2 text-xs text-slate-400 text-center">Todos selecionados</div>
-                      )}
+            {isTicketInfoExpanded && (
+                <div className="space-y-6 animate-slide-down">
+                    {/* LINHA 1: TÍTULO DO CHAMADO */}
+                    <div className="w-full">
+                    <label className={labelClass}>Título do Chamado</label>
+                    <input 
+                        type="text" 
+                        value={ticketTitle} 
+                        onChange={e => {
+                        setTicketTitle(e.target.value);
+                        setIsTitleManuallyEdited(true);
+                        }} 
+                        className={`${ticketInputClass} font-medium text-slate-900`} 
+                        placeholder="Gerado automaticamente..." 
+                    />
                     </div>
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className={labelClass}>Versão do Ambiente</label>
-                <input type="text" value={environmentVersion} onChange={e => setEnvironmentVersion(e.target.value)} className={ticketInputClass} placeholder="v1.0.0" />
-              </div>
-            </div>
 
-            {/* LINHA 6 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className={labelClass}>Descrição do Chamado</label>
-                  <textarea rows={2} value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} className={ticketInputClass} placeholder="Detalhes da solicitação..." />
+                    {/* LINHA 2: DATAS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelClass}>Data da Solicitação</label>
+                        <input 
+                        type="date" 
+                        value={requestDate} 
+                        onChange={e => setRequestDate(e.target.value)} 
+                        className={ticketInputClass} 
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Data da Evidência</label>
+                        <input 
+                        type="date" 
+                        value={evidenceDate} 
+                        onChange={e => setEvidenceDate(e.target.value)} 
+                        className={ticketInputClass} 
+                        />
+                    </div>
+                    </div>
+
+                    {/* LINHA 3 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div>
+                        <label className={labelClass}>Chamado (ID)</label>
+                        <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="#1234" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Sprint</label>
+                        <input type="text" value={sprint} onChange={e => setSprint(e.target.value)} className={ticketInputClass} placeholder="Ex: 24" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Solicitante</label>
+                        <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Quem solicitou o Teste?" />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Analista de Teste</label>
+                        <input type="text" value={analyst} onChange={e => setAnalyst(e.target.value)} className={ticketInputClass} placeholder="Analista que Realizou o Teste" />
+                    </div>
+                    </div>
+
+                    {/* LINHA 4 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className={labelClass}>Resumo do Chamado</label>
+                        <input 
+                        type="text" 
+                        value={ticketSummary} 
+                        onChange={e => setTicketSummary(e.target.value)} 
+                        className={ticketInputClass} 
+                        placeholder="Breve descrição (máx 3 palavras)" 
+                        />
+                    </div>
+                    <div>
+                        <label className={labelClass}>Cliente / Sistema</label>
+                        <input type="text" value={clientSystem} onChange={e => setClientSystem(e.target.value)} className={ticketInputClass} placeholder="Veirano, Kincaid ou Legal Desk" />
+                    </div>
+                    </div>
+
+                    {/* LINHA 5 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="relative z-20 md:col-span-2">
+                        <label className={labelClass}>Ambiente do Commit</label>
+                        <div 
+                        className="w-full min-h-[42px] rounded-lg border border-slate-300 bg-white flex flex-wrap items-center gap-2 px-2 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all shadow-sm hover:border-indigo-300"
+                        onClick={() => {
+                            envInputRef.current?.focus();
+                            setIsEnvListOpen(true);
+                        }}
+                        >
+                        {selectedEnvs.map(env => (
+                            <span key={env} className="bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-medium rounded-md px-2 py-0.5 flex items-center gap-1">
+                            {env}
+                            <button 
+                                type="button" 
+                                onClick={(e) => { e.stopPropagation(); handleRemoveEnv(env); }} 
+                                className="hover:bg-indigo-200 rounded-full p-0.5 transition-colors"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                            </span>
+                        ))}
+                        <div className="flex-1 flex items-center min-w-[100px]">
+                            <input
+                                ref={envInputRef}
+                                type="text"
+                                value={envInputValue}
+                                onChange={(e) => setEnvInputValue(e.target.value)}
+                                onKeyDown={handleEnvKeyDown}
+                                onFocus={() => setIsEnvListOpen(true)}
+                                className="bg-transparent border-none text-slate-700 text-sm placeholder-slate-400 focus:ring-0 w-full p-0.5"
+                                placeholder={selectedEnvs.length === 0 ? "Selecione ou digite..." : ""}
+                            />
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isEnvListOpen ? 'rotate-180' : ''}`} />
+                        </div>
+                        </div>
+                        
+                        {isEnvListOpen && (
+                        <div ref={envDropdownRef} className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-30">
+                            <div className="p-1">
+                            {PREDEFINED_ENVS.filter(env => !selectedEnvs.includes(env) && env.toLowerCase().includes(envInputValue.toLowerCase())).map(env => (
+                                <button
+                                key={env}
+                                type="button"
+                                onClick={() => handleAddEnv(env)}
+                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-md transition-colors flex items-center justify-between group"
+                                >
+                                {env}
+                                <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 text-indigo-400" />
+                                </button>
+                            ))}
+                            {envInputValue && !selectedEnvs.includes(envInputValue) && !PREDEFINED_ENVS.includes(envInputValue) && (
+                                <button
+                                type="button"
+                                onClick={() => handleAddEnv(envInputValue)}
+                                className="w-full text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors border-t border-slate-100 mt-1 font-medium"
+                                >
+                                Adicionar "{envInputValue}"
+                                </button>
+                            )}
+                            {PREDEFINED_ENVS.filter(env => !selectedEnvs.includes(env)).length === 0 && !envInputValue && (
+                                <div className="px-3 py-2 text-xs text-slate-400 text-center">Todos selecionados</div>
+                            )}
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                    <div>
+                        <label className={labelClass}>Versão do Ambiente</label>
+                        <input type="text" value={environmentVersion} onChange={e => setEnvironmentVersion(e.target.value)} className={ticketInputClass} placeholder="v1.0.0" />
+                    </div>
+                    </div>
+
+                    {/* LINHA 6 */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                        <label className={labelClass}>Descrição do Chamado</label>
+                        <textarea rows={2} value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} className={ticketInputClass} placeholder="Detalhes da solicitação..." />
+                        </div>
+                        <div>
+                        <label className={labelClass}>Solução / Correção Aplicada</label>
+                        <textarea rows={2} value={solution} onChange={e => setSolution(e.target.value)} className={ticketInputClass} placeholder="O que foi feito..." />
+                        </div>
+                    </div>
                 </div>
-                <div>
-                  <label className={labelClass}>Solução / Correção Aplicada</label>
-                  <textarea rows={2} value={solution} onChange={e => setSolution(e.target.value)} className={ticketInputClass} placeholder="O que foi feito..." />
-                </div>
-            </div>
+            )}
           </div>
 
           {/* SEÇÃO 2: HISTÓRICO */}
