@@ -89,7 +89,11 @@ const App: React.FC = () => {
 
   // --- AUTH HANDLERS ---
   const handleLogin = (acronym: string, pass: string) => {
-    const user = users.find(u => u.acronym === acronym && u.password === pass);
+    const user = users.find(u => 
+      u.acronym.toLowerCase() === acronym.trim().toLowerCase() && 
+      u.password.toLowerCase() === pass.trim().toLowerCase()
+    );
+
     if (user) {
       setCurrentUser(user);
       setLoginError(null);

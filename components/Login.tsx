@@ -13,7 +13,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(acronym.toUpperCase(), password);
+    // Pass raw values to allow case-insensitive handling in parent
+    onLogin(acronym, password);
   };
 
   return (
@@ -81,8 +82,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
                             type="text"
                             maxLength={3}
                             value={acronym}
-                            onChange={(e) => setAcronym(e.target.value.toUpperCase())}
-                            className="block w-full pl-10 pr-3 py-3.5 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-0 transition-all font-mono text-center text-lg uppercase tracking-widest font-bold bg-slate-50 focus:bg-white"
+                            onChange={(e) => setAcronym(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-3.5 border-2 border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-0 transition-all font-mono text-center text-lg tracking-widest font-bold bg-slate-50 focus:bg-white"
                             placeholder="XXX"
                             required
                         />
