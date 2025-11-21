@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo } from '../types';
 import TestScenarioWizard from './TestScenarioWizard';
+import CustomDatePicker from './CustomDatePicker';
 import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 
@@ -270,24 +271,22 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     />
                     </div>
 
-                    {/* LINHA 2: DATAS */}
+                    {/* LINHA 2: DATAS (UPDATED TO CUSTOM DATE PICKER) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className={labelClass}>Data da Solicitação</label>
-                        <input 
-                        type="date" 
-                        value={requestDate} 
-                        onChange={e => setRequestDate(e.target.value)} 
-                        className={ticketInputClass} 
+                        <CustomDatePicker 
+                           value={requestDate}
+                           onChange={setRequestDate}
+                           placeholder="Selecione a data"
                         />
                     </div>
                     <div>
                         <label className={labelClass}>Data da Evidência</label>
-                        <input 
-                        type="date" 
-                        value={evidenceDate} 
-                        onChange={e => setEvidenceDate(e.target.value)} 
-                        className={ticketInputClass} 
+                        <CustomDatePicker 
+                           value={evidenceDate}
+                           onChange={setEvidenceDate}
+                           placeholder="Selecione a data"
                         />
                     </div>
                     </div>
@@ -530,6 +529,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                   baseTicketInfo={currentTicketInfo}
                   wizardTrigger={wizardTrigger}
                   onClearTrigger={onClearTrigger}
+                  existingEvidences={evidences}
                 />
             </div>
           </div>

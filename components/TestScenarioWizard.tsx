@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 
 interface TestScenarioWizardProps {
@@ -8,6 +8,7 @@ interface TestScenarioWizardProps {
   baseTicketInfo?: TicketInfo;
   wizardTrigger?: WizardTriggerContext | null;
   onClearTrigger?: () => void;
+  existingEvidences?: EvidenceItem[];
 }
 
 const generateCaseId = () => {
@@ -19,7 +20,7 @@ const generateCaseId = () => {
 const inputClass = "w-full rounded-lg border border-slate-300 bg-white text-slate-700 px-3 py-2.5 text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm hover:border-indigo-300";
 const labelClass = "block text-xs font-bold text-indigo-900 mb-1.5 uppercase tracking-wider ml-1";
 
-const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTicketInfo, wizardTrigger, onClearTrigger }) => {
+const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTicketInfo, wizardTrigger, onClearTrigger, existingEvidences = [] }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentScenarioNum, setCurrentScenarioNum] = useState(1);
   const [caseNumOverride, setCaseNumOverride] = useState<number | null>(null);
@@ -81,6 +82,21 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
        setCaseNumOverride(null);
     }
   }, [isOpen, wizardTrigger]);
+
+  const handleOpen = () => {
+    let nextScenario = 1;
+    if (existingEvidences.length > 0) {
+        const scenarios = existingEvidences
+            .filter(e => e.testCaseDetails)
+            .map(e => e.testCaseDetails!.scenarioNumber);
+        
+        if (scenarios.length > 0) {
+            nextScenario = Math.max(...scenarios) + 1;
+        }
+    }
+    setCurrentScenarioNum(nextScenario);
+    setIsOpen(true);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -251,7 +267,6 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     if (wizardTrigger) {
         handleClose();
     } else {
-        setCurrentScenarioNum(prev => prev + 1);
         resetForm();
         setIsOpen(false);
     }
@@ -262,7 +277,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         <div className="flex justify-center w-full py-4">
             <button 
                 type="button"
-                onClick={() => setIsOpen(true)}
+                onClick={handleOpen}
                 className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-4 text-white shadow-lg transition-all hover:shadow-indigo-200 hover:scale-[1.01] active:scale-95 w-full md:w-auto"
             >
                 <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
@@ -320,9 +335,23 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                             {isEditMode && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full tracking-wide font-semibold">EDIT</span>}
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ID Único</span>
-                        <div className="text-sm font-mono text-slate-600 mt-1 font-bold bg-white px-2 py-1 rounded border border-slate-200 inline-block">{formData.caseId}</div>
+                    
+                    {/* MODERN UNIQUE ID DISPLAY */}
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 relative overflow-hidden group hover:shadow-md transition-all duration-300">
+                        <div className="absolute -right-2 -top-2 text-slate-200 group-hover:text-slate-300 transition-colors transform rotate-12">
+                            <Fingerprint className="w-16 h-16 opacity-20" />
+                        </div>
+                        
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider flex items-center gap-1.5 mb-2">
+                            <Fingerprint className="w-3 h-3" /> ID Único
+                        </span>
+                        
+                        <div className="relative flex items-center">
+                            <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 font-mono text-sm font-bold tracking-wide flex items-center gap-2 group-hover:border-indigo-200 group-hover:text-indigo-700 transition-all w-full">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                {formData.caseId}
+                            </div>
+                        </div>
                     </div>
                 </div>
 

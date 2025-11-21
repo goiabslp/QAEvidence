@@ -3,8 +3,8 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import EvidenceForm from './components/EvidenceForm';
 import EvidenceList from './components/EvidenceList';
-import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket } from './types';
-import { FileCheck, AlertTriangle, Archive, RefreshCw, Calendar, Edit3, ArrowRight, X, User, CheckCheck, FileText } from 'lucide-react';
+import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus } from './types';
+import { FileCheck, AlertTriangle, Archive, RefreshCw, Calendar, Edit3, ArrowRight, X, User, CheckCheck, FileText, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -225,6 +225,16 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Helper to determine ticket status based on items
+  const getTicketAggregateStatus = (items: EvidenceItem[]) => {
+    const hasFailure = items.some(i => i.status === TestStatus.FAIL);
+    const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
+    
+    if (hasFailure) return { label: 'Falhou', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle };
+    if (hasBlocker) return { label: 'Bloqueado', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: AlertCircle };
+    return { label: 'Sucesso', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 };
+  };
+
   // Helper to get current ticket info for modal display
   const getCurrentTicketInfo = () => {
     if (evidences.length > 0) return evidences[0].ticketInfo;
@@ -279,14 +289,14 @@ const App: React.FC = () => {
            )}
 
            <div className="flex gap-4">
-               {(evidences.length > 0 || editingTicketInfo) && (
+               {editingHistoryId && (
                    <button
                       onClick={handleCancelEdit}
                       disabled={isGeneratingPdf}
                       className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all"
                    >
                       <X className="w-5 h-5" />
-                      <span>{editingHistoryId ? 'Cancelar Edição' : 'Limpar Tudo'}</span>
+                      <span>Cancelar Edição</span>
                    </button>
                )}
 
@@ -325,49 +335,98 @@ const App: React.FC = () => {
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ticketHistory.map((ticket) => (
-                <div 
-                  key={ticket.id} 
-                  onClick={() => handleOpenArchivedTicket(ticket)}
-                  className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-100"
-                >
-                  <div className="p-6 flex-1">
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        {ticket.ticketInfo.ticketId}
-                      </span>
-                      <span className="text-xs text-slate-400 flex items-center gap-1.5 font-medium">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    
-                    <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-3 group-hover:text-indigo-600 transition-colors">
-                      {ticket.ticketInfo.ticketTitle}
-                    </h3>
-                    
-                    <p className="text-sm text-slate-500 mb-5 line-clamp-2 leading-relaxed">
-                       {ticket.ticketInfo.ticketDescription || 'Sem descrição.'}
-                    </p>
+              {ticketHistory.map((ticket) => {
+                const status = getTicketAggregateStatus(ticket.items);
+                const uniqueScenarios = new Set(ticket.items.map(i => i.testCaseDetails?.scenarioNumber)).size;
+                const caseIds = ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean);
+                const displayDate = ticket.ticketInfo.evidenceDate 
+                    ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
+                    : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
 
-                    <div className="flex items-center gap-3 text-xs text-slate-400 pt-4 border-t border-slate-50">
-                      <span className="flex items-center gap-1"><FileCheck className="w-3 h-3" /> {ticket.items.length} evidências</span>
-                      <span className="text-slate-300">|</span>
-                      <span className="flex items-center gap-1"><User className="w-3 h-3" /> {ticket.ticketInfo.analyst}</span>
+                return (
+                  <div 
+                    key={ticket.id} 
+                    onClick={() => handleOpenArchivedTicket(ticket)}
+                    className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-100 relative"
+                  >
+                    <div className="p-5 flex-1">
+                       {/* Header: Status & Date */}
+                       <div className="flex justify-between items-start mb-4">
+                          <div className="flex flex-col">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Data da Evidência</span>
+                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 w-fit">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                {displayDate}
+                             </div>
+                          </div>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${status.color}`}>
+                            <status.icon className="w-3 h-3 mr-1.5" />
+                            {status.label}
+                          </span>
+                       </div>
+                       
+                       {/* Ticket Info */}
+                       <div className="mb-5">
+                          <div className="flex items-center gap-2 mb-2">
+                             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                {ticket.ticketInfo.ticketId}
+                             </span>
+                          </div>
+                          <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors" title={ticket.ticketInfo.ticketTitle}>
+                             {ticket.ticketInfo.ticketTitle}
+                          </h3>
+                       </div>
+
+                       {/* Stats Grid */}
+                       <div className="grid grid-cols-2 gap-3 mb-5">
+                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
+                             <Layers className="w-4 h-4 text-slate-400 mb-1" />
+                             <span className="text-lg font-bold text-slate-700">{uniqueScenarios}</span>
+                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Cenários</span>
+                          </div>
+                          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
+                             <ListChecks className="w-4 h-4 text-slate-400 mb-1" />
+                             <span className="text-lg font-bold text-slate-700">{ticket.items.length}</span>
+                             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Casos</span>
+                          </div>
+                       </div>
+
+                       {/* Analyst */}
+                       <div className="flex items-center gap-3 py-3 border-t border-dashed border-slate-200">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 border border-white shadow-sm">
+                             <User className="w-4 h-4" />
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase">Analista</span>
+                             <span className="text-xs font-semibold text-slate-700">{ticket.ticketInfo.analyst || 'N/A'}</span>
+                          </div>
+                       </div>
+
+                       {/* Case IDs */}
+                       {caseIds.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-slate-100">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">IDs dos Casos</span>
+                             <div className="flex flex-wrap gap-1.5">
+                                {caseIds.slice(0, 4).map((id, idx) => (
+                                   <span key={`${id}-${idx}`} className="inline-block px-1.5 py-0.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-mono font-medium text-slate-500">
+                                      {id}
+                                   </span>
+                                ))}
+                                {caseIds.length > 4 && (
+                                   <span className="inline-block px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-500">
+                                      +{caseIds.length - 4}
+                                   </span>
+                                )}
+                             </div>
+                          </div>
+                       )}
                     </div>
+                    
+                    {/* Hover Effect Overlay */}
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
                   </div>
-                  
-                  <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-between items-center group-hover:bg-indigo-50/30 transition-colors">
-                    <button 
-                       type="button"
-                       className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-2 transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" /> Abrir e Editar
-                    </button>
-                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
