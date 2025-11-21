@@ -64,6 +64,13 @@ export interface EvidenceItem {
   testCaseDetails?: TestCaseDetails;
 }
 
+export interface ArchivedTicket {
+  id: string;
+  ticketInfo: TicketInfo;
+  items: EvidenceItem[];
+  archivedAt: number;
+}
+
 export interface AIAnalysisResult {
   description: string;
   suggestedSeverity: Severity;

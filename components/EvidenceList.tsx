@@ -57,6 +57,16 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
       }
     });
 
+    // Ordena os grupos: Cenários primeiro (ordenados pelo ID), depois manuais
+    groups.sort((a, b) => {
+        if (a.type === 'scenario' && b.type === 'scenario') {
+            return a.scenarioNumber - b.scenarioNumber;
+        }
+        if (a.type === 'scenario') return -1;
+        if (b.type === 'scenario') return 1;
+        return 0;
+    });
+
     // Ordena os casos dentro dos grupos
     groups.forEach(g => {
       if (g.type === 'scenario') {

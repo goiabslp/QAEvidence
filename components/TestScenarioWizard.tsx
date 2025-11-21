@@ -17,6 +17,10 @@ const generateCaseId = () => {
   return `QA-${randomNum}`;
 };
 
+// Estilo padronizado para inputs (Dark Theme igual ao EvidenceForm)
+const inputClass = "w-full rounded-lg border-gray-600 bg-gray-800 text-gray-100 px-3 py-2 text-sm placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none";
+const labelClass = "block text-xs font-medium text-gray-700 mb-1";
+
 const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTicketInfo, wizardTrigger, onClearTrigger }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentScenarioNum, setCurrentScenarioNum] = useState(1);
@@ -265,7 +269,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   const isEditMode = wizardTrigger?.mode === 'edit';
 
   return (
-    <div className="w-full bg-gray-50 rounded-xl border border-indigo-200 overflow-hidden shadow-sm animate-slide-down transition-all duration-300">
+    <div className="w-full bg-white rounded-xl border border-indigo-200 overflow-hidden shadow-sm animate-slide-down transition-all duration-300">
         
         {/* Header Inline */}
         <div className={`px-6 py-4 border-b flex justify-between items-center ${wizardTrigger ? 'bg-blue-50 border-blue-200' : 'bg-indigo-50/50 border-indigo-100'}`}>
@@ -316,59 +320,59 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                 {/* Form Principal */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative">
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Tela de Teste / Contexto</label>
+                        <label className={labelClass}>Tela de Teste / Contexto</label>
                         <div className="relative">
                             <Monitor className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                             <input 
                                 type="text" 
                                 value={formData.screen}
                                 onChange={(e) => handleInputChange('screen', e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className={`${inputClass} pl-10`}
                                 placeholder="Ex: Tela de Login"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Objetivo / Funcionalidade</label>
+                        <label className={labelClass}>Objetivo / Funcionalidade</label>
                         <textarea 
                             rows={3}
                             value={formData.objective}
                             onChange={(e) => handleInputChange('objective', e.target.value)}
-                            className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className={inputClass}
                             placeholder="Objetivo do teste..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Resultado Esperado</label>
+                        <label className={labelClass}>Resultado Esperado</label>
                         <textarea 
                             rows={3}
                             value={formData.expectedResult}
                             onChange={(e) => handleInputChange('expectedResult', e.target.value)}
-                            className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className={inputClass}
                             placeholder="Comportamento esperado..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Pré-Requisito</label>
+                        <label className={labelClass}>Pré-Requisito</label>
                         <input 
                             type="text"
                             value={formData.preRequisite}
                             onChange={(e) => handleInputChange('preRequisite', e.target.value)}
-                            className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            className={inputClass}
                             placeholder="Ex: Usuário logado"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Condição</label>
+                        <label className={labelClass}>Condição</label>
                         <input 
                             type="text"
                             value={formData.condition}
                             onChange={(e) => handleInputChange('condition', e.target.value)}
-                            className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            className={inputClass}
                             placeholder="Ex: Dados válidos"
                         />
                     </div>
@@ -403,7 +407,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                                             <textarea
                                                 value={step.description}
                                                 onChange={(e) => handleStepDescriptionChange(index, e.target.value)}
-                                                className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                                className={inputClass}
                                                 rows={2}
                                                 placeholder="Descreva o passo executado..."
                                             />
@@ -461,7 +465,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
                 {/* RESULTADO FINAL (FOOTER DO FORM) */}
                 <div className="md:col-span-2 pt-2 border-t border-gray-100">
-                        <label className="block text-xs font-medium text-gray-700 mb-2">Resultado Final do Caso</label>
+                        <label className={labelClass}>Resultado Final do Caso</label>
                         <div className="flex gap-3">
                             {['Sucesso', 'Fracassou', 'Impedimento'].map((res) => (
                                 <button
@@ -512,4 +516,3 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 };
 
 export default TestScenarioWizard;
-    

@@ -11,11 +11,21 @@ interface EvidenceFormProps {
   wizardTrigger?: WizardTriggerContext | null;
   onClearTrigger?: () => void;
   evidences?: EvidenceItem[];
+  initialTicketInfo?: TicketInfo | null; // Prop para carregar dados históricos
+  onTicketInfoChange?: (info: TicketInfo) => void;
 }
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
 
-const EvidenceForm: React.FC<EvidenceFormProps> = ({ onSubmit, onWizardSave, wizardTrigger, onClearTrigger, evidences = [] }) => {
+const EvidenceForm: React.FC<EvidenceFormProps> = ({ 
+  onSubmit, 
+  onWizardSave, 
+  wizardTrigger, 
+  onClearTrigger, 
+  evidences = [], 
+  initialTicketInfo,
+  onTicketInfoChange
+}) => {
   // Estados do Chamado
   const [sprint, setSprint] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -54,6 +64,32 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ onSubmit, onWizardSave, wiz
   const envInputRef = useRef<HTMLInputElement>(null);
   const envDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Effect para carregar dados iniciais (Edição de Histórico)
+  useEffect(() => {
+    if (initialTicketInfo) {
+      setSprint(initialTicketInfo.sprint || '');
+      setTicketId(initialTicketInfo.ticketId || '');
+      setTicketTitle(initialTicketInfo.ticketTitle || '');
+      setTicketSummary(initialTicketInfo.ticketSummary || '');
+      setClientSystem(initialTicketInfo.clientSystem || '');
+      setRequester(initialTicketInfo.requester || '');
+      setAnalyst(initialTicketInfo.analyst || '');
+      setRequestDate(initialTicketInfo.requestDate || '');
+      setEnvironmentVersion(initialTicketInfo.environmentVersion || '');
+      setEvidenceDate(initialTicketInfo.evidenceDate || '');
+      setTicketDescription(initialTicketInfo.ticketDescription || '');
+      setSolution(initialTicketInfo.solution || '');
+      
+      // Parse environments
+      if (initialTicketInfo.environment) {
+        const envs = initialTicketInfo.environment.split(',').map(e => e.trim()).filter(Boolean);
+        setSelectedEnvs(envs);
+      }
+      
+      setIsTitleManuallyEdited(true); // Evita sobrescrever o título ao carregar
+    }
+  }, [initialTicketInfo]);
+
   // Objeto auxiliar com os dados atuais do chamado para passar pro Wizard
   const currentTicketInfo: TicketInfo = {
     sprint,
@@ -70,6 +106,17 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ onSubmit, onWizardSave, wiz
     ticketDescription,
     solution
   };
+
+  // Notifica o componente pai sobre mudanças nos dados do chamado
+  useEffect(() => {
+    if (onTicketInfoChange) {
+      onTicketInfoChange(currentTicketInfo);
+    }
+  }, [
+    sprint, ticketId, ticketTitle, ticketSummary, clientSystem, 
+    requester, analyst, requestDate, selectedEnvs, environmentVersion, 
+    evidenceDate, ticketDescription, solution, onTicketInfoChange
+  ]);
 
   // Fecha o dropdown se clicar fora
   useEffect(() => {
