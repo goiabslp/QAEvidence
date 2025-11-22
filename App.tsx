@@ -54,12 +54,12 @@ const App: React.FC = () => {
     } else {
       // Seed default admins requested
       const defaultAdmins: User[] = [
-        { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN' },
-        { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN' },
-        { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN' },
-        { id: 'admin-rfp', acronym: 'RFP', name: 'Renan', password: 'RFP', role: 'ADMIN' },
-        { id: 'admin-eds', acronym: 'EDS', name: 'Everton', password: 'EDS', role: 'ADMIN' },
-        { id: 'admin-yeb', acronym: 'YEB', name: 'Ygor', password: 'YEB', role: 'ADMIN' }
+        { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN', isActive: true },
+        { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN', isActive: true },
+        { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN', isActive: true },
+        { id: 'admin-rfp', acronym: 'RFP', name: 'Renan', password: 'RFP', role: 'ADMIN', isActive: true },
+        { id: 'admin-eds', acronym: 'EDS', name: 'Everton', password: 'EDS', role: 'ADMIN', isActive: true },
+        { id: 'admin-yeb', acronym: 'YEB', name: 'Ygor', password: 'YEB', role: 'ADMIN', isActive: true }
       ];
       setUsers(defaultAdmins);
       localStorage.setItem('narnia_users', JSON.stringify(defaultAdmins));
@@ -95,6 +95,10 @@ const App: React.FC = () => {
     );
 
     if (user) {
+      if (user.isActive === false) {
+        setLoginError('Acesso negado. Usuário desativado.');
+        return;
+      }
       setCurrentUser(user);
       setLoginError(null);
       // Reset form info to current user defaults
@@ -127,6 +131,10 @@ const App: React.FC = () => {
 
   const handleUpdateUser = (updatedUser: User) => {
     setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    // Update current session if user updated themselves
+    if (currentUser && currentUser.id === updatedUser.id) {
+      setCurrentUser(updatedUser);
+    }
   };
 
 
@@ -377,20 +385,20 @@ const App: React.FC = () => {
       
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
-        {/* Admin Panel Toggle */}
-        {currentUser.role === 'ADMIN' && (
+        {/* User Management Panel Toggle */}
+        {currentUser && (
             <div className="mb-8 flex justify-end">
                 <button 
                     onClick={() => setShowAdminPanel(!showAdminPanel)}
                     className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm"
                 >
                     <ShieldCheck className="w-4 h-4" />
-                    {showAdminPanel ? 'Ocultar Painel Admin' : 'Gerenciar Usuários'}
+                    {showAdminPanel ? 'Ocultar Painel' : (currentUser.role === 'ADMIN' ? 'Gerenciar Usuários' : 'Meu Perfil')}
                 </button>
             </div>
         )}
 
-        {showAdminPanel && currentUser.role === 'ADMIN' ? (
+        {showAdminPanel ? (
             <UserManagement 
                 users={users} 
                 onAddUser={handleAddUser} 

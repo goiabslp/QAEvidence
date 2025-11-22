@@ -21,6 +21,7 @@ export interface User {
   name: string;
   password: string; // Simple storage for simulation
   role: UserRole;
+  isActive?: boolean; // Control access
 }
 
 export interface TicketInfo {

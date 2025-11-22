@@ -77,7 +77,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         setSelectedEnvs(envs);
       }
       
-      setIsTitleManuallyEdited(true);
+      setIsTitleManuallyEdited(!!initialTicketInfo.ticketTitle);
     }
   }, [initialTicketInfo]);
 
