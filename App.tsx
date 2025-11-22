@@ -326,6 +326,7 @@ const App: React.FC = () => {
   const handleSaveAndClose = () => {
     if (!validateTicketRequirements()) return;
     
+    // Updated confirmation message
     if (confirm('Deseja salvar esta evidência no histórico?')) {
         persistCurrentTicket();
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -413,7 +414,7 @@ const App: React.FC = () => {
     
     if (hasFailure) return STATUS_CONFIG[TestStatus.FAIL];
     if (hasBlocker) return STATUS_CONFIG[TestStatus.BLOCKED];
-    if (hasPending) return STATUS_CONFIG[TestStatus.SKIPPED];
+    if (hasPending) return STATUS_CONFIG[TestStatus.SKIPPED]; // Use SKIPPED config which maps to Pendente/Clock
     return STATUS_CONFIG[TestStatus.PASS];
   };
 

@@ -467,6 +467,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                           item.status === TestStatus.FAIL ? 'bg-red-100 text-red-800 border border-red-200' :
                                           item.status === TestStatus.BLOCKED ? 'bg-amber-100 text-amber-800 border border-amber-200' :
                                           item.status === TestStatus.PENDING ? 'bg-slate-100 text-slate-600 border border-slate-200' :
+                                          item.status === TestStatus.SKIPPED ? 'bg-gray-100 text-gray-800 border border-gray-200' :
                                           'bg-slate-100 text-slate-800 border border-slate-200'
                                        }`}>
                                           {item.status === TestStatus.PASS && <CheckCircle2 className="w-3 h-3 mr-1" />}
@@ -475,11 +476,11 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                           {item.status === TestStatus.SKIPPED && <Clock className="w-3 h-3 mr-1" />}
                                           {item.status === TestStatus.PENDING && <Clock className="w-3 h-3 mr-1" />}
                                           
-                                          {/* Update display text here */}
-                                          {item.status === 'PASS' ? 'Sucesso' : 
-                                           item.status === 'FAIL' ? 'Falha' : 
-                                           item.status === 'BLOCKED' ? 'Impedimento' : 
-                                           item.status === 'PENDING' ? 'Pendente' : 
+                                          {item.status === TestStatus.PASS ? 'Sucesso' : 
+                                           item.status === TestStatus.FAIL ? 'Falha' : 
+                                           item.status === TestStatus.BLOCKED ? 'Impedimento' : 
+                                           item.status === TestStatus.SKIPPED ? 'Pendente' :
+                                           item.status === TestStatus.PENDING ? 'Pendente' : 
                                            'Pendente'} 
                                        </span>
                                     </td>

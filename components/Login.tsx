@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { KeyRound, User as UserIcon, ArrowRight, ShieldCheck, Bug, Sparkles, Crown, ScrollText } from 'lucide-react';
+import { KeyRound, User as UserIcon, ArrowRight, ShieldCheck, Bug, Sparkles, ScrollText } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (acronym: string, password: string) => void;
@@ -30,14 +30,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
         <div className="md:w-1/2 p-10 flex flex-col justify-between bg-gradient-to-br from-indigo-900/80 to-purple-900/80 text-white relative">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-400 to-pink-400"></div>
             
-            <div>
-                <div className="flex items-center gap-2 mb-6">
-                    <div className="bg-white/20 p-2 rounded-lg backdrop-blur-md border border-white/10">
-                        <Crown className="w-6 h-6 text-yellow-300" />
-                    </div>
-                    <span className="text-xs font-bold tracking-widest uppercase opacity-80">Acesso Corporativo</span>
-                </div>
-                
+            <div className="mt-8">
                 <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mb-4 drop-shadow-lg">
                    Evidências <br/>
                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-pink-300">
