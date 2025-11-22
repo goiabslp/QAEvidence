@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
+import ImageEditor from './ImageEditor';
 
 interface TestScenarioWizardProps {
   onSave: (items: Omit<EvidenceItem, 'createdBy'>[]) => void;
@@ -26,6 +27,10 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   const [currentScenarioNum, setCurrentScenarioNum] = useState(1);
   const [caseNumOverride, setCaseNumOverride] = useState<number | null>(null);
   const [isPreReqExpanded, setIsPreReqExpanded] = useState(false);
+
+  // Image Editor State
+  const [editorImageSrc, setEditorImageSrc] = useState<string | null>(null);
+  const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<Partial<TestCaseDetails>>({
     caseId: generateCaseId(),
@@ -114,6 +119,8 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     setIsTestStarted(false);
     setPreReqInput('');
     setIsPreReqExpanded(false);
+    setEditorImageSrc(null);
+    setEditingStepIndex(null);
   };
 
   const handleInputChange = (field: keyof TestCaseDetails, value: any) => {
@@ -167,12 +174,38 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     if (file) {
         const reader = new FileReader();
         reader.onloadend = () => {
-            const newSteps = [...steps];
-            newSteps[index].imageUrl = reader.result as string;
-            setSteps(newSteps);
+            const src = reader.result as string;
+            // Instead of setting immediately, open editor
+            setEditorImageSrc(src);
+            setEditingStepIndex(index);
         };
         reader.readAsDataURL(file);
     }
+    // Reset input to allow re-uploading same file
+    e.target.value = '';
+  };
+
+  const handleEditorSave = (editedSrc: string) => {
+    if (editingStepIndex !== null) {
+        const newSteps = [...steps];
+        newSteps[editingStepIndex].imageUrl = editedSrc;
+        setSteps(newSteps);
+    }
+    setEditorImageSrc(null);
+    setEditingStepIndex(null);
+  };
+
+  const handleEditorCancel = () => {
+    setEditorImageSrc(null);
+    setEditingStepIndex(null);
+  };
+
+  const handleEditExistingImage = (index: number) => {
+      const currentImg = steps[index].imageUrl;
+      if (currentImg) {
+          setEditorImageSrc(currentImg);
+          setEditingStepIndex(index);
+      }
   };
 
   const handleRemoveStepImage = (index: number) => {
@@ -296,6 +329,16 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   const isEditMode = wizardTrigger?.mode === 'edit';
 
   return (
+    <>
+    {/* EDITOR MODAL */}
+    {editorImageSrc && (
+        <ImageEditor 
+            imageSrc={editorImageSrc}
+            onSave={handleEditorSave}
+            onCancel={handleEditorCancel}
+        />
+    )}
+
     <div className="w-full bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-lg ring-1 ring-black/5 animate-slide-down transition-all duration-300">
         
         {/* Header */}
@@ -514,13 +557,22 @@ E seleciono a opção Aprovar;`}
                                                     />
                                                 </label>
                                                 {step.imageUrl && (
+                                                     <>
+                                                     <button 
+                                                        type="button"
+                                                        onClick={() => handleEditExistingImage(index)}
+                                                        className="text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100"
+                                                     >
+                                                        <Crop className="w-3 h-3" /> Editar / Recortar
+                                                     </button>
                                                      <button 
                                                         type="button"
                                                         onClick={() => handleRemoveStepImage(index)}
-                                                        className="text-red-500 text-xs hover:text-red-700 font-medium"
+                                                        className="text-red-500 text-xs hover:text-red-700 font-medium ml-2"
                                                      >
                                                         Remover
                                                      </button>
+                                                     </>
                                                 )}
                                             </div>
 
@@ -621,6 +673,7 @@ E seleciono a opção Aprovar;`}
             </button>
         </div>
     </div>
+    </>
   );
 };
 

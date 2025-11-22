@@ -20,9 +20,8 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </div>
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold text-white tracking-tight leading-none">
-                Evidencias de Teste QA
+                Evidencia de Teste
               </h1>
-              <p className="text-xs text-slate-400 font-medium mt-1">Portal de Documentação Corporativa</p>
             </div>
           </div>
 
