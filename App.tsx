@@ -104,7 +104,7 @@ const App: React.FC = () => {
       // Reset form info to current user defaults
       setEditingTicketInfo({
          ...editingTicketInfo!,
-         analyst: user.name
+         analyst: user.acronym // Use Acronym instead of Name
       });
     } else {
       setLoginError('Credenciais inválidas. Verifique sigla e senha.');
@@ -150,7 +150,7 @@ const App: React.FC = () => {
       createdBy: currentUser.acronym,
       ticketInfo: {
         ...newEvidence.ticketInfo,
-        analyst: currentUser.name // Force analyst to be current user name
+        analyst: currentUser.acronym // Use Acronym instead of Name
       }
     };
     setEvidences([item, ...evidences]);
@@ -165,7 +165,7 @@ const App: React.FC = () => {
         createdBy: currentUser.acronym,
         ticketInfo: {
             ...item.ticketInfo,
-            analyst: currentUser.name
+            analyst: currentUser.acronym // Use Acronym instead of Name
         }
     }));
 
@@ -417,7 +417,7 @@ const App: React.FC = () => {
                     wizardTrigger={wizardTrigger}
                     onClearTrigger={() => setWizardTrigger(null)}
                     evidences={evidences}
-                    initialTicketInfo={editingTicketInfo || (currentUser ? { analyst: currentUser.name } as TicketInfo : null)}
+                    initialTicketInfo={editingTicketInfo || (currentUser ? { analyst: currentUser.acronym } as TicketInfo : null)} // Use Acronym instead of Name
                     onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
                 />
                 
