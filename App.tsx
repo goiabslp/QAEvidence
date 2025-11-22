@@ -7,9 +7,10 @@ import EvidenceList from './components/EvidenceList';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
+import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -28,7 +29,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [adminTab, setAdminTab] = useState<'users' | 'evidences'>('users');
+  const [adminTab, setAdminTab] = useState<'users' | 'evidences' | 'dashboard'>('users');
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -485,7 +486,7 @@ const App: React.FC = () => {
                 {/* ADMIN TABS */}
                 {currentUser.role === 'ADMIN' && (
                     <div className="flex justify-center">
-                        <div className="flex gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+                        <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
                             <button 
                               onClick={() => setAdminTab('users')}
                               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
@@ -506,7 +507,18 @@ const App: React.FC = () => {
                               }`}
                             >
                                 <Layers className="w-4 h-4" />
-                                Gestão de Evidências
+                                Evidências
+                            </button>
+                            <button 
+                              onClick={() => setAdminTab('dashboard')}
+                              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                                  adminTab === 'dashboard' 
+                                  ? 'bg-slate-900 text-white shadow-md' 
+                                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                                <LayoutDashboard className="w-4 h-4" />
+                                Dashboard
                             </button>
                         </div>
                     </div>
@@ -521,329 +533,242 @@ const App: React.FC = () => {
                         onUpdateUser={handleUpdateUser}
                         currentUserId={currentUser.id}
                     />
+                ) : adminTab === 'evidences' ? (
+                     <EvidenceManagement tickets={ticketHistory} users={users} />
                 ) : (
-                    <EvidenceManagement tickets={ticketHistory} users={users} />
+                     <DashboardMetrics tickets={ticketHistory} users={users} currentUser={currentUser} />
                 )}
             </div>
         ) : (
+            // Main workspace when admin panel is NOT shown
             <>
-                {/* Main Evidence Form Content */}
-                <div className="space-y-10 pb-8" ref={reportRef}>
-                <EvidenceForm 
+                <EvidenceForm
                     key={formKey}
-                    onSubmit={handleAddEvidence} 
+                    onSubmit={handleAddEvidence}
                     onWizardSave={handleWizardSave}
                     wizardTrigger={wizardTrigger}
                     onClearTrigger={() => setWizardTrigger(null)}
                     evidences={evidences}
-                    initialTicketInfo={editingTicketInfo || (currentUser ? { analyst: currentUser.acronym } as TicketInfo : null)} // Use Acronym instead of Name
+                    initialTicketInfo={editingTicketInfo}
                     onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
                 />
                 
-                <div>
-                    {evidences.length > 0 && (
-                        <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-3">
-                        <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
-                        Cenário de Teste do Chamado
+                {/* List Header Actions (PDF/Save) */}
+                <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 mb-6 border-b border-slate-200 pb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <ListChecks className="w-5 h-5 text-indigo-600" />
+                            Evidências Registradas
+                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                                {evidences.length}
+                            </span>
                         </h3>
-                    )}
-                    <EvidenceList 
-                    evidences={evidences} 
-                    onDelete={handleDeleteEvidence} 
-                    onAddCase={handleAddCase}
-                    onEditCase={handleEditCase}
-                    />
-                </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="mt-12 border-t border-slate-200 pt-8 flex flex-col items-center">
-                {pdfError && (
-                    <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-5 py-3 rounded-xl flex items-start gap-3 animate-shake max-w-xl shadow-sm">
-                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
-                        <span className="text-sm font-semibold">{pdfError}</span>
-                    </div>
-                )}
-
-                <div className="flex gap-4">
-                    {editingHistoryId && (
-                        <button
-                            onClick={handleCancelEdit}
-                            disabled={isGeneratingPdf}
-                            className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all"
-                        >
-                            <X className="w-5 h-5" />
-                            <span>Cancelar Edição</span>
-                        </button>
-                    )}
-
-                    {/* Botão Salvar Evidência */}
-                    <button
-                        onClick={handleSaveAndClose}
-                        disabled={evidences.length === 0 || isGeneratingPdf}
-                        className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-slate-700 bg-white border border-slate-300 shadow-sm hover:bg-slate-50 hover:text-indigo-700 hover:border-indigo-300 transition-all ${
-                            evidences.length === 0 || isGeneratingPdf ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                    >
-                         <Save className="w-5 h-5" />
-                         <span>Salvar Evidência</span>
-                    </button>
-
-                    {/* Botão Gerar PDF (Salvar com PDF) */}
-                    <button
-                        onClick={handlePdfFlow}
-                        disabled={evidences.length === 0 || isGeneratingPdf}
-                        className={`flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0 ${
-                            evidences.length === 0 || isGeneratingPdf
-                            ? 'bg-slate-400 cursor-not-allowed shadow-none' 
-                            : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 hover:shadow-emerald-200'
-                        }`}
-                    >
-                        {isGeneratingPdf ? (
-                            <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            {editingHistoryId ? 'Atualizando...' : 'Gerando PDF...'}
-                            </>
-                        ) : (
-                            <>
-                            <FileDown className="w-5 h-5" />
-                            <span>Gerar PDF</span>
-                            </>
+                        {editingHistoryId && (
+                           <div className="flex items-center gap-2 mt-1">
+                               <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+                                  <Archive className="w-3 h-3" /> Editando Histórico
+                               </span>
+                               <button onClick={handleCancelEdit} className="text-xs underline text-slate-400 hover:text-red-500">Cancelar</button>
+                           </div>
                         )}
-                    </button>
-                </div>
-                </div>
-
-                {/* HISTÓRICO */}
-                {displayedHistory.length > 0 && (
-                <div className="mt-20 pt-10 border-t-2 border-dashed border-slate-200">
-                    <div className="flex justify-between items-center mb-8">
-                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                            <div className="bg-slate-200 p-2 rounded-lg">
-                                <Archive className="w-6 h-6 text-slate-600" />
-                            </div>
-                            Histórico de Evidências {currentUser.role === 'ADMIN' ? '(Geral)' : '(Meus)'}
-                        </h2>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {displayedHistory.map((ticket) => {
-                        const statusConfig = getTicketAggregateStatus(ticket.items);
-                        const StatusIcon = statusConfig.icon;
-                        const uniqueScenarios = new Set(ticket.items.map(i => i.testCaseDetails?.scenarioNumber)).size;
-                        const displayDate = ticket.ticketInfo.evidenceDate 
-                            ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
-                            : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
-
-                        return (
-                        <div 
-                            key={ticket.id} 
-                            onClick={() => handleOpenArchivedTicket(ticket)}
-                            className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 flex flex-col overflow-hidden group cursor-pointer ring-0 hover:ring-2 hover:ring-indigo-100 relative"
+                    <div className="flex gap-3">
+                        {/* Save to History Button */}
+                        <button 
+                            onClick={handleSaveAndClose}
+                            disabled={evidences.length === 0}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:text-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                         >
-                            <div className="p-5 flex-1">
-                            {/* Header: Status & Date */}
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Data da Evidência</span>
-                                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100 w-fit">
-                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                        {displayDate}
-                                    </div>
-                                </div>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${statusConfig.color}`}>
-                                    <StatusIcon className="w-3 h-3 mr-1.5" />
-                                    {statusConfig.label}
-                                </span>
-                            </div>
-                            
-                            {/* Ticket Info */}
-                            <div className="mb-5">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                                        {ticket.ticketInfo.ticketId}
-                                    </span>
-                                    {currentUser.role === 'ADMIN' && ticket.createdBy && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                            <UserIcon className="w-3 h-3 mr-1" /> {ticket.createdBy}
-                                        </span>
-                                    )}
-                                </div>
-                                <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors" title={ticket.ticketInfo.ticketTitle}>
-                                    {ticket.ticketInfo.ticketTitle}
-                                </h3>
-                            </div>
+                            <Save className="w-4 h-4" />
+                            <span className="hidden sm:inline">Salvar no Histórico</span>
+                        </button>
 
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-3 mb-5">
-                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
-                                    <Layers className="w-4 h-4 text-slate-400 mb-1" />
-                                    <span className="text-lg font-bold text-slate-700">{uniqueScenarios}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Cenários</span>
-                                </div>
-                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all">
-                                    <ListChecks className="w-4 h-4 text-slate-400 mb-1" />
-                                    <span className="text-lg font-bold text-slate-700">{ticket.items.length}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Casos</span>
-                                </div>
-                            </div>
-
-                            {/* Footer: Analyst & Download */}
-                            <div className="flex items-center justify-between py-3 border-t border-dashed border-slate-200 mt-auto">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 border border-white shadow-sm">
-                                        <UserIcon className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Analista</span>
-                                        <span className="text-xs font-semibold text-slate-700">{ticket.ticketInfo.analyst || 'N/A'}</span>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
-                                    disabled={!!printingHistoryId}
-                                    className="flex items-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors border border-indigo-100"
-                                    title="Baixar PDF do Histórico"
-                                >
-                                    {printingHistoryId === ticket.id ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <FileDown className="w-4 h-4" />
-                                    )}
-                                    Download PDF
-                                </button>
-                            </div>
-                            </div>
-                            
-                            {/* Hover Effect Overlay */}
-                            <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-                        </div>
-                        );
-                    })}
+                        {/* PDF Button */}
+                        <button 
+                           onClick={handlePdfFlow}
+                           disabled={evidences.length === 0 || isGeneratingPdf}
+                           className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                           {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                           Gerar PDF
+                        </button>
                     </div>
                 </div>
+
+                {pdfError && (
+                    <div className="mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-red-100 animate-pulse">
+                        <AlertCircle className="w-4 h-4" />
+                        {pdfError}
+                    </div>
                 )}
-            </>
+
+                <EvidenceList 
+                    evidences={evidences}
+                    onDelete={handleDeleteEvidence}
+                    onAddCase={handleAddCase}
+                    onEditCase={handleEditCase}
+                />
+             </>
+        )}
+
+        {!showAdminPanel && displayedHistory.length > 0 && (
+             <div className="mt-16 pt-10 border-t border-slate-200">
+                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <Archive className="w-5 h-5 text-slate-400" />
+                    Histórico de Chamados
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     {displayedHistory.slice(0, 6).map(ticket => (
+                         <div 
+                            key={ticket.id} 
+                            onClick={() => handleOpenArchivedTicket(ticket)}
+                            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
+                         >
+                             <div className="flex justify-between items-start mb-3">
+                                 <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                                     {ticket.ticketInfo.ticketId}
+                                 </span>
+                                 <div className="flex gap-2">
+                                    <button
+                                        onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
+                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                        title="Baixar PDF"
+                                    >
+                                        {printingHistoryId === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                                    </button>
+                                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold border ${getTicketAggregateStatus(ticket.items).color}`}>
+                                        {getTicketAggregateStatus(ticket.items).label}
+                                    </span>
+                                 </div>
+                             </div>
+                             <h4 className="font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors">{ticket.ticketInfo.ticketTitle}</h4>
+                             <div className="flex items-center gap-4 text-xs text-slate-500 mt-3">
+                                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}</span>
+                                 <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {ticket.items.length}</span>
+                             </div>
+                         </div>
+                     ))}
+                 </div>
+             </div>
         )}
 
       </main>
+      
       <Footer />
 
-      {/* CONFIRMATION MODAL (SHARED FOR PDF & SAVE) */}
+      {/* PDF Confirmation Modal */}
       {showPdfModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div 
-            className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"
-            onClick={() => setShowPdfModal(false)}
+             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+             onClick={() => setShowPdfModal(false)}
           ></div>
-          
-          <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-0 overflow-hidden transform transition-all scale-100 border border-slate-100">
-             
-             <div className={`bg-gradient-to-br p-6 text-white relative overflow-hidden ${isPdfMode ? 'from-emerald-500 to-teal-600' : 'from-indigo-600 to-blue-700'}`}>
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    {isPdfMode ? (
-                        <CheckCheck className="w-32 h-32 transform rotate-12 translate-x-8 -translate-y-8" />
-                    ) : (
-                        <Save className="w-32 h-32 transform rotate-12 translate-x-8 -translate-y-8" />
-                    )}
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 transform scale-100 transition-all">
+             <div className="text-center">
+                <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${isPdfMode ? 'bg-indigo-100' : 'bg-emerald-100'}`}>
+                   {isPdfMode ? <FileDown className="h-6 w-6 text-indigo-600" /> : <Save className="h-6 w-6 text-emerald-600" />}
                 </div>
-                <div className="flex items-center gap-4 relative z-10">
-                    <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                        {isPdfMode ? <CheckCheck className="w-8 h-8 text-white" /> : <Save className="w-8 h-8 text-white" />}
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-bold leading-tight">{isPdfMode ? 'Finalizar Chamado' : 'Salvar Evidência'}</h3>
-                        <p className={`${isPdfMode ? 'text-emerald-100' : 'text-indigo-100'} text-sm font-medium`}>
-                            {isPdfMode ? 'Confirme os dados para geração do PDF' : 'Confirme os dados para salvar no histórico'}
-                        </p>
-                    </div>
+                <h3 className="text-lg font-bold text-slate-900">
+                    {isPdfMode ? 'Gerar Relatório PDF' : 'Salvar no Histórico'}
+                </h3>
+                <p className="text-sm text-slate-500 mt-2 mb-6">
+                    {isPdfMode 
+                     ? 'Deseja finalizar o chamado e gerar o arquivo PDF com todas as evidências?' 
+                     : 'Deseja salvar este chamado no histórico e limpar a área de trabalho?'}
+                </p>
+                <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowPdfModal(false)}
+                      className="flex-1 px-4 py-2 bg-white border border-slate-300 rounded-xl text-slate-700 font-bold text-sm hover:bg-slate-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleModalConfirm}
+                      className={`flex-1 px-4 py-2 rounded-xl text-white font-bold text-sm shadow-lg ${isPdfMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                    >
+                      Confirmar
+                    </button>
                 </div>
-                <button 
-                    onClick={() => setShowPdfModal(false)}
-                    className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-1 transition-colors"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-             </div>
-
-             <div className="p-8">
-                 <div className="flex flex-col gap-6">
-                    <div className="bg-slate-50 rounded-xl border border-slate-100 p-5 space-y-4">
-                        <div className="flex items-start gap-3">
-                            <FileText className="w-5 h-5 text-slate-400 mt-0.5" />
-                            <div>
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Chamado & Título</span>
-                                <p className="font-bold text-slate-800 text-lg leading-tight">
-                                    <span className="text-indigo-600 mr-2">{modalTicketInfo?.ticketId}</span> 
-                                    {modalTicketInfo?.ticketTitle}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="w-full h-px bg-slate-200/50"></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Evidências</span>
-                                <p className="font-medium text-slate-700">{evidences.length} registros</p>
-                            </div>
-                            <div>
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Analista</span>
-                                <p className="font-medium text-slate-700">{modalTicketInfo?.analyst}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <p className="text-sm text-slate-500 text-center px-4">
-                        {isPdfMode 
-                            ? 'Ao confirmar, o documento PDF será gerado automaticamente e o registro será salvo no histórico local.' 
-                            : 'Ao confirmar, o registro será salvo no histórico local e o formulário será limpo.'}
-                    </p>
-
-                    <div className="flex gap-3 mt-2">
-                        <button 
-                        onClick={() => setShowPdfModal(false)}
-                        className="flex-1 px-4 py-3.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
-                        >
-                        Voltar e Editar
-                        </button>
-                        <button 
-                        onClick={handleModalConfirm}
-                        className={`flex-1 px-4 py-3.5 text-white rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${
-                            isPdfMode 
-                            ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-200' 
-                            : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200'
-                        }`}
-                        >
-                        {isPdfMode ? <CheckCheck className="w-5 h-5" /> : <Save className="w-5 h-5" />}
-                        {isPdfMode ? 'Gerar Documento' : 'Confirmar e Salvar'}
-                        </button>
-                    </div>
-                 </div>
              </div>
           </div>
         </div>
       )}
 
-      {/* Hidden Print Container for History */}
+      {/* Hidden Report Container for Main PDF */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
-         <div ref={historyPrintRef} className="bg-white p-8 min-h-screen">
+         <div ref={reportRef} className="bg-white p-10 min-h-screen">
+            <div className="flex justify-between items-center mb-8 border-b-2 border-slate-800 pb-4">
+                <h1 className="text-2xl font-bold text-slate-900">Relatório de Evidência de Teste</h1>
+                <div className="text-right">
+                    <p className="text-sm font-bold text-slate-600">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
+                    <p className="text-xs text-slate-400">QA Evidence System</p>
+                </div>
+            </div>
+            
+            {/* Static Form View for PDF */}
+            <EvidenceForm 
+               onSubmit={() => {}} 
+               onWizardSave={() => {}}
+               evidences={evidences}
+               initialTicketInfo={modalTicketInfo}
+               // We pass a readonly mode implicitly by not providing handlers or by structure?
+               // Actually EvidenceForm fields are inputs. For PDF, they render as inputs with values.
+               // HTML2PDF captures them fine.
+            />
+
+            <div className="mt-8">
+                <div className="bg-slate-800 text-white px-4 py-2 rounded-t-lg font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                    <ListChecks className="w-4 h-4" />
+                    Detalhamento dos Testes
+                </div>
+                <EvidenceList 
+                    evidences={evidences} 
+                    onDelete={() => {}} // No delete in PDF
+                />
+            </div>
+            
+            <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between text-xs text-slate-400">
+                <span>Responsável: {currentUser.name}</span>
+                <span>Confidencial - Uso Interno</span>
+            </div>
+         </div>
+      </div>
+      
+      {/* Hidden History Print Container */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
+         <div ref={historyPrintRef} className="bg-white p-10 min-h-screen">
             {ticketToPrint && (
-                <div className="space-y-8">
+                <>
+                    <div className="flex justify-between items-center mb-8 border-b-2 border-slate-800 pb-4">
+                        <h1 className="text-2xl font-bold text-slate-900">Relatório de Evidência de Teste (Histórico)</h1>
+                        <div className="text-right">
+                            <p className="text-sm font-bold text-slate-600">Data Original: {ticketToPrint.ticketInfo.evidenceDate}</p>
+                            <p className="text-xs text-slate-400">ID: {ticketToPrint.ticketInfo.ticketId}</p>
+                        </div>
+                    </div>
                     <EvidenceForm 
                         onSubmit={() => {}} 
                         onWizardSave={() => {}}
+                        evidences={ticketToPrint.items}
                         initialTicketInfo={ticketToPrint.ticketInfo}
                     />
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-3">
-                            <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
-                            Cenário de Teste do Chamado
-                        </h3>
+                    <div className="mt-8">
+                         <div className="bg-slate-800 text-white px-4 py-2 rounded-t-lg font-bold text-sm uppercase tracking-wider flex items-center gap-2">
+                            <ListChecks className="w-4 h-4" />
+                            Detalhamento dos Testes
+                        </div>
                         <EvidenceList 
                             evidences={ticketToPrint.items} 
                             onDelete={() => {}}
                         />
                     </div>
-                </div>
+                    <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between text-xs text-slate-400">
+                        <span>Responsável: {users.find(u => u.acronym === ticketToPrint.createdBy)?.name || ticketToPrint.createdBy}</span>
+                        <span>Confidencial - Uso Interno</span>
+                    </div>
+                </>
             )}
          </div>
       </div>
