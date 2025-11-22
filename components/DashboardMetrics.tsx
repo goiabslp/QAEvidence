@@ -283,7 +283,7 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
                                 <div className="w-px h-8 bg-slate-100 hidden md:block"></div>
                                 <div className="flex flex-col items-center min-w-[60px]">
                                     <span className="text-lg font-bold text-amber-600">{stat.blocked}</span>
-                                    <span className="text-[10px] uppercase font-bold text-amber-400/80 tracking-wider">Blocked</span>
+                                    <span className="text-[10px] uppercase font-bold text-amber-400/80 tracking-wider">Impedimento</span>
                                 </div>
                                 <div className="w-px h-8 bg-slate-100 hidden md:block"></div>
                                 <div className="flex flex-col items-center min-w-[60px]">
