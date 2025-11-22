@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -183,6 +183,30 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
     }
     // Reset input to allow re-uploading same file
     e.target.value = '';
+  };
+
+  const handlePasteStepImage = async (index: number) => {
+      try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+              if (item.types.some(type => type.startsWith('image/'))) {
+                  const blob = await item.getType(item.types.find(type => type.startsWith('image/'))!);
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                      if (e.target?.result) {
+                          setEditorImageSrc(e.target.result as string);
+                          setEditingStepIndex(index);
+                      }
+                  };
+                  reader.readAsDataURL(blob);
+                  return;
+              }
+          }
+          alert("Nenhuma imagem encontrada na área de transferência.");
+      } catch (error) {
+          console.error("Erro ao colar:", error);
+          alert("Erro ao acessar a área de transferência. Verifique as permissões.");
+      }
   };
 
   const handleEditorSave = (editedSrc: string) => {
@@ -545,10 +569,10 @@ E seleciono a opção Aprovar;`}
                                                 placeholder="Descreva o passo executado..."
                                             />
                                             
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <label className="cursor-pointer inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100">
                                                     <ImageIcon className="w-4 h-4" />
-                                                    {step.imageUrl ? 'Trocar Imagem' : 'Anexar Evidência Visual'}
+                                                    {step.imageUrl ? 'Trocar Imagem' : 'Upload'}
                                                     <input 
                                                         type="file" 
                                                         accept="image/*" 
@@ -556,6 +580,16 @@ E seleciono a opção Aprovar;`}
                                                         onChange={(e) => handleStepImageUpload(index, e)}
                                                     />
                                                 </label>
+                                                
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlePasteStepImage(index)}
+                                                    className="cursor-pointer inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100"
+                                                >
+                                                    <Clipboard className="w-4 h-4" />
+                                                    Colar Print
+                                                </button>
+
                                                 {step.imageUrl && (
                                                      <>
                                                      <button 
@@ -563,14 +597,14 @@ E seleciono a opção Aprovar;`}
                                                         onClick={() => handleEditExistingImage(index)}
                                                         className="text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100"
                                                      >
-                                                        <Crop className="w-3 h-3" /> Editar / Recortar
+                                                        <Crop className="w-3 h-3" /> Editar
                                                      </button>
                                                      <button 
                                                         type="button"
                                                         onClick={() => handleRemoveStepImage(index)}
-                                                        className="text-red-500 text-xs hover:text-red-700 font-medium ml-2"
+                                                        className="text-red-500 text-xs hover:text-red-700 font-medium ml-1 px-2"
                                                      >
-                                                        Remover
+                                                        <Trash2 className="w-4 h-4" />
                                                      </button>
                                                      </>
                                                 )}
