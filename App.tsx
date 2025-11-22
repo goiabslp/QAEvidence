@@ -6,6 +6,7 @@ import EvidenceForm from './components/EvidenceForm';
 import EvidenceList from './components/EvidenceList';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
+import EvidenceManagement from './components/EvidenceManagement';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminTab, setAdminTab] = useState<'users' | 'evidences'>('users');
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -117,6 +119,7 @@ const App: React.FC = () => {
     setEditingTicketInfo(null);
     setEditingHistoryId(null);
     setShowAdminPanel(false);
+    setAdminTab('users');
   };
 
   const handleAddUser = (user: User) => {
@@ -254,7 +257,7 @@ const App: React.FC = () => {
        { key: 'ticketId', label: 'Chamado (ID)' },
        { key: 'sprint', label: 'Sprint' },
        { key: 'requester', label: 'Solicitante' },
-       // Analyst is auto-filled by system now, but good to check
+       // Analyst is auto-filled by system now
        { key: 'ticketTitle', label: 'Título do Chamado' }
     ];
 
@@ -346,6 +349,7 @@ const App: React.FC = () => {
     setEditingHistoryId(ticket.id);
     setWizardTrigger(null);
     setPdfError(null);
+    setShowAdminPanel(false); // Close admin panel if opening a ticket
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -390,22 +394,63 @@ const App: React.FC = () => {
             <div className="mb-8 flex justify-end">
                 <button 
                     onClick={() => setShowAdminPanel(!showAdminPanel)}
-                    className="flex items-center gap-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-all shadow-sm"
+                    className={`flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm border ${
+                        showAdminPanel 
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-indigo-600'
+                    }`}
                 >
                     <ShieldCheck className="w-4 h-4" />
-                    {showAdminPanel ? 'Ocultar Painel' : (currentUser.role === 'ADMIN' ? 'Gerenciar Usuários' : 'Meu Perfil')}
+                    {showAdminPanel ? 'Fechar Painel' : (currentUser.role === 'ADMIN' ? 'Painel Administrativo' : 'Meu Perfil')}
                 </button>
             </div>
         )}
 
         {showAdminPanel ? (
-            <UserManagement 
-                users={users} 
-                onAddUser={handleAddUser} 
-                onDeleteUser={handleDeleteUser}
-                onUpdateUser={handleUpdateUser}
-                currentUserId={currentUser.id}
-            />
+            <div className="animate-fade-in space-y-8">
+                {/* ADMIN TABS */}
+                {currentUser.role === 'ADMIN' && (
+                    <div className="flex justify-center">
+                        <div className="flex gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+                            <button 
+                              onClick={() => setAdminTab('users')}
+                              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                                  adminTab === 'users' 
+                                  ? 'bg-slate-900 text-white shadow-md' 
+                                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                                <UserIcon className="w-4 h-4" />
+                                Usuários
+                            </button>
+                            <button 
+                              onClick={() => setAdminTab('evidences')}
+                              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                                  adminTab === 'evidences' 
+                                  ? 'bg-slate-900 text-white shadow-md' 
+                                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                                <Layers className="w-4 h-4" />
+                                Gestão de Evidências
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* CONTENT */}
+                {adminTab === 'users' || currentUser.role !== 'ADMIN' ? (
+                    <UserManagement 
+                        users={users} 
+                        onAddUser={handleAddUser} 
+                        onDeleteUser={handleDeleteUser}
+                        onUpdateUser={handleUpdateUser}
+                        currentUserId={currentUser.id}
+                    />
+                ) : (
+                    <EvidenceManagement tickets={ticketHistory} users={users} />
+                )}
+            </div>
         ) : (
             <>
                 {/* Main Evidence Form Content */}
@@ -498,7 +543,6 @@ const App: React.FC = () => {
                     {displayedHistory.map((ticket) => {
                         const status = getTicketAggregateStatus(ticket.items);
                         const uniqueScenarios = new Set(ticket.items.map(i => i.testCaseDetails?.scenarioNumber)).size;
-                        const caseIds = ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean);
                         const displayDate = ticket.ticketInfo.evidenceDate 
                             ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
                             : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
