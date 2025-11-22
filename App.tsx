@@ -500,49 +500,51 @@ const App: React.FC = () => {
 
         {showAdminPanel ? (
             <div className="animate-fade-in space-y-8">
-                {/* ADMIN TABS */}
-                {currentUser.role === 'ADMIN' && (
-                    <div className="flex justify-center">
-                        <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
-                            <button 
-                              onClick={() => setAdminTab('users')}
-                              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                                  adminTab === 'users' 
-                                  ? 'bg-slate-900 text-white shadow-md' 
-                                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                                <UserIcon className="w-4 h-4" />
-                                Usuários
-                            </button>
-                            <button 
-                              onClick={() => setAdminTab('evidences')}
-                              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                                  adminTab === 'evidences' 
-                                  ? 'bg-slate-900 text-white shadow-md' 
-                                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                                <Layers className="w-4 h-4" />
-                                Evidências
-                            </button>
-                            <button 
-                              onClick={() => setAdminTab('dashboard')}
-                              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                                  adminTab === 'dashboard' 
-                                  ? 'bg-slate-900 text-white shadow-md' 
-                                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                              }`}
-                            >
-                                <LayoutDashboard className="w-4 h-4" />
-                                Dashboard
-                            </button>
-                        </div>
+                {/* TABS FOR ADMIN & USER */}
+                <div className="flex justify-center">
+                    <div className="flex flex-wrap gap-1 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+                        <button 
+                          onClick={() => setAdminTab('users')}
+                          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                              adminTab === 'users' 
+                              ? 'bg-slate-900 text-white shadow-md' 
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                            <UserIcon className="w-4 h-4" />
+                            {currentUser.role === 'ADMIN' ? 'Usuários' : 'Meu Perfil'}
+                        </button>
+                        
+                        {currentUser.role === 'ADMIN' && (
+                          <button 
+                            onClick={() => setAdminTab('evidences')}
+                            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                                adminTab === 'evidences' 
+                                ? 'bg-slate-900 text-white shadow-md' 
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                              <Layers className="w-4 h-4" />
+                              Evidências
+                          </button>
+                        )}
+                        
+                        <button 
+                          onClick={() => setAdminTab('dashboard')}
+                          className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                              adminTab === 'dashboard' 
+                              ? 'bg-slate-900 text-white shadow-md' 
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                            <LayoutDashboard className="w-4 h-4" />
+                            Dashboard
+                        </button>
                     </div>
-                )}
+                </div>
 
                 {/* CONTENT */}
-                {adminTab === 'users' || currentUser.role !== 'ADMIN' ? (
+                {adminTab === 'users' ? (
                     <UserManagement 
                         users={users} 
                         onAddUser={handleAddUser} 
@@ -550,10 +552,18 @@ const App: React.FC = () => {
                         onUpdateUser={handleUpdateUser}
                         currentUserId={currentUser.id}
                     />
-                ) : adminTab === 'evidences' ? (
+                ) : adminTab === 'evidences' && currentUser.role === 'ADMIN' ? (
                      <EvidenceManagement tickets={ticketHistory} users={users} />
-                ) : (
+                ) : adminTab === 'dashboard' ? (
                      <DashboardMetrics tickets={ticketHistory} users={users} currentUser={currentUser} />
+                ) : (
+                     <UserManagement 
+                        users={users} 
+                        onAddUser={handleAddUser} 
+                        onDeleteUser={handleDeleteUser}
+                        onUpdateUser={handleUpdateUser}
+                        currentUserId={currentUser.id}
+                    />
                 )}
             </div>
         ) : (

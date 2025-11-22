@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { ArchivedTicket, User, TestStatus, EvidenceItem } from '../types';
 import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock } from 'lucide-react';
@@ -10,13 +11,15 @@ interface DashboardMetricsProps {
 
 const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, currentUser }) => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'MINE'>('ALL');
-  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
 
   const isAdmin = currentUser.role === 'ADMIN';
 
   // --- LOGIC HELPERS ---
 
   // Determine Ticket Status based on specific business rules
+  // Success: All scenarios PASS
+  // Pending: All scenarios PENDING/SKIPPED
+  // In Progress: Any FAIL/BLOCKED or mixed
   const getTicketState = (ticket: ArchivedTicket): 'SUCCESS' | 'PENDING' | 'IN_PROGRESS' => {
     const items = ticket.items;
     if (!items || items.length === 0) return 'PENDING';
@@ -29,17 +32,14 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     const allPending = items.every(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
     if (allPending) return 'PENDING';
 
-    // Check for Fail or Blocked (At least 1)
-    const hasFail = items.some(i => i.status === TestStatus.FAIL);
-    const hasBlocked = items.some(i => i.status === TestStatus.BLOCKED);
-
-    if (hasFail || hasBlocked) return 'IN_PROGRESS';
-
-    // Mixed state (e.g., some Pass, some Pending, no Fail/Blocked) -> Treat as In Progress
+    // Check for Fail or Blocked (At least 1) or Mixed states
+    // "Chamado com pelo menos 1 Cenário = Falha -> Em andamento"
+    // "Chamado com pelo menos 1 Cenário = Impedimento -> Em andamento"
     return 'IN_PROGRESS';
   };
 
   // Filter tickets based on selection
+  // Strict filter for non-admins to ensure they only see their own metrics
   const filteredTickets = useMemo(() => {
     if (!isAdmin || filterMode === 'MINE') {
       return tickets.filter(t => t.createdBy === currentUser.acronym);
@@ -53,7 +53,8 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
       tickets: {
         total: 0,
         finished: 0,    // SUCCESS
-        inProgress: 0,  // IN_PROGRESS + PENDING
+        pending: 0,     // PENDING (New bucket)
+        inProgress: 0,  // IN_PROGRESS (Fail/Blocked/Mixed)
       },
       scenarios: {
         total: 0,
@@ -76,8 +77,9 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
       
       if (tState === 'SUCCESS') {
         data.tickets.finished++;
+      } else if (tState === 'PENDING') {
+        data.tickets.pending++;
       } else {
-        // Logic: "Em Andamento" includes Pending and active InProgress
         data.tickets.inProgress++; 
       }
 
@@ -126,6 +128,7 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     }>();
 
     // Initialize with all relevant users
+    // Strict filtering for non-admins: only show themselves
     const usersToProcess = (!isAdmin || filterMode === 'MINE') 
         ? users.filter(u => u.acronym === currentUser.acronym)
         : users;
@@ -142,6 +145,10 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     // Populate data
     filteredTickets.forEach(t => {
         if (!map.has(t.createdBy)) {
+             // Handle case where ticket exists but user is not in current list (e.g. deleted user)
+             // For non-admin view, filteredTickets only has currentUser tickets, so this shouldn't happen if currentUser exists.
+             if (!isAdmin) return; 
+
              const unknownUser = { acronym: t.createdBy, name: 'Desconhecido', role: 'USER' } as User;
              map.set(t.createdBy, { user: unknownUser, ticketsCount: 0, totalCases: 0, cases: { success: 0, pending: 0, blocked: 0, fail: 0 } });
         }
@@ -181,7 +188,9 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
               <LayoutDashboard className="w-6 h-6 text-indigo-600" />
               Dashboard de Métricas
            </h2>
-           <p className="text-sm text-slate-500 mt-1">Visão geral de desempenho e distribuição de casos.</p>
+           <p className="text-sm text-slate-500 mt-1">
+               {isAdmin ? 'Visão geral de desempenho e distribuição de casos.' : 'Acompanhe suas métricas de desempenho.'}
+           </p>
         </div>
 
         {isAdmin && (
@@ -227,14 +236,18 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
                   <span className="ml-auto text-2xl font-black text-slate-800">{metrics.tickets.total}</span>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mt-auto">
-                  <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center text-center">
-                      <span className="text-2xl font-black text-indigo-600">{metrics.tickets.inProgress}</span>
-                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mt-1">Em Andamento</span>
+              <div className="grid grid-cols-3 gap-3 mt-auto">
+                   <div className="bg-indigo-50/50 p-3 rounded-2xl border border-indigo-100 flex flex-col items-center text-center">
+                      <span className="text-xl font-black text-indigo-600">{metrics.tickets.inProgress}</span>
+                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mt-1 leading-none">Em Andam.</span>
                   </div>
-                  <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
-                      <span className="text-2xl font-black text-emerald-600">{metrics.tickets.finished}</span>
-                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mt-1">Finalizados</span>
+                  <div className="bg-slate-100/50 p-3 rounded-2xl border border-slate-200 flex flex-col items-center text-center">
+                      <span className="text-xl font-black text-slate-600">{metrics.tickets.pending}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-1 leading-none">Pendentes</span>
+                  </div>
+                  <div className="bg-emerald-50/50 p-3 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
+                      <span className="text-xl font-black text-emerald-600">{metrics.tickets.finished}</span>
+                      <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mt-1 leading-none">Sucessos</span>
                   </div>
               </div>
           </div>
