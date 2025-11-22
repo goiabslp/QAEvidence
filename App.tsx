@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [confirmationMode, setConfirmationMode] = useState<'PDF' | 'SAVE'>('PDF');
   
   // State for History PDF generation
   const [printingHistoryId, setPrintingHistoryId] = useState<string | null>(null);
@@ -322,26 +323,37 @@ const App: React.FC = () => {
       setFormKey(prev => prev + 1);
   };
 
-  // Button 1: Save & Close (Histórico)
+  // Button 1: Save & Close (Histórico) - Uses same modal flow as PDF
   const handleSaveAndClose = () => {
     if (!validateTicketRequirements()) return;
-    
-    // Updated confirmation message
-    if (confirm('Deseja salvar esta evidência no histórico?')) {
-        persistCurrentTicket();
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    }
+    setConfirmationMode('SAVE');
+    setShowPdfModal(true);
   };
 
   // Button 2: Generate PDF (and Save)
   const handlePdfFlow = () => {
     if (!validateTicketRequirements()) return;
+    setConfirmationMode('PDF');
     setShowPdfModal(true);
+  };
+
+  const handleModalConfirm = () => {
+    if (confirmationMode === 'PDF') {
+        executePdfGeneration();
+    } else {
+        // Save Mode
+        persistCurrentTicket();
+        setShowPdfModal(false);
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
   };
 
   const executePdfGeneration = () => {
     if (!reportRef.current || !currentUser) return;
 
+    // We don't close modal yet if it's PDF mode to show spinner inside button if we wanted, 
+    // but here we close it to show loading state on the button outside or keep modal?
+    // The previous logic closed modal then showed loading on the button. 
     setShowPdfModal(false);
     setIsGeneratingPdf(true);
     
@@ -442,6 +454,8 @@ const App: React.FC = () => {
   if (!currentUser) {
      return <Login onLogin={handleLogin} error={loginError} />;
   }
+  
+  const isPdfMode = confirmationMode === 'PDF';
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
@@ -715,7 +729,7 @@ const App: React.FC = () => {
       </main>
       <Footer />
 
-      {/* PDF FINALIZATION CONFIRMATION MODAL */}
+      {/* CONFIRMATION MODAL (SHARED FOR PDF & SAVE) */}
       {showPdfModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-fade-in">
           <div 
@@ -725,17 +739,23 @@ const App: React.FC = () => {
           
           <div className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-0 overflow-hidden transform transition-all scale-100 border border-slate-100">
              
-             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white relative overflow-hidden">
+             <div className={`bg-gradient-to-br p-6 text-white relative overflow-hidden ${isPdfMode ? 'from-emerald-500 to-teal-600' : 'from-indigo-600 to-blue-700'}`}>
                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <CheckCheck className="w-32 h-32 transform rotate-12 translate-x-8 -translate-y-8" />
+                    {isPdfMode ? (
+                        <CheckCheck className="w-32 h-32 transform rotate-12 translate-x-8 -translate-y-8" />
+                    ) : (
+                        <Save className="w-32 h-32 transform rotate-12 translate-x-8 -translate-y-8" />
+                    )}
                 </div>
                 <div className="flex items-center gap-4 relative z-10">
                     <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                        <CheckCheck className="w-8 h-8 text-white" />
+                        {isPdfMode ? <CheckCheck className="w-8 h-8 text-white" /> : <Save className="w-8 h-8 text-white" />}
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold leading-tight">Finalizar Chamado</h3>
-                        <p className="text-emerald-100 text-sm font-medium">Confirme os dados para geração do PDF</p>
+                        <h3 className="text-xl font-bold leading-tight">{isPdfMode ? 'Finalizar Chamado' : 'Salvar Evidência'}</h3>
+                        <p className={`${isPdfMode ? 'text-emerald-100' : 'text-indigo-100'} text-sm font-medium`}>
+                            {isPdfMode ? 'Confirme os dados para geração do PDF' : 'Confirme os dados para salvar no histórico'}
+                        </p>
                     </div>
                 </div>
                 <button 
@@ -773,7 +793,9 @@ const App: React.FC = () => {
                     </div>
 
                     <p className="text-sm text-slate-500 text-center px-4">
-                        Ao confirmar, o documento PDF será gerado automaticamente e o registro será salvo no histórico local.
+                        {isPdfMode 
+                            ? 'Ao confirmar, o documento PDF será gerado automaticamente e o registro será salvo no histórico local.' 
+                            : 'Ao confirmar, o registro será salvo no histórico local e o formulário será limpo.'}
                     </p>
 
                     <div className="flex gap-3 mt-2">
@@ -784,11 +806,15 @@ const App: React.FC = () => {
                         Voltar e Editar
                         </button>
                         <button 
-                        onClick={executePdfGeneration}
-                        className="flex-1 px-4 py-3.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 shadow-lg hover:shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+                        onClick={handleModalConfirm}
+                        className={`flex-1 px-4 py-3.5 text-white rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${
+                            isPdfMode 
+                            ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-emerald-200' 
+                            : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-indigo-200'
+                        }`}
                         >
-                        <CheckCheck className="w-5 h-5" />
-                        Gerar Documento
+                        {isPdfMode ? <CheckCheck className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+                        {isPdfMode ? 'Gerar Documento' : 'Confirmar e Salvar'}
                         </button>
                     </div>
                  </div>
