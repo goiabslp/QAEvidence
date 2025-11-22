@@ -249,6 +249,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
                 {/* Tools */}
                 <div className="flex items-center bg-slate-700 rounded-lg p-1">
                     <button 
+                        type="button"
                         onClick={() => { setTool('CROP'); setCropSelection(null); }}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                             tool === 'CROP' 
@@ -260,6 +261,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
                         CORTAR
                     </button>
                     <button 
+                        type="button"
                         onClick={() => { setTool('BOX'); setCropSelection(null); }}
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                             tool === 'BOX' 
@@ -276,6 +278,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
             {/* Actions */}
             <div className="flex items-center gap-3">
                  <button 
+                    type="button"
                     onClick={handleUndo}
                     disabled={historyStep === 0}
                     className="text-slate-400 hover:text-white disabled:opacity-30 p-2 hover:bg-slate-700 rounded-lg transition-colors"
@@ -287,12 +290,14 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
                 <div className="h-6 w-px bg-slate-600 mx-2"></div>
 
                 <button 
+                    type="button"
                     onClick={onCancel}
                     className="text-slate-300 hover:text-white px-4 py-2 font-semibold text-sm hover:bg-slate-700 rounded-lg transition-colors"
                 >
                     Cancelar
                 </button>
                 <button 
+                    type="button"
                     onClick={handleSave}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg transition-all transform hover:scale-105"
                 >
@@ -318,12 +323,14 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
                  {tool === 'CROP' && cropSelection && (
                     <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-2 animate-bounce-in z-10">
                         <button 
+                            type="button"
                             onClick={confirmCrop}
                             className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ring-4 ring-black/20"
                         >
                             <Check className="w-4 h-4" /> Confirmar Corte
                         </button>
                         <button 
+                            type="button"
                             onClick={() => setCropSelection(null)}
                             className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-full shadow-lg font-bold text-xs ring-4 ring-black/20"
                         >

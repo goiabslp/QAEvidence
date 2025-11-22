@@ -48,6 +48,13 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   const [isTestStarted, setIsTestStarted] = useState(false);
   const [steps, setSteps] = useState<TestStep[]>([]);
 
+  // PREVENT FORM SUBMISSION ON ENTER KEY
+  const preventSubmit = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   useEffect(() => {
     if (wizardTrigger) {
       setIsOpen(true);
@@ -436,6 +443,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
                                 type="text" 
                                 value={formData.screen}
                                 onChange={(e) => handleInputChange('screen', e.target.value)}
+                                onKeyDown={preventSubmit}
                                 className={`${inputClass} pl-10`}
                                 placeholder="Aprovação, Prestação de Contas, Cliente..."
                             />
