@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
-import { ArchivedTicket, User, TestStatus } from '../types';
-import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard } from 'lucide-react';
+import { ArchivedTicket, User, TestStatus, EvidenceItem } from '../types';
+import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock } from 'lucide-react';
 
 interface DashboardMetricsProps {
   tickets: ArchivedTicket[];
@@ -15,17 +14,29 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
 
   const isAdmin = currentUser.role === 'ADMIN';
 
-  // Helper to calculate ticket status
-  const getTicketStatus = (ticket: ArchivedTicket): TestStatus => {
+  // --- LOGIC HELPERS ---
+
+  // Determine Ticket Status based on specific business rules
+  const getTicketState = (ticket: ArchivedTicket): 'SUCCESS' | 'PENDING' | 'IN_PROGRESS' => {
     const items = ticket.items;
-    const hasFailure = items.some(i => i.status === TestStatus.FAIL);
-    const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
-    const hasPending = items.some(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
-    
-    if (hasFailure) return TestStatus.FAIL;
-    if (hasBlocker) return TestStatus.BLOCKED;
-    if (hasPending) return TestStatus.PENDING; 
-    return TestStatus.PASS;
+    if (!items || items.length === 0) return 'PENDING';
+
+    // Check if all scenarios are Success
+    const allSuccess = items.every(i => i.status === TestStatus.PASS);
+    if (allSuccess) return 'SUCCESS';
+
+    // Check if all scenarios are Pending (Pending or Skipped)
+    const allPending = items.every(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
+    if (allPending) return 'PENDING';
+
+    // Check for Fail or Blocked (At least 1)
+    const hasFail = items.some(i => i.status === TestStatus.FAIL);
+    const hasBlocked = items.some(i => i.status === TestStatus.BLOCKED);
+
+    if (hasFail || hasBlocked) return 'IN_PROGRESS';
+
+    // Mixed state (e.g., some Pass, some Pending, no Fail/Blocked) -> Treat as In Progress
+    return 'IN_PROGRESS';
   };
 
   // Filter tickets based on selection
@@ -36,82 +47,129 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     return tickets;
   }, [tickets, filterMode, isAdmin, currentUser]);
 
-  // Calculate Metrics
+  // --- METRICS CALCULATION ---
   const metrics = useMemo(() => {
-    const stats = {
-      total: 0,
-      pass: 0,
-      fail: 0,
-      blocked: 0,
-      pending: 0
+    const data = {
+      tickets: {
+        total: 0,
+        finished: 0,    // SUCCESS
+        inProgress: 0,  // IN_PROGRESS + PENDING
+      },
+      scenarios: {
+        total: 0,
+        finished: 0,
+        inProgress: 0
+      },
+      cases: {
+        total: 0,
+        success: 0,
+        pending: 0,
+        blocked: 0,
+        fail: 0
+      }
     };
 
     filteredTickets.forEach(t => {
-      stats.total++;
-      const status = getTicketStatus(t);
-      if (status === TestStatus.PASS) stats.pass++;
-      else if (status === TestStatus.FAIL) stats.fail++;
-      else if (status === TestStatus.BLOCKED) stats.blocked++;
-      else stats.pending++;
+      // 1. Ticket Metrics
+      data.tickets.total++;
+      const tState = getTicketState(t);
+      
+      if (tState === 'SUCCESS') {
+        data.tickets.finished++;
+      } else {
+        // Logic: "Em Andamento" includes Pending and active InProgress
+        data.tickets.inProgress++; 
+      }
+
+      // 2. Scenario Metrics
+      const scenarios = new Map<number, EvidenceItem[]>();
+      t.items.forEach(i => {
+        if (i.testCaseDetails) {
+          const sNum = i.testCaseDetails.scenarioNumber;
+          if (!scenarios.has(sNum)) scenarios.set(sNum, []);
+          scenarios.get(sNum)?.push(i);
+        }
+      });
+
+      data.scenarios.total += scenarios.size;
+      scenarios.forEach(items => {
+        const isScenarioFinished = items.every(i => i.status === TestStatus.PASS);
+        if (isScenarioFinished) data.scenarios.finished++;
+        else data.scenarios.inProgress++;
+      });
+
+      // 3. Case Metrics
+      t.items.forEach(i => {
+        data.cases.total++;
+        switch (i.status) {
+          case TestStatus.PASS: data.cases.success++; break;
+          case TestStatus.FAIL: data.cases.fail++; break;
+          case TestStatus.BLOCKED: data.cases.blocked++; break;
+          case TestStatus.SKIPPED: 
+          case TestStatus.PENDING: 
+            data.cases.pending++; break;
+          default: data.cases.pending++;
+        }
+      });
     });
 
-    return stats;
+    return data;
   }, [filteredTickets]);
 
-  // Group by User for detailed view
-  const userMetrics = useMemo(() => {
-    const userMap = new Map<string, { user: User | undefined, total: number, pass: number, fail: number, blocked: number, pending: number }>();
+  // --- USER STATS CALCULATION ---
+  const userStats = useMemo(() => {
+    const map = new Map<string, {
+      user: User | undefined,
+      ticketsCount: number,
+      totalCases: number,
+      cases: { success: number, pending: number, blocked: number, fail: number }
+    }>();
 
-    // Initialize with all relevant users if showing ALL, or just current if MINE
+    // Initialize with all relevant users
     const usersToProcess = (!isAdmin || filterMode === 'MINE') 
         ? users.filter(u => u.acronym === currentUser.acronym)
         : users;
 
     usersToProcess.forEach(u => {
-        userMap.set(u.acronym, { 
+        map.set(u.acronym, { 
             user: u, 
-            total: 0, 
-            pass: 0, 
-            fail: 0, 
-            blocked: 0, 
-            pending: 0 
+            ticketsCount: 0,
+            totalCases: 0, 
+            cases: { success: 0, pending: 0, blocked: 0, fail: 0 }
         });
     });
 
     // Populate data
     filteredTickets.forEach(t => {
-        if (!userMap.has(t.createdBy)) {
-             // Fallback if user deleted or not in list
+        if (!map.has(t.createdBy)) {
              const unknownUser = { acronym: t.createdBy, name: 'Desconhecido', role: 'USER' } as User;
-             userMap.set(t.createdBy, { user: unknownUser, total: 0, pass: 0, fail: 0, blocked: 0, pending: 0 });
+             map.set(t.createdBy, { user: unknownUser, ticketsCount: 0, totalCases: 0, cases: { success: 0, pending: 0, blocked: 0, fail: 0 } });
         }
         
-        const stat = userMap.get(t.createdBy)!;
-        stat.total++;
-        const status = getTicketStatus(t);
+        const stat = map.get(t.createdBy)!;
+        stat.ticketsCount++;
         
-        if (status === TestStatus.PASS) stat.pass++;
-        else if (status === TestStatus.FAIL) stat.fail++;
-        else if (status === TestStatus.BLOCKED) stat.blocked++;
-        else stat.pending++;
+        t.items.forEach(i => {
+            stat.totalCases++;
+            switch (i.status) {
+                case TestStatus.PASS: stat.cases.success++; break;
+                case TestStatus.FAIL: stat.cases.fail++; break;
+                case TestStatus.BLOCKED: stat.cases.blocked++; break;
+                default: stat.cases.pending++; break;
+            }
+        });
     });
 
-    return Array.from(userMap.values()).sort((a, b) => b.total - a.total);
+    return Array.from(map.values()).sort((a, b) => b.totalCases - a.totalCases);
   }, [filteredTickets, users, filterMode, isAdmin, currentUser]);
 
-  const toggleUserExpand = (acronym: string) => {
-    const newSet = new Set(expandedUsers);
-    if (newSet.has(acronym)) newSet.delete(acronym);
-    else newSet.add(acronym);
-    setExpandedUsers(newSet);
-  };
 
-  // Calculate percentages for chart
-  const total = metrics.total || 1; // avoid div by 0
-  const pctPass = Math.round((metrics.pass / total) * 100);
-  const pctFail = Math.round((metrics.fail / total) * 100);
-  const pctBlocked = Math.round((metrics.blocked / total) * 100);
-  const pctPending = 100 - pctPass - pctFail - pctBlocked; // remainder
+  // Chart Percentages (Based on Cases)
+  const totalCases = metrics.cases.total || 1;
+  const pctPass = Math.round((metrics.cases.success / totalCases) * 100);
+  const pctFail = Math.round((metrics.cases.fail / totalCases) * 100);
+  const pctBlocked = Math.round((metrics.cases.blocked / totalCases) * 100);
+  const pctPending = 100 - pctPass - pctFail - pctBlocked;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -123,7 +181,7 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
               <LayoutDashboard className="w-6 h-6 text-indigo-600" />
               Dashboard de Métricas
            </h2>
-           <p className="text-sm text-slate-500 mt-1">Visão geral do desempenho e status dos chamados.</p>
+           <p className="text-sm text-slate-500 mt-1">Visão geral de desempenho e distribuição de casos.</p>
         </div>
 
         {isAdmin && (
@@ -156,91 +214,133 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
         )}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-         {/* Total */}
-         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500"></div>
-            <div className="p-3 bg-indigo-50 rounded-full text-indigo-600 mb-1 group-hover:scale-110 transition-transform">
-                <Layers className="w-6 h-6" />
-            </div>
-            <span className="text-3xl font-extrabold text-slate-800">{metrics.total}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total de Chamados</span>
-         </div>
+      {/* 1. VISÃO GERAL DE DESEMPENHO (3 Blocks) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* BLOCK 1: CHAMADOS */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col">
+              <div className="flex items-center gap-2 mb-6">
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                     <FolderClock className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-lg">Chamados</h3>
+                  <span className="ml-auto text-2xl font-black text-slate-800">{metrics.tickets.total}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-auto">
+                  <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex flex-col items-center text-center">
+                      <span className="text-2xl font-black text-indigo-600">{metrics.tickets.inProgress}</span>
+                      <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mt-1">Em Andamento</span>
+                  </div>
+                  <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
+                      <span className="text-2xl font-black text-emerald-600">{metrics.tickets.finished}</span>
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mt-1">Finalizados</span>
+                  </div>
+              </div>
+          </div>
 
-         {/* Success */}
-         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-            <div className="p-3 bg-emerald-50 rounded-full text-emerald-600 mb-1 group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <span className="text-3xl font-extrabold text-slate-800">{metrics.pass}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Com Sucesso</span>
-         </div>
+          {/* BLOCK 2: CENÁRIOS */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col">
+              <div className="flex items-center gap-2 mb-6">
+                  <div className="p-2 bg-blue-50 rounded-xl">
+                     <Layers className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-lg">Cenários</h3>
+                  <span className="ml-auto text-2xl font-black text-slate-800">{metrics.scenarios.total}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-auto">
+                  <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 flex flex-col items-center text-center">
+                      <span className="text-2xl font-black text-blue-600">{metrics.scenarios.inProgress}</span>
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mt-1">Em Andamento</span>
+                  </div>
+                  <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 flex flex-col items-center text-center">
+                      <span className="text-2xl font-black text-emerald-600">{metrics.scenarios.finished}</span>
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mt-1">Finalizados</span>
+                  </div>
+              </div>
+          </div>
 
-         {/* Pending */}
-         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 w-full h-1 bg-slate-400"></div>
-            <div className="p-3 bg-slate-100 rounded-full text-slate-500 mb-1 group-hover:scale-110 transition-transform">
-                <Clock className="w-6 h-6" />
-            </div>
-            <span className="text-3xl font-extrabold text-slate-800">{metrics.pending}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pendentes</span>
-         </div>
-
-         {/* Blocked */}
-         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
-            <div className="p-3 bg-amber-50 rounded-full text-amber-600 mb-1 group-hover:scale-110 transition-transform">
-                <AlertCircle className="w-6 h-6" />
-            </div>
-            <span className="text-3xl font-extrabold text-slate-800">{metrics.blocked}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Impedimentos</span>
-         </div>
-
-         {/* Failed */}
-         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-2 relative overflow-hidden group hover:shadow-md transition-all">
-            <div className="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
-            <div className="p-3 bg-red-50 rounded-full text-red-600 mb-1 group-hover:scale-110 transition-transform">
-                <XCircle className="w-6 h-6" />
-            </div>
-            <span className="text-3xl font-extrabold text-slate-800">{metrics.fail}</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Falhas</span>
-         </div>
+          {/* BLOCK 3: CASOS */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-slate-50 rounded-xl">
+                     <Activity className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-lg">Casos</h3>
+                  <span className="ml-auto text-2xl font-black text-slate-800">{metrics.cases.total}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mt-auto">
+                  <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 flex items-center justify-between px-4">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Sucesso</span>
+                      <span className="font-black text-emerald-700 text-lg">{metrics.cases.success}</span>
+                  </div>
+                  <div className="bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between px-4">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Pendente</span>
+                      <span className="font-black text-slate-600 text-lg">{metrics.cases.pending}</span>
+                  </div>
+                  <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-100 flex items-center justify-between px-4">
+                      <span className="text-[10px] font-bold text-amber-600 uppercase">Imped.</span>
+                      <span className="font-black text-amber-700 text-lg">{metrics.cases.blocked}</span>
+                  </div>
+                  <div className="bg-red-50 p-2.5 rounded-xl border border-red-100 flex items-center justify-between px-4">
+                      <span className="text-[10px] font-bold text-red-600 uppercase">Falha</span>
+                      <span className="font-black text-red-700 text-lg">{metrics.cases.fail}</span>
+                  </div>
+              </div>
+          </div>
       </div>
 
-      {/* Simple Distribution Chart Bar */}
-      {metrics.total > 0 && (
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                    <PieChart className="w-5 h-5 text-indigo-500" /> Distribuição Percentual
+      {/* 2. DISTRIBUIÇÃO PERCENTUAL (Baseada em Casos) */}
+      {metrics.cases.total > 0 && (
+          <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h3 className="font-bold text-slate-700 flex items-center gap-2 text-lg">
+                    <PieChart className="w-6 h-6 text-indigo-500" /> Distribuição Percentual
                 </h3>
+                <span className="text-xs font-medium text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                    Distribuição calculada com base na quantidade total de casos registrados no sistema.
+                </span>
              </div>
-             <div className="w-full h-6 bg-slate-100 rounded-full overflow-hidden flex">
-                 {pctPass > 0 && <div style={{ width: `${pctPass}%` }} className="bg-emerald-500 h-full transition-all duration-500 hover:bg-emerald-400 relative group" title={`Sucesso: ${pctPass}%`}></div>}
-                 {pctPending > 0 && <div style={{ width: `${pctPending}%` }} className="bg-slate-400 h-full transition-all duration-500 hover:bg-slate-300 relative group" title={`Pendente: ${pctPending}%`}></div>}
-                 {pctBlocked > 0 && <div style={{ width: `${pctBlocked}%` }} className="bg-amber-500 h-full transition-all duration-500 hover:bg-amber-400 relative group" title={`Impedimento: ${pctBlocked}%`}></div>}
-                 {pctFail > 0 && <div style={{ width: `${pctFail}%` }} className="bg-red-500 h-full transition-all duration-500 hover:bg-red-400 relative group" title={`Falha: ${pctFail}%`}></div>}
+             
+             <div className="w-full h-8 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                 {pctPass > 0 && <div style={{ width: `${pctPass}%` }} className="bg-emerald-500 h-full relative group transition-all hover:brightness-110"></div>}
+                 {pctPending > 0 && <div style={{ width: `${pctPending}%` }} className="bg-slate-400 h-full relative group transition-all hover:brightness-110"></div>}
+                 {pctBlocked > 0 && <div style={{ width: `${pctBlocked}%` }} className="bg-amber-500 h-full relative group transition-all hover:brightness-110"></div>}
+                 {pctFail > 0 && <div style={{ width: `${pctFail}%` }} className="bg-red-500 h-full relative group transition-all hover:brightness-110"></div>}
              </div>
-             <div className="flex flex-wrap gap-6 mt-3 justify-center">
-                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div> Sucesso ({pctPass}%)
+             
+             <div className="flex flex-wrap gap-8 mt-6 justify-center">
+                 <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl font-bold text-emerald-600">{pctPass}%</span>
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div> Sucesso
+                    </span>
                  </div>
-                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-slate-400"></div> Pendente ({pctPending}%)
+                 <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl font-bold text-slate-500">{pctPending}%</span>
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="w-2 h-2 rounded-full bg-slate-400"></div> Pendente
+                    </span>
                  </div>
-                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-amber-500"></div> Impedimento ({pctBlocked}%)
+                 <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl font-bold text-amber-600">{pctBlocked}%</span>
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="w-2 h-2 rounded-full bg-amber-500"></div> Impedimento
+                    </span>
                  </div>
-                 <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div> Falha ({pctFail}%)
+                 <div className="flex flex-col items-center gap-1">
+                    <span className="text-2xl font-bold text-red-600">{pctFail}%</span>
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div> Falha
+                    </span>
                  </div>
              </div>
           </div>
       )}
 
-      {/* Detailed User List */}
+      {/* 3. DETALHAMENTO POR USUÁRIO */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
          <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
              <div className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
@@ -249,80 +349,76 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
              <h3 className="font-bold text-slate-800 text-lg">Detalhamento por Usuário</h3>
          </div>
 
-         <div className="divide-y divide-slate-100">
-            {userMetrics.map((stat) => {
-                const isExpanded = expandedUsers.has(stat.user?.acronym || '');
-                return (
-                    <div key={stat.user?.acronym || 'unknown'} className="group hover:bg-slate-50">
-                        <div 
-                            className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer"
-                            onClick={() => toggleUserExpand(stat.user?.acronym || '')}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="bg-slate-200 text-slate-600 font-mono font-bold px-3 py-2 rounded-xl text-sm border border-slate-300">
+         <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 uppercase tracking-wider text-xs">
+                    <tr>
+                        <th className="px-6 py-4">Sigla</th>
+                        <th className="px-6 py-4">Analista</th>
+                        <th className="px-6 py-4 text-center">Chamados</th>
+                        <th className="px-6 py-4 text-center">Total Casos</th>
+                        <th className="px-6 py-4 text-center text-emerald-600">Sucesso</th>
+                        <th className="px-6 py-4 text-center text-slate-500">Pendente</th>
+                        <th className="px-6 py-4 text-center text-amber-600">Imped.</th>
+                        <th className="px-6 py-4 text-center text-red-600">Falha</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                    {userStats.map((stat) => (
+                        <tr key={stat.user?.acronym || 'unknown'} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-6 py-4">
+                                <span className="font-mono font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200">
                                     {stat.user?.acronym}
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-base">{stat.user?.name}</h4>
-                                    <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                        {stat.total} chamados registrados
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 md:gap-6">
-                                <div className="flex flex-col items-center min-w-[60px]">
-                                    <span className="text-lg font-bold text-emerald-600">{stat.pass}</span>
-                                    <span className="text-[10px] uppercase font-bold text-emerald-400/80 tracking-wider">Sucesso</span>
-                                </div>
-                                <div className="w-px h-8 bg-slate-100 hidden md:block"></div>
-                                <div className="flex flex-col items-center min-w-[60px]">
-                                    <span className="text-lg font-bold text-slate-500">{stat.pending}</span>
-                                    <span className="text-[10px] uppercase font-bold text-slate-400/80 tracking-wider">Pendente</span>
-                                </div>
-                                <div className="w-px h-8 bg-slate-100 hidden md:block"></div>
-                                <div className="flex flex-col items-center min-w-[60px]">
-                                    <span className="text-lg font-bold text-amber-600">{stat.blocked}</span>
-                                    <span className="text-[10px] uppercase font-bold text-amber-400/80 tracking-wider">Impedimento</span>
-                                </div>
-                                <div className="w-px h-8 bg-slate-100 hidden md:block"></div>
-                                <div className="flex flex-col items-center min-w-[60px]">
-                                    <span className="text-lg font-bold text-red-600">{stat.fail}</span>
-                                    <span className="text-[10px] uppercase font-bold text-red-400/80 tracking-wider">Falha</span>
-                                </div>
-                                
-                                <div className={`ml-2 p-1.5 rounded-full transition-transform duration-300 ${isExpanded ? 'bg-indigo-100 text-indigo-600 rotate-180' : 'text-slate-300 group-hover:bg-slate-100'}`}>
-                                    <ChevronDown className="w-5 h-5" />
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* Expanded Details - Visual Bar for User - REMOVED TRANSITIONS AND SCROLL CAUSES */}
-                        {isExpanded && stat.total > 0 && (
-                            <div className="px-6 pb-6 pt-0 bg-slate-50/50 border-t border-slate-100/50 overflow-hidden">
-                                <div className="pt-4">
-                                    <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Progresso Geral do Usuário</p>
-                                    <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden flex">
-                                        <div style={{ width: `${(stat.pass / stat.total) * 100}%` }} className="bg-emerald-500 h-full"></div>
-                                        <div style={{ width: `${(stat.pending / stat.total) * 100}%` }} className="bg-slate-400 h-full"></div>
-                                        <div style={{ width: `${(stat.blocked / stat.total) * 100}%` }} className="bg-amber-500 h-full"></div>
-                                        <div style={{ width: `${(stat.fail / stat.total) * 100}%` }} className="bg-red-500 h-full"></div>
-                                    </div>
-                                    <div className="mt-2 flex justify-between text-[10px] text-slate-400 font-mono">
-                                        <span>0%</span>
-                                        <span>50%</span>
-                                        <span>100%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-            
-            {userMetrics.length === 0 && (
-                <div className="p-8 text-center text-slate-400">Nenhum dado encontrado para os filtros aplicados.</div>
-            )}
+                                </span>
+                            </td>
+                            <td className="px-6 py-4 font-bold text-slate-700">
+                                {stat.user?.name}
+                            </td>
+                            <td className="px-6 py-4 text-center font-medium text-slate-600">
+                                {stat.ticketsCount}
+                            </td>
+                            <td className="px-6 py-4 text-center font-black text-slate-800 text-base">
+                                {stat.totalCases}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                                {stat.cases.success > 0 ? (
+                                    <span className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">
+                                        {stat.cases.success}
+                                    </span>
+                                ) : <span className="text-slate-300">-</span>}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                                {stat.cases.pending > 0 ? (
+                                    <span className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full bg-slate-100 text-slate-600 font-bold border border-slate-200">
+                                        {stat.cases.pending}
+                                    </span>
+                                ) : <span className="text-slate-300">-</span>}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                                {stat.cases.blocked > 0 ? (
+                                    <span className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full bg-amber-50 text-amber-700 font-bold border border-amber-100">
+                                        {stat.cases.blocked}
+                                    </span>
+                                ) : <span className="text-slate-300">-</span>}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                                {stat.cases.fail > 0 ? (
+                                    <span className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full bg-red-50 text-red-700 font-bold border border-red-100">
+                                        {stat.cases.fail}
+                                    </span>
+                                ) : <span className="text-slate-300">-</span>}
+                            </td>
+                        </tr>
+                    ))}
+                    {userStats.length === 0 && (
+                        <tr>
+                            <td colSpan={8} className="p-8 text-center text-slate-400 font-medium">
+                                Nenhum dado disponível.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
          </div>
       </div>
 

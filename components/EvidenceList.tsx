@@ -214,19 +214,19 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 </span>
                               </div>
 
-                              {/* 4. SCREEN */}
-                              <div className="sm:col-span-3 flex items-center gap-2 overflow-hidden">
-                                 <Monitor className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                 <span className="text-xs font-medium text-slate-600 truncate" title={`Tela: ${testCaseDetails?.screen}`}>
-                                    {testCaseDetails?.screen || '-'}
-                                 </span>
-                              </div>
-
-                              {/* 5. OBJECTIVE */}
-                              <div className="sm:col-span-3">
-                                <p className="text-xs font-medium text-slate-700 truncate" title={testCaseDetails?.objective}>
-                                  {testCaseDetails?.objective || 'Sem objetivo'}
-                                </p>
+                              {/* 4. SCREEN & OBJECTIVE */}
+                              <div className="sm:col-span-6 flex flex-col justify-center min-w-0">
+                                 <div className="flex items-center gap-1.5 mb-0.5">
+                                     <Monitor className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                     <span className="text-xs font-bold text-slate-700 truncate" title={`Tela: ${testCaseDetails?.screen}`}>
+                                        {testCaseDetails?.screen || '-'}
+                                     </span>
+                                 </div>
+                                 <div className="flex items-center gap-1.5 pl-4">
+                                    <p className="text-xs text-slate-500 truncate" title={testCaseDetails?.objective}>
+                                       {testCaseDetails?.objective || 'Sem objetivo'}
+                                    </p>
+                                 </div>
                               </div>
 
                               {/* ACTIONS */}
