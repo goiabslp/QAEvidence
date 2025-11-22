@@ -10,7 +10,7 @@ import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -431,6 +431,23 @@ const App: React.FC = () => {
     return STATUS_CONFIG[TestStatus.PASS];
   };
 
+  // Helper to extract ALL unique statuses present in a ticket
+  const getTicketStatusBadges = (items: EvidenceItem[]) => {
+      const statuses = new Set<TestStatus>();
+      items.forEach(i => {
+          if (i.status === TestStatus.SKIPPED) statuses.add(TestStatus.PENDING); // Normalize skipped to pending visually
+          else statuses.add(i.status);
+      });
+      
+      // Sort logic: Fail > Blocked > Pass > Pending
+      const sortedStatuses = Array.from(statuses).sort((a, b) => {
+          const order = { [TestStatus.FAIL]: 0, [TestStatus.BLOCKED]: 1, [TestStatus.PASS]: 2, [TestStatus.PENDING]: 3, [TestStatus.SKIPPED]: 3 };
+          return (order[a] || 99) - (order[b] || 99);
+      });
+
+      return sortedStatuses.map(status => STATUS_CONFIG[status]);
+  };
+
   const getCurrentTicketInfo = () => {
     if (evidences.length > 0) return evidences[0].ticketInfo;
     if (formTicketInfoRef.current) return formTicketInfoRef.current;
@@ -613,42 +630,102 @@ const App: React.FC = () => {
         )}
 
         {!showAdminPanel && displayedHistory.length > 0 && (
-             <div className="mt-16 pt-10 border-t border-slate-200">
-                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                    <Archive className="w-5 h-5 text-slate-400" />
+             <div className="mt-16 pt-10 border-t border-slate-200 animate-fade-in">
+                 <h3 className="text-xl font-bold text-slate-800 mb-8 flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 rounded-xl">
+                        <Archive className="w-6 h-6 text-indigo-600" />
+                    </div>
                     Histórico de Chamados
                  </h3>
                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                     {displayedHistory.slice(0, 6).map(ticket => (
-                         <div 
-                            key={ticket.id} 
-                            onClick={() => handleOpenArchivedTicket(ticket)}
-                            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden"
-                         >
-                             <div className="flex justify-between items-start mb-3">
-                                 <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
-                                     {ticket.ticketInfo.ticketId}
-                                 </span>
-                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
-                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                        title="Baixar PDF"
-                                    >
-                                        {printingHistoryId === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-                                    </button>
-                                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold border ${getTicketAggregateStatus(ticket.items).color}`}>
-                                        {getTicketAggregateStatus(ticket.items).label}
-                                    </span>
-                                 </div>
-                             </div>
-                             <h4 className="font-bold text-slate-800 mb-1 line-clamp-1 group-hover:text-indigo-700 transition-colors">{ticket.ticketInfo.ticketTitle}</h4>
-                             <div className="flex items-center gap-4 text-xs text-slate-500 mt-3">
-                                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}</span>
-                                 <span className="flex items-center gap-1"><Layers className="w-3 h-3" /> {ticket.items.length}</span>
-                             </div>
-                         </div>
-                     ))}
+                     {displayedHistory.slice(0, 6).map(ticket => {
+                         const statusBadges = getTicketStatusBadges(ticket.items);
+                         const uniqueCaseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))];
+                         
+                         return (
+                            <div 
+                                key={ticket.id} 
+                                onClick={() => handleOpenArchivedTicket(ticket)}
+                                className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full"
+                            >
+                                {/* Header Color Line */}
+                                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                                
+                                <div className="p-6 flex-1 flex flex-col">
+                                    {/* Ticket ID & Analyst */}
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chamado</span>
+                                            <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 font-mono inline-block">
+                                                {ticket.ticketInfo.ticketId}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Analista</span>
+                                             <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-600">
+                                                 <UserIcon className="w-3 h-3" />
+                                                 {ticket.ticketInfo.analyst || ticket.createdBy}
+                                             </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Title */}
+                                    <h4 className="text-lg font-bold text-slate-800 mb-3 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                                        {ticket.ticketInfo.ticketTitle}
+                                    </h4>
+
+                                    {/* Status Tags (Accumulated) */}
+                                    <div className="flex flex-wrap gap-2 mb-6">
+                                        {statusBadges.map((conf, idx) => {
+                                            const Icon = conf.icon;
+                                            return (
+                                                <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border shadow-sm ${conf.color}`}>
+                                                    <Icon className="w-3 h-3 mr-1" />
+                                                    {conf.label}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                    
+                                    {/* Metadata Footer */}
+                                    <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
+                                        <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                                            <span className="flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
+                                            </span>
+                                            
+                                            <button
+                                                onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
+                                                className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors font-bold"
+                                                title="Baixar PDF"
+                                            >
+                                                {printingHistoryId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                                PDF
+                                            </button>
+                                        </div>
+
+                                        {/* Case IDs (Truncated) */}
+                                        {uniqueCaseIds.length > 0 && (
+                                            <div className="flex items-center gap-1.5 overflow-hidden">
+                                                <Hash className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                                                <div className="flex gap-1 overflow-hidden whitespace-nowrap mask-linear-fade">
+                                                    {uniqueCaseIds.slice(0, 3).map((id, idx) => (
+                                                        <span key={idx} className="text-[10px] font-mono text-slate-500 bg-slate-50 border border-slate-100 px-1.5 rounded">
+                                                            {id}
+                                                        </span>
+                                                    ))}
+                                                    {uniqueCaseIds.length > 3 && (
+                                                        <span className="text-[10px] text-slate-400 font-bold">+{uniqueCaseIds.length - 3}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                         );
+                     })}
                  </div>
              </div>
         )}

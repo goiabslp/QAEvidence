@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ArchivedTicket, User, TestStatus } from '../types';
-import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, Filter, ChevronDown, ChevronUp, User as UserIcon, PieChart, LayoutDashboard } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard } from 'lucide-react';
 
 interface DashboardMetricsProps {
   tickets: ArchivedTicket[];
@@ -253,7 +253,7 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
             {userMetrics.map((stat) => {
                 const isExpanded = expandedUsers.has(stat.user?.acronym || '');
                 return (
-                    <div key={stat.user?.acronym || 'unknown'} className="group transition-colors hover:bg-slate-50">
+                    <div key={stat.user?.acronym || 'unknown'} className="group hover:bg-slate-50">
                         <div 
                             className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer"
                             onClick={() => toggleUserExpand(stat.user?.acronym || '')}
@@ -291,15 +291,15 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
                                     <span className="text-[10px] uppercase font-bold text-red-400/80 tracking-wider">Falha</span>
                                 </div>
                                 
-                                <div className={`ml-2 p-1.5 rounded-full transition-all duration-300 ${isExpanded ? 'bg-indigo-100 text-indigo-600 rotate-180' : 'text-slate-300 group-hover:bg-slate-100'}`}>
+                                <div className={`ml-2 p-1.5 rounded-full transition-transform duration-300 ${isExpanded ? 'bg-indigo-100 text-indigo-600 rotate-180' : 'text-slate-300 group-hover:bg-slate-100'}`}>
                                     <ChevronDown className="w-5 h-5" />
                                 </div>
                             </div>
                         </div>
                         
-                        {/* Expanded Details - Visual Bar for User */}
+                        {/* Expanded Details - Visual Bar for User - REMOVED TRANSITIONS AND SCROLL CAUSES */}
                         {isExpanded && stat.total > 0 && (
-                            <div className="px-6 pb-6 pt-0 animate-slide-down bg-slate-50/50 border-t border-slate-100/50 inner-shadow">
+                            <div className="px-6 pb-6 pt-0 bg-slate-50/50 border-t border-slate-100/50 overflow-hidden">
                                 <div className="pt-4">
                                     <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-wider">Progresso Geral do Usuário</p>
                                     <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden flex">

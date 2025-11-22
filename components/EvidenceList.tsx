@@ -177,62 +177,81 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                     const isCaseOpen = expandedCases.has(evidence.id);
                     const { testCaseDetails, ticketInfo } = evidence;
                     const hasSteps = testCaseDetails?.steps && testCaseDetails.steps.length > 0;
+                    const StatusConfig = STATUS_CONFIG[evidence.status];
+                    const StatusIcon = StatusConfig.icon;
                     
                     return (
                       <div key={evidence.id} className="group transition-colors hover:bg-slate-50/50">
                         <div 
-                          className="px-5 py-4 flex items-center gap-5 cursor-pointer"
+                          className="px-5 py-4 flex items-center gap-3 cursor-pointer"
                           onClick={() => toggleCaseDetails(evidence.id)}
                         >
-                           <div className={`text-slate-300 transition-transform duration-200 ${isCaseOpen ? 'rotate-90 text-indigo-500' : ''}`}>
+                           <div className={`text-slate-300 transition-transform duration-200 flex-shrink-0 ${isCaseOpen ? 'rotate-90 text-indigo-500' : ''}`}>
                               <ChevronRight className="w-5 h-5" />
                            </div>
 
-                           <div 
-                             className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-offset-white ${
-                                evidence.status === TestStatus.PASS ? 'bg-emerald-500 ring-emerald-100' :
-                                evidence.status === TestStatus.FAIL ? 'bg-red-500 ring-red-100' :
-                                evidence.status === TestStatus.BLOCKED ? 'bg-amber-500 ring-amber-100' : 
-                                evidence.status === TestStatus.PENDING ? 'bg-slate-400 ring-slate-100' :
-                                'bg-slate-300'
-                             }`}
-                           ></div>
-
-                           <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                              <div className="md:col-span-3 flex items-center gap-2.5">
-                                <span className="font-bold text-xs text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
-                                  CASO {testCaseDetails?.caseNumber}
-                                </span>
-                                <span className="text-xs text-slate-400 font-mono">{testCaseDetails?.caseId}</span>
-                                {hasSteps && (
-                                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-1">
-                                        <ListChecks className="w-3 h-3" /> {testCaseDetails?.steps?.length}
-                                    </span>
-                                )}
+                           <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                              
+                              {/* 1. CASO (Case Number) */}
+                              <div className="sm:col-span-1 flex items-center justify-center sm:justify-start">
+                                 <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
+                                    Caso <span className="text-slate-900 text-sm">#{testCaseDetails?.caseNumber}</span>
+                                 </span>
                               </div>
 
-                              <div className="md:col-span-7">
-                                <p className="text-sm font-medium text-slate-700 truncate" title={testCaseDetails?.objective}>
-                                  {testCaseDetails?.objective || 'Sem objetivo definido'}
+                              {/* 2. STATUS BADGE */}
+                              <div className="sm:col-span-2 flex justify-start">
+                                  <span className={`w-full flex items-center justify-center px-2 py-1 rounded-md text-[10px] font-bold border shadow-sm uppercase tracking-wide truncate ${StatusConfig.color}`}>
+                                      <StatusIcon className="w-3 h-3 mr-1.5 flex-shrink-0" />
+                                      {StatusConfig.label}
+                                   </span>
+                              </div>
+
+                              {/* 3. CASE ID */}
+                              <div className="sm:col-span-2 flex justify-start">
+                                <span className="w-full text-center font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 truncate" title="ID do Caso">
+                                  {testCaseDetails?.caseId}
+                                </span>
+                              </div>
+
+                              {/* 4. SCREEN */}
+                              <div className="sm:col-span-3 flex items-center gap-2 overflow-hidden">
+                                 <Monitor className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                 <span className="text-xs font-medium text-slate-600 truncate" title={`Tela: ${testCaseDetails?.screen}`}>
+                                    {testCaseDetails?.screen || '-'}
+                                 </span>
+                              </div>
+
+                              {/* 5. OBJECTIVE */}
+                              <div className="sm:col-span-3">
+                                <p className="text-xs font-medium text-slate-700 truncate" title={testCaseDetails?.objective}>
+                                  {testCaseDetails?.objective || 'Sem objetivo'}
                                 </p>
                               </div>
 
-                              <div className="md:col-span-2 flex justify-end items-center gap-2">
+                              {/* ACTIONS */}
+                              <div className="sm:col-span-1 flex justify-end items-center gap-1">
+                                {hasSteps && (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-full mr-1 border border-slate-100" title={`${testCaseDetails?.steps?.length} passos`}>
+                                        <ListChecks className="w-3 h-3" />
+                                    </span>
+                                )}
+
                                 {onEditCase && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onEditCase(evidence.id); }}
-                                        className="text-slate-300 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
+                                        className="text-slate-300 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
                                         title="Editar Caso"
                                     >
-                                        <Pencil className="w-4 h-4" />
+                                        <Pencil className="w-3.5 h-3.5" />
                                     </button>
                                 )}
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); onDelete(evidence.id); }}
-                                  className="text-slate-300 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                  className="text-slate-300 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                                   title="Excluir Caso"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                            </div>
@@ -240,7 +259,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
 
                         {isCaseOpen && (
                           <div className="px-12 pb-8 pt-2 bg-slate-50/30 text-sm animate-fade-in border-b border-slate-100">
-                             {/* NEW: Failure Reason Display */}
+                             {/* Failure Reason Display */}
                              {testCaseDetails?.failureReason && (testCaseDetails.result === 'Falha' || testCaseDetails.result === 'Impedimento') && (
                                 <div className={`mb-6 p-4 rounded-xl border ${
                                     evidence.status === TestStatus.FAIL 
