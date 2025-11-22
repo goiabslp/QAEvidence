@@ -270,7 +270,7 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 md:gap-6 overflow-x-auto pb-2 md:pb-0">
+                            <div className="flex items-center gap-2 md:gap-6">
                                 <div className="flex flex-col items-center min-w-[60px]">
                                     <span className="text-lg font-bold text-emerald-600">{stat.pass}</span>
                                     <span className="text-[10px] uppercase font-bold text-emerald-400/80 tracking-wider">Sucesso</span>

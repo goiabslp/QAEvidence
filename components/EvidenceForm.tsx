@@ -296,7 +296,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div>
                         <label className={labelClass}>Chamado (ID)</label>
-                        <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="#1234" />
+                        <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="Ex: 58645" />
                     </div>
                     <div>
                         <label className={labelClass}>Sprint</label>
@@ -326,14 +326,14 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     </div>
                     <div>
                         <label className={labelClass}>Cliente / Sistema</label>
-                        <input type="text" value={clientSystem} onChange={e => setClientSystem(e.target.value)} className={ticketInputClass} placeholder="Veirano, Kincaid ou Legal Desk" />
+                        <input type="text" value={clientSystem} onChange={e => setClientSystem(e.target.value)} className={ticketInputClass} placeholder="Ex: Veirano, Kincaid, LegalDesk, Protheus..." />
                     </div>
                     </div>
 
                     {/* LINHA 5 */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="relative z-20 md:col-span-2">
-                        <label className={labelClass}>Ambiente do Commit</label>
+                        <label className={labelClass}>Ambiente do Commit / Teste</label>
                         <div 
                         className="w-full min-h-[42px] rounded-lg border border-slate-300 bg-white flex flex-wrap items-center gap-2 px-2 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all shadow-sm hover:border-indigo-300"
                         onClick={() => {
@@ -362,7 +362,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                 onKeyDown={handleEnvKeyDown}
                                 onFocus={() => setIsEnvListOpen(true)}
                                 className="bg-transparent border-none text-slate-700 text-sm placeholder-slate-400 focus:ring-0 w-full p-0.5"
-                                placeholder={selectedEnvs.length === 0 ? "Selecione ou digite..." : ""}
+                                placeholder={selectedEnvs.length === 0 ? "Onde foi realizado o Commit ou Local do Teste" : ""}
                             />
                             <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isEnvListOpen ? 'rotate-180' : ''}`} />
                         </div>
