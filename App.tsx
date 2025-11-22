@@ -578,9 +578,10 @@ const App: React.FC = () => {
                     evidences={evidences}
                     initialTicketInfo={editingTicketInfo}
                     onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
+                    onCancel={editingHistoryId ? handleCancelEdit : undefined}
                 />
                 
-                {/* List Header Actions (PDF/Save) */}
+                {/* List Header (Title Only) */}
                 <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 mb-6 border-b border-slate-200 pb-4">
                     <div>
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -591,35 +592,13 @@ const App: React.FC = () => {
                             </span>
                         </h3>
                         {editingHistoryId && (
-                           <div className="flex items-center gap-2 mt-1">
-                               <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1">
-                                  <Archive className="w-3 h-3" /> Editando Histórico
+                            <div className="mt-2 inline-flex items-center gap-2 animate-fade-in">
+                               <span className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-lg border border-amber-200 flex items-center gap-1.5 shadow-sm">
+                                  <Archive className="w-3.5 h-3.5" /> 
+                                  MODO DE EDIÇÃO: HISTÓRICO
                                </span>
-                               <button onClick={handleCancelEdit} className="text-xs underline text-slate-400 hover:text-red-500">Cancelar</button>
-                           </div>
+                            </div>
                         )}
-                    </div>
-                    
-                    <div className="flex gap-3">
-                        {/* Save to History Button */}
-                        <button 
-                            onClick={handleSaveAndClose}
-                            disabled={evidences.length === 0}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:text-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                        >
-                            <Save className="w-4 h-4" />
-                            <span className="hidden sm:inline">Salvar no Histórico</span>
-                        </button>
-
-                        {/* PDF Button */}
-                        <button 
-                           onClick={handlePdfFlow}
-                           disabled={evidences.length === 0 || isGeneratingPdf}
-                           className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5 active:translate-y-0"
-                        >
-                           {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-                           Gerar PDF
-                        </button>
                     </div>
                 </div>
 
@@ -636,6 +615,49 @@ const App: React.FC = () => {
                     onAddCase={handleAddCase}
                     onEditCase={handleEditCase}
                 />
+
+                {/* FINAL ACTIONS - REDESIGNED */}
+                <div className="mt-12">
+                   <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden text-center">
+                        {/* Decorative gradient line */}
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500"></div>
+                        
+                        <div className="relative z-10 max-w-4xl mx-auto">
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Conclusão do Registro</h3>
+                            <p className="text-slate-500 mb-8 max-w-lg mx-auto">
+                                Confira os dados abaixo e escolha como deseja finalizar o processo.
+                            </p>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                {/* Save Button */}
+                                <button
+                                    onClick={handleSaveAndClose}
+                                    disabled={evidences.length === 0}
+                                    className="group relative flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50 hover:border-emerald-500 transition-all duration-300 disabled:opacity-50 disabled:grayscale"
+                                >
+                                    <div className="mb-3 p-3 bg-white rounded-full text-emerald-600 shadow-sm border border-emerald-100 group-hover:scale-110 transition-transform">
+                                        <Save className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-base font-bold text-slate-800 group-hover:text-emerald-700">Salvar no Histórico</span>
+                                    <span className="text-xs text-slate-500 mt-1">Apenas armazena os dados</span>
+                                </button>
+
+                                {/* PDF Button */}
+                                <button
+                                    onClick={handlePdfFlow}
+                                    disabled={evidences.length === 0 || isGeneratingPdf}
+                                    className="group relative flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-transparent bg-slate-900 text-white hover:bg-indigo-600 shadow-lg hover:shadow-indigo-200 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none"
+                                >
+                                    <div className="mb-3 p-3 bg-white/10 rounded-full text-white shadow-inner group-hover:bg-white/20 transition-colors">
+                                        {isGeneratingPdf ? <Loader2 className="w-6 h-6 animate-spin" /> : <FileDown className="w-6 h-6" />}
+                                    </div>
+                                    <span className="text-base font-bold">Gerar PDF & Finalizar</span>
+                                    <span className="text-xs text-indigo-200 mt-1">Relatório completo e download</span>
+                                </button>
+                            </div>
+                        </div>
+                   </div>
+                </div>
              </>
         )}
 

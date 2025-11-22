@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo } from '../types';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 
 interface EvidenceFormProps {
@@ -14,6 +14,7 @@ interface EvidenceFormProps {
   evidences?: EvidenceItem[];
   initialTicketInfo?: TicketInfo | null;
   onTicketInfoChange?: (info: TicketInfo) => void;
+  onCancel?: () => void;
 }
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
@@ -25,7 +26,8 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   onClearTrigger, 
   evidences = [], 
   initialTicketInfo,
-  onTicketInfoChange
+  onTicketInfoChange,
+  onCancel
 }) => {
   const [sprint, setSprint] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -224,14 +226,33 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   return (
     <form id="evidence-form" onSubmit={handlePreSubmit}>
       <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative">
-        <div className="border-b border-slate-100 bg-slate-50/80 px-8 py-5 backdrop-blur-sm">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2.5">
-              <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
-                <FileText className="w-5 h-5 text-indigo-600" />
-              </div>
-              Registro de Evidência
-          </h2>
-          <p className="text-sm text-slate-500 mt-1 ml-12">Preencha as informações do chamado e utilize o assistente de cenários.</p>
+        
+        {/* HEADER */}
+        <div className="border-b border-slate-100 bg-slate-50/80 px-8 py-5 backdrop-blur-sm flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2.5">
+                <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                </div>
+                Registro de Evidência
+            </h2>
+            <p className="text-sm text-slate-500 mt-1 ml-12">Preencha as informações do chamado e utilize o assistente de cenários.</p>
+          </div>
+
+          {/* CANCEL BUTTON (Visible only when onCancel is passed) */}
+          {onCancel && (
+              <button
+                  type="button"
+                  onClick={onCancel}
+                  className="group flex items-center gap-3 px-5 py-2.5 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-xl text-red-600 font-bold text-sm transition-all shadow-sm hover:shadow active:scale-95 animate-fade-in"
+                  title="Cancelar edição e limpar formulário"
+              >
+                  <div className="bg-white p-0.5 rounded-full text-red-400 group-hover:text-red-600 transition-colors shadow-sm">
+                      <X className="w-4 h-4" />
+                  </div>
+                  CANCELAR
+              </button>
+          )}
         </div>
         
         <div className="p-8 space-y-10">
