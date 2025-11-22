@@ -1,8 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo } from '../types';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 
 interface EvidenceFormProps {
@@ -465,13 +466,21 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                           item.status === TestStatus.PASS ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
                                           item.status === TestStatus.FAIL ? 'bg-red-100 text-red-800 border border-red-200' :
                                           item.status === TestStatus.BLOCKED ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                          item.status === TestStatus.PENDING ? 'bg-slate-100 text-slate-600 border border-slate-200' :
                                           'bg-slate-100 text-slate-800 border border-slate-200'
                                        }`}>
                                           {item.status === TestStatus.PASS && <CheckCircle2 className="w-3 h-3 mr-1" />}
                                           {item.status === TestStatus.FAIL && <XCircle className="w-3 h-3 mr-1" />}
                                           {item.status === TestStatus.BLOCKED && <AlertCircle className="w-3 h-3 mr-1" />}
-                                          {item.status === TestStatus.SKIPPED && <MinusCircle className="w-3 h-3 mr-1" />}
-                                          {item.status === 'PASS' ? 'Sucesso' : item.status === 'FAIL' ? 'Falha' : item.status === 'BLOCKED' ? 'Impedimento' : 'Pulado'}
+                                          {item.status === TestStatus.SKIPPED && <Clock className="w-3 h-3 mr-1" />}
+                                          {item.status === TestStatus.PENDING && <Clock className="w-3 h-3 mr-1" />}
+                                          
+                                          {/* Update display text here */}
+                                          {item.status === 'PASS' ? 'Sucesso' : 
+                                           item.status === 'FAIL' ? 'Falha' : 
+                                           item.status === 'BLOCKED' ? 'Impedimento' : 
+                                           item.status === 'PENDING' ? 'Pendente' : 
+                                           'Pendente'} 
                                        </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">

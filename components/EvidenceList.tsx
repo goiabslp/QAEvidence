@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { EvidenceItem, TestStatus } from '../types';
 import { STATUS_CONFIG, SEVERITY_COLORS } from '../constants';
@@ -138,6 +139,8 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono font-bold border shadow-sm ${
                                     item.status === TestStatus.FAIL 
                                     ? 'bg-red-50 text-red-700 border-red-100' 
+                                    : item.status === TestStatus.PENDING 
+                                    ? 'bg-slate-100 text-slate-600 border-slate-200'
                                     : 'bg-white text-slate-500 border-slate-200'
                                 }`}
                             >
@@ -189,7 +192,9 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-2 ring-offset-white ${
                                 evidence.status === TestStatus.PASS ? 'bg-emerald-500 ring-emerald-100' :
                                 evidence.status === TestStatus.FAIL ? 'bg-red-500 ring-red-100' :
-                                evidence.status === TestStatus.BLOCKED ? 'bg-amber-500 ring-amber-100' : 'bg-slate-300'
+                                evidence.status === TestStatus.BLOCKED ? 'bg-amber-500 ring-amber-100' : 
+                                evidence.status === TestStatus.PENDING ? 'bg-slate-400 ring-slate-100' :
+                                'bg-slate-300'
                              }`}
                            ></div>
 

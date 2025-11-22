@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 
 interface TestScenarioWizardProps {
@@ -28,7 +29,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
 
   const [formData, setFormData] = useState<Partial<TestCaseDetails>>({
     caseId: generateCaseId(),
-    result: 'Sucesso',
+    result: 'Pendente',
     screen: '',
     objective: '',
     preRequisite: '',
@@ -66,7 +67,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
           preRequisite: '',
           condition: '',
           expectedResult: '',
-          result: 'Sucesso',
+          result: 'Pendente',
           failureReason: ''
         }));
         setSteps([]);
@@ -101,7 +102,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
   const resetForm = () => {
     setFormData({
       caseId: generateCaseId(),
-      result: 'Sucesso',
+      result: 'Pendente',
       screen: '',
       objective: '',
       preRequisite: '',
@@ -204,20 +205,22 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         caseNumber: caseNumberToUse,
         caseId: formData.caseId || generateCaseId(),
         screen: formData.screen || 'N/A',
-        result: (formData.result as any) || 'Sucesso',
+        result: (formData.result as any) || 'Pendente',
         objective: formData.objective || 'N/A',
         preRequisite: formData.preRequisite || 'N/A',
         condition: formData.condition || 'N/A',
         expectedResult: formData.expectedResult || 'N/A',
-        // Only save failure reason if result is NOT Success
-        failureReason: (formData.result !== 'Sucesso' ? formData.failureReason : undefined),
+        // Only save failure reason if result is Falha or Impedimento
+        failureReason: (formData.result === 'Falha' || formData.result === 'Impedimento' ? formData.failureReason : undefined),
         steps: steps.length > 0 ? steps : undefined
     };
 
-    let status = TestStatus.PASS;
+    let status = TestStatus.PENDING;
     let severity = Severity.LOW;
     
-    if (testDetails.result === 'Falha') {
+    if (testDetails.result === 'Sucesso') {
+        status = TestStatus.PASS;
+    } else if (testDetails.result === 'Falha') {
         status = TestStatus.FAIL;
         severity = Severity.HIGH;
     } else if (testDetails.result === 'Impedimento') {
@@ -554,7 +557,7 @@ E seleciono a opção Aprovar;`}
                 <div className="md:col-span-2 pt-6 border-t border-slate-100">
                         <label className={labelClass}>Resultado Final do Caso</label>
                         <div className="flex gap-4">
-                            {['Sucesso', 'Falha', 'Impedimento'].map((res) => (
+                            {['Sucesso', 'Falha', 'Impedimento', 'Pendente'].map((res) => (
                                 <button
                                     key={res}
                                     type="button"
@@ -563,13 +566,15 @@ E seleciono a opção Aprovar;`}
                                         formData.result === res 
                                         ? res === 'Sucesso' ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-200 ring-2 ring-emerald-100'
                                         : res === 'Falha' ? 'bg-red-600 text-white border-red-600 shadow-red-200 ring-2 ring-red-100'
-                                        : 'bg-amber-500 text-white border-amber-500 shadow-amber-200 ring-2 ring-amber-100'
+                                        : res === 'Impedimento' ? 'bg-amber-500 text-white border-amber-500 shadow-amber-200 ring-2 ring-amber-100'
+                                        : 'bg-slate-500 text-white border-slate-500 shadow-slate-200 ring-2 ring-slate-100'
                                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'
                                     }`}
                                 >
                                     {res === 'Sucesso' && <CheckCircle className="w-4 h-4" />}
                                     {res === 'Falha' && <XCircle className="w-4 h-4" />}
                                     {res === 'Impedimento' && <AlertTriangle className="w-4 h-4" />}
+                                    {res === 'Pendente' && <Clock className="w-4 h-4" />}
                                     {res}
                                 </button>
                             ))}

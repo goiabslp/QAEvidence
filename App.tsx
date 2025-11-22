@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import EvidenceForm from './components/EvidenceForm';
@@ -8,7 +8,8 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X } from 'lucide-react';
+import { STATUS_CONFIG } from './constants';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -40,6 +41,10 @@ const App: React.FC = () => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
+  
+  // State for History PDF generation
+  const [printingHistoryId, setPrintingHistoryId] = useState<string | null>(null);
+  const historyPrintRef = useRef<HTMLDivElement>(null);
   
   const reportRef = useRef<HTMLDivElement>(null);
   
@@ -246,9 +251,11 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCloseAndGeneratePDF = () => {
+  // --- VALIDATION & SAVING LOGIC ---
+
+  const validateTicketRequirements = (): boolean => {
     setPdfError(null);
-    if (!reportRef.current || evidences.length === 0) return;
+    if (evidences.length === 0) return false;
 
     const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
     
@@ -257,7 +264,6 @@ const App: React.FC = () => {
        { key: 'ticketId', label: 'Chamado (ID)' },
        { key: 'sprint', label: 'Sprint' },
        { key: 'requester', label: 'Solicitante' },
-       // Analyst is auto-filled by system now
        { key: 'ticketTitle', label: 'Título do Chamado' }
     ];
 
@@ -268,33 +274,16 @@ const App: React.FC = () => {
 
     if (missingFields.length > 0) {
         const missingLabels = missingFields.map(f => f.label).join(', ');
-        setPdfError(`Para fechar a evidência, preencha os campos obrigatórios: ${missingLabels}.`);
-        return;
+        setPdfError(`Para finalizar, preencha os campos obrigatórios: ${missingLabels}.`);
+        return false;
     }
     
-    setShowPdfModal(true);
+    return true;
   };
 
-  const executePdfGeneration = () => {
-    if (!reportRef.current || !currentUser) return;
-
-    setShowPdfModal(false);
-    setIsGeneratingPdf(true);
-    
-    const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
-    const ticketTitle = masterTicketInfo.ticketTitle;
-    const safeFilename = ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
-
-    const opt = {
-      margin: [10, 10],
-      filename: `${safeFilename}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-
-    html2pdf().set(opt).from(reportRef.current).save().then(() => {
+  const persistCurrentTicket = () => {
+      if (!currentUser) return;
+      const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
       const consistentEvidences = evidences.map(ev => ({
          ...ev,
          ticketInfo: masterTicketInfo,
@@ -325,13 +314,51 @@ const App: React.FC = () => {
           setTicketHistory(prev => [archivedTicket, ...prev]);
       }
 
+      // Clear Workspace
       setEvidences([]);
       setWizardTrigger(null);
       setEditingTicketInfo(null);
       setEditingHistoryId(null);
-      
       setFormKey(prev => prev + 1);
+  };
 
+  // Button 1: Save & Close (Histórico)
+  const handleSaveAndClose = () => {
+    if (!validateTicketRequirements()) return;
+    
+    if (confirm('Deseja salvar esta evidência no histórico?')) {
+        persistCurrentTicket();
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  // Button 2: Generate PDF (and Save)
+  const handlePdfFlow = () => {
+    if (!validateTicketRequirements()) return;
+    setShowPdfModal(true);
+  };
+
+  const executePdfGeneration = () => {
+    if (!reportRef.current || !currentUser) return;
+
+    setShowPdfModal(false);
+    setIsGeneratingPdf(true);
+    
+    const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
+    const ticketTitle = masterTicketInfo.ticketTitle;
+    const safeFilename = ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
+
+    const opt = {
+      margin: [10, 10],
+      filename: `${safeFilename}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(reportRef.current).save().then(() => {
+      persistCurrentTicket();
       setIsGeneratingPdf(false);
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     });
@@ -353,14 +380,41 @@ const App: React.FC = () => {
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  
+  // Handler for downloading PDF from History Card
+  const handleDownloadHistoryPdf = (e: React.MouseEvent, ticket: ArchivedTicket) => {
+    e.stopPropagation();
+    setPrintingHistoryId(ticket.id);
+    
+    // Slight delay to allow render
+    setTimeout(() => {
+      if (historyPrintRef.current) {
+        const safeFilename = ticket.ticketInfo.ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
+        const opt = {
+          margin: [10, 10],
+          filename: `${safeFilename}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        html2pdf().set(opt).from(historyPrintRef.current).save().then(() => {
+          setPrintingHistoryId(null);
+        });
+      }
+    }, 800);
+  };
 
   const getTicketAggregateStatus = (items: EvidenceItem[]) => {
     const hasFailure = items.some(i => i.status === TestStatus.FAIL);
     const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
+    const hasPending = items.some(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
     
-    if (hasFailure) return { label: 'Falha', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle };
-    if (hasBlocker) return { label: 'Impedimento', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: AlertCircle };
-    return { label: 'Sucesso', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 };
+    if (hasFailure) return STATUS_CONFIG[TestStatus.FAIL];
+    if (hasBlocker) return STATUS_CONFIG[TestStatus.BLOCKED];
+    if (hasPending) return STATUS_CONFIG[TestStatus.SKIPPED];
+    return STATUS_CONFIG[TestStatus.PASS];
   };
 
   const getCurrentTicketInfo = () => {
@@ -370,6 +424,11 @@ const App: React.FC = () => {
   };
   
   const modalTicketInfo = getCurrentTicketInfo();
+
+  // Ticket to be printed from history
+  const ticketToPrint = useMemo(() => {
+    return ticketHistory.find(t => t.id === printingHistoryId);
+  }, [ticketHistory, printingHistoryId]);
 
   // --- FILTERING FOR UI ---
   // Admin sees ALL tickets. User sees ONLY their tickets.
@@ -503,8 +562,21 @@ const App: React.FC = () => {
                         </button>
                     )}
 
+                    {/* Botão Salvar Evidência */}
                     <button
-                        onClick={handleCloseAndGeneratePDF}
+                        onClick={handleSaveAndClose}
+                        disabled={evidences.length === 0 || isGeneratingPdf}
+                        className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-slate-700 bg-white border border-slate-300 shadow-sm hover:bg-slate-50 hover:text-indigo-700 hover:border-indigo-300 transition-all ${
+                            evidences.length === 0 || isGeneratingPdf ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                    >
+                         <Save className="w-5 h-5" />
+                         <span>Salvar Evidência</span>
+                    </button>
+
+                    {/* Botão Gerar PDF (Salvar com PDF) */}
+                    <button
+                        onClick={handlePdfFlow}
                         disabled={evidences.length === 0 || isGeneratingPdf}
                         className={`flex items-center gap-3 px-8 py-3.5 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-1 active:translate-y-0 ${
                             evidences.length === 0 || isGeneratingPdf
@@ -519,8 +591,8 @@ const App: React.FC = () => {
                             </>
                         ) : (
                             <>
-                            <FileCheck className="w-5 h-5" />
-                            <span>{editingHistoryId ? 'Salvar Edição e Gerar PDF' : 'Fechar Evidência e Gerar PDF'}</span>
+                            <FileDown className="w-5 h-5" />
+                            <span>Gerar PDF</span>
                             </>
                         )}
                     </button>
@@ -541,7 +613,8 @@ const App: React.FC = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {displayedHistory.map((ticket) => {
-                        const status = getTicketAggregateStatus(ticket.items);
+                        const statusConfig = getTicketAggregateStatus(ticket.items);
+                        const StatusIcon = statusConfig.icon;
                         const uniqueScenarios = new Set(ticket.items.map(i => i.testCaseDetails?.scenarioNumber)).size;
                         const displayDate = ticket.ticketInfo.evidenceDate 
                             ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
@@ -563,9 +636,9 @@ const App: React.FC = () => {
                                         {displayDate}
                                     </div>
                                 </div>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${status.color}`}>
-                                    <status.icon className="w-3 h-3 mr-1.5" />
-                                    {status.label}
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${statusConfig.color}`}>
+                                    <StatusIcon className="w-3 h-3 mr-1.5" />
+                                    {statusConfig.label}
                                 </span>
                             </div>
                             
@@ -600,15 +673,30 @@ const App: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Analyst */}
-                            <div className="flex items-center gap-3 py-3 border-t border-dashed border-slate-200">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 border border-white shadow-sm">
-                                    <UserIcon className="w-4 h-4" />
+                            {/* Footer: Analyst & Download */}
+                            <div className="flex items-center justify-between py-3 border-t border-dashed border-slate-200 mt-auto">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 flex items-center justify-center text-indigo-600 border border-white shadow-sm">
+                                        <UserIcon className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Analista</span>
+                                        <span className="text-xs font-semibold text-slate-700">{ticket.ticketInfo.analyst || 'N/A'}</span>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Analista</span>
-                                    <span className="text-xs font-semibold text-slate-700">{ticket.ticketInfo.analyst || 'N/A'}</span>
-                                </div>
+                                <button
+                                    onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
+                                    disabled={!!printingHistoryId}
+                                    className="flex items-center gap-2 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-colors border border-indigo-100"
+                                    title="Baixar PDF do Histórico"
+                                >
+                                    {printingHistoryId === ticket.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <FileDown className="w-4 h-4" />
+                                    )}
+                                    Download PDF
+                                </button>
                             </div>
                             </div>
                             
@@ -707,6 +795,32 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Hidden Print Container for History */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
+         <div ref={historyPrintRef} className="bg-white p-8 min-h-screen">
+            {ticketToPrint && (
+                <div className="space-y-8">
+                    <EvidenceForm 
+                        onSubmit={() => {}} 
+                        onWizardSave={() => {}}
+                        initialTicketInfo={ticketToPrint.ticketInfo}
+                    />
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-3">
+                            <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                            Cenário de Teste do Chamado
+                        </h3>
+                        <EvidenceList 
+                            evidences={ticketToPrint.items} 
+                            onDelete={() => {}}
+                        />
+                    </div>
+                </div>
+            )}
+         </div>
+      </div>
+
     </div>
   );
 };

@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { ArchivedTicket, User } from '../types';
+import { ArchivedTicket, User, EvidenceItem, TestStatus } from '../types';
+import { STATUS_CONFIG } from '../constants';
 import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen } from 'lucide-react';
 import EvidenceForm from './EvidenceForm';
 import EvidenceList from './EvidenceList';
@@ -80,6 +81,17 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users 
     }, 800); // Slight delay to ensure images/content render in hidden div
   };
 
+  const getAggregateStatus = (items: EvidenceItem[]) => {
+    const hasFailure = items.some(i => i.status === TestStatus.FAIL);
+    const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
+    const hasPending = items.some(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
+    
+    if (hasFailure) return STATUS_CONFIG[TestStatus.FAIL];
+    if (hasBlocker) return STATUS_CONFIG[TestStatus.BLOCKED];
+    if (hasPending) return STATUS_CONFIG[TestStatus.SKIPPED]; 
+    return STATUS_CONFIG[TestStatus.PASS];
+  };
+
   const ticketToPrint = tickets.find(t => t.id === printingTicketId);
 
   return (
@@ -145,6 +157,9 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users 
                                 const date = ticket.ticketInfo.evidenceDate 
                                     ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
                                     : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
+                                
+                                const statusConfig = getAggregateStatus(ticket.items);
+                                const StatusIcon = statusConfig.icon;
 
                                 return (
                                     <div key={ticket.id} className="p-5 flex flex-col md:flex-row items-center gap-5 hover:bg-slate-50/80 transition-colors group">
@@ -155,9 +170,15 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users 
 
                                         {/* Info */}
                                         <div className="flex-1 w-full">
-                                            <h4 className="font-bold text-slate-800 text-base mb-2 group-hover:text-indigo-700 transition-colors">
-                                                {ticket.ticketInfo.ticketTitle}
-                                            </h4>
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                                <h4 className="font-bold text-slate-800 text-base group-hover:text-indigo-700 transition-colors">
+                                                    {ticket.ticketInfo.ticketTitle}
+                                                </h4>
+                                                <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusConfig.color}`}>
+                                                    <StatusIcon className="w-3 h-3 mr-1" />
+                                                    {statusConfig.label}
+                                                </span>
+                                            </div>
                                             
                                             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
                                                 <span className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 font-medium">

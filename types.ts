@@ -3,7 +3,8 @@ export enum TestStatus {
   PASS = 'PASS',
   FAIL = 'FAIL',
   BLOCKED = 'BLOCKED',
-  SKIPPED = 'SKIPPED'
+  SKIPPED = 'SKIPPED',
+  PENDING = 'PENDING'
 }
 
 export enum Severity {
@@ -52,7 +53,7 @@ export interface TestCaseDetails {
   caseNumber: number;
   caseId: string; // Gerado automaticamente
   screen: string;
-  result: 'Sucesso' | 'Falha' | 'Impedimento';
+  result: 'Sucesso' | 'Falha' | 'Impedimento' | 'Pendente';
   objective: string;
   preRequisite: string;
   condition: string;

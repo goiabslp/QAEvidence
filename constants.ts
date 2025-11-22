@@ -1,5 +1,6 @@
+
 import { TestStatus, Severity } from './types';
-import { CheckCircle2, XCircle, AlertCircle, MinusCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, MinusCircle, Clock } from 'lucide-react';
 
 export const STATUS_CONFIG = {
   [TestStatus.PASS]: {
@@ -18,9 +19,14 @@ export const STATUS_CONFIG = {
     icon: AlertCircle
   },
   [TestStatus.SKIPPED]: {
-    label: 'Pulado',
+    label: 'Pendente',
     color: 'bg-gray-100 text-gray-800 border-gray-200',
-    icon: MinusCircle
+    icon: Clock
+  },
+  [TestStatus.PENDING]: {
+    label: 'Pendente',
+    color: 'bg-slate-100 text-slate-600 border-slate-200',
+    icon: Clock
   }
 };
 
