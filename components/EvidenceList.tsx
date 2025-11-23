@@ -379,6 +379,8 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
         const { item: evidence } = group;
         const { ticketInfo } = evidence;
         const StatusIcon = STATUS_CONFIG[evidence.status].icon;
+        const priority = ticketInfo.priority || TicketPriority.MEDIUM;
+        const PriorityConfig = PRIORITY_CONFIG[priority];
 
         return (
           <div key={evidence.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row overflow-hidden group break-inside-avoid">
@@ -411,6 +413,10 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                      <div className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded">
                             {ticketInfo.ticketTitle.split(' - ')[0] || 'TICKET'}
+                        </span>
+                        {/* PRIORITY TAG */}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${PriorityConfig.color}`}>
+                            {PriorityConfig.label}
                         </span>
                      </div>
                     <h3 className="text-lg font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-700 transition-colors" title={evidence.title}>

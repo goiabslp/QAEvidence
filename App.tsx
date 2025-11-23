@@ -412,11 +412,7 @@ const App: React.FC = () => {
   const handleDownloadArchivedPdf = (ticket: ArchivedTicket) => {
     setPrintingTicket(ticket);
     setIsGeneratingPdf(true);
-    
-    // Allow React to render the hidden container with new data
-    setTimeout(() => {
-        executePdfGeneration(true);
-    }, 500);
+    // setTimeout removed, PDF generation is now triggered by the useEffect below
   };
 
   const executePdfGeneration = (isArchived: boolean = false) => {
@@ -521,6 +517,16 @@ const App: React.FC = () => {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     });
   };
+
+  // Add this effect to handle PDF generation when state updates to avoid stale closures
+  useEffect(() => {
+    if (printingTicket && isGeneratingPdf) {
+      const timer = setTimeout(() => {
+        executePdfGeneration(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [printingTicket, isGeneratingPdf]);
 
   const handleOpenArchivedTicket = (ticket: ArchivedTicket) => {
     if (evidences.length > 0) {
