@@ -67,7 +67,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
         if (printRef.current) {
             const safeFilename = ticket.ticketInfo.ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
             const opt = {
-                margin: [10, 10],
+                margin: [25, 10, 25, 10], // Increased margins: Top 25mm, Bottom 25mm
                 filename: `${safeFilename}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },
@@ -75,11 +75,75 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
-            html2pdf().set(opt).from(printRef.current).save().then(() => {
+            html2pdf().set(opt).from(printRef.current).toPdf().get('pdf').then((pdf: any) => {
+                const totalPages = pdf.internal.getNumberOfPages();
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                for (let i = 1; i <= totalPages; i++) {
+                     pdf.setPage(i);
+                     
+                     // --- HEADER ---
+                     // Left: Logo Placeholder
+                     pdf.setFillColor(30, 41, 59); // slate-900
+                     pdf.rect(10, 6, 12, 12, 'F');
+                     pdf.setTextColor(255, 255, 255);
+                     pdf.setFontSize(12);
+                     pdf.setFont("helvetica", "bold");
+                     pdf.text("QA", 11.5, 14);
+
+                     // Left: Title
+                     pdf.setTextColor(15, 23, 42); // slate-900
+                     pdf.setFontSize(14);
+                     pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 11);
+                     pdf.setFontSize(9);
+                     pdf.setTextColor(100, 116, 139); // slate-500
+                     pdf.setFont("helvetica", "normal");
+                     pdf.text("CONTROLE DE QUALIDADE • HISTÓRICO", 26, 16);
+
+                     // Right: Info
+                     pdf.setFontSize(8);
+                     pdf.setTextColor(100, 116, 139);
+                     pdf.text("IDENTIFICAÇÃO", pageWidth - 10, 10, { align: 'right' });
+                     pdf.setFontSize(11);
+                     pdf.setTextColor(15, 23, 42); // slate-900
+                     pdf.setFont("helvetica", "bold");
+                     // Truncate if too long?
+                     const idText = ticket.ticketInfo.ticketId || "N/A";
+                     pdf.text(idText, pageWidth - 10, 15, { align: 'right' });
+
+                     // Line
+                     pdf.setDrawColor(15, 23, 42);
+                     pdf.setLineWidth(0.5);
+                     pdf.line(10, 22, pageWidth - 10, 22);
+
+                     // --- FOOTER ---
+                     pdf.line(10, pageHeight - 20, pageWidth - 10, pageHeight - 20);
+
+                     // Left: Institutional
+                     pdf.setFontSize(8);
+                     pdf.setTextColor(100, 116, 139);
+                     pdf.setFont("helvetica", "normal");
+                     pdf.text("Confidencial - Uso Interno", 10, pageHeight - 12);
+                     pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, 10, pageHeight - 8);
+
+                     // Right: Logo/Text
+                     pdf.setFontSize(12);
+                     pdf.setTextColor(15, 23, 42);
+                     pdf.setFont("helvetica", "bold");
+                     pdf.text("Narnia QA", pageWidth - 10, pageHeight - 11, { align: 'right' });
+                     
+                     // Page Num
+                     pdf.setFontSize(8);
+                     pdf.setTextColor(148, 163, 184); // slate-400
+                     pdf.setFont("helvetica", "normal");
+                     pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 7, { align: 'right' });
+                }
+            }).save().then(() => {
                 setPrintingTicketId(null);
             });
         }
-    }, 800); // Slight delay to ensure images/content render in hidden div
+    }, 800);
   };
 
   const getAggregateStatus = (items: EvidenceItem[]) => {
@@ -247,26 +311,10 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
 
       {/* Hidden Print Container - REFACTORED FOR HEADER/CONTENT/FOOTER */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
-         <div ref={printRef} className="bg-white p-12 min-h-screen flex flex-col justify-between font-inter text-slate-900 relative">
+         <div ref={printRef} className="bg-white p-8 font-inter text-slate-900 relative">
             {ticketToPrint && (
                 <>
-                    {/* Header: Logo + Text */}
-                    <div className="flex justify-between items-center border-b-2 border-slate-900 pb-4 mb-8">
-                       <div className="flex items-center gap-3">
-                           {/* Logo */}
-                           <div className="bg-slate-900 text-white p-2 rounded">
-                               <ClipboardCheck size={28} />
-                           </div>
-                           <div>
-                               <h1 className="text-2xl font-black text-slate-900 uppercase leading-none">Relatório de Evidências</h1>
-                               <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Histórico</span>
-                           </div>
-                       </div>
-                       <div className="text-right">
-                           <span className="block text-xs font-bold text-slate-500 uppercase">Identificação</span>
-                           <span className="block text-xl font-black text-slate-900">{ticketToPrint.ticketInfo.ticketId}</span>
-                       </div>
-                    </div>
+                    {/* Header Removed - Injected via PDF */}
 
                     {/* Middle Section */}
                     <main className="flex-grow">
@@ -306,17 +354,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                          </div>
                     </main>
 
-                    {/* Footer: Text + Logo */}
-                    <div className="flex justify-between items-end border-t-2 border-slate-900 pt-6 mt-12">
-                       <div className="text-sm font-bold text-slate-900">
-                           <p className="uppercase tracking-wide mb-1">Confidencial - Uso Interno</p>
-                           <p className="text-xs text-slate-500 font-medium">Registro Histórico • Recuperado em {new Date().toLocaleString('pt-BR')}</p>
-                       </div>
-                       <div className="flex items-center gap-2 opacity-100">
-                           <ShieldCheck size={24} className="text-slate-900" />
-                           <span className="font-black text-slate-900 uppercase tracking-[0.2em] text-lg">Narnia QA</span>
-                       </div>
-                    </div>
+                    {/* Footer Removed - Injected via PDF */}
                 </>
             )}
          </div>

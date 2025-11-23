@@ -5,6 +5,7 @@ import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
 import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
+import ImageEditor from './ImageEditor';
 
 interface EvidenceFormProps {
   onSubmit: (evidence: Omit<EvidenceItem, 'id' | 'timestamp' | 'createdBy'>) => void;
@@ -576,7 +577,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                <button 
                   type="button" 
                   onClick={onCancel}
-                  className="px-6 py-3 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold text-sm hover:bg-slate-100 hover:text-red-600 transition-colors shadow-sm flex items-center gap-2"
+                  className="px-6 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2"
               >
                   <X className="w-4 h-4" />
                   Fechar
