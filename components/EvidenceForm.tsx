@@ -14,6 +14,7 @@ interface EvidenceFormProps {
   evidences?: EvidenceItem[];
   initialTicketInfo?: TicketInfo | null;
   onTicketInfoChange?: (info: TicketInfo) => void;
+  onCancel?: () => void;
 }
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
@@ -25,7 +26,8 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   onClearTrigger, 
   evidences = [], 
   initialTicketInfo,
-  onTicketInfoChange
+  onTicketInfoChange,
+  onCancel
 }) => {
   const [sprint, setSprint] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -236,6 +238,17 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             </h2>
             <p className="text-sm text-slate-500 mt-1 ml-12">Preencha as informações do chamado e utilize o assistente de cenários.</p>
           </div>
+          
+          {onCancel && (
+              <button 
+                  type="button" 
+                  onClick={onCancel}
+                  className="flex items-center gap-2 text-slate-500 hover:text-red-600 px-4 py-2 rounded-lg border border-slate-200 hover:border-red-200 hover:bg-red-50 transition-all text-sm font-bold shadow-sm"
+              >
+                  <X className="w-4 h-4" />
+                  Fechar
+              </button>
+          )}
         </div>
         
         <div className="p-8 space-y-10">

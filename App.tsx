@@ -10,7 +10,7 @@ import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, Lock, ClipboardCheck } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -647,6 +647,7 @@ const App: React.FC = () => {
                     evidences={evidences}
                     initialTicketInfo={editingTicketInfo}
                     onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
+                    onCancel={editingHistoryId ? handleCancelEdit : undefined}
                 />
                 
                 {/* List Header (Title Only) */}
@@ -964,78 +965,166 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Hidden Report Container for Main PDF */}
+      {/* Hidden Report Container for Main PDF - REFACTORED FOR SINGLE HEADER/CONTENT/FOOTER */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
-         <div ref={reportRef} className="bg-white p-10 min-h-screen">
-            <div className="flex justify-between items-center mb-8 border-b-2 border-slate-800 pb-4">
-                <h1 className="text-2xl font-bold text-slate-900">Relatório de Evidência de Teste</h1>
+         <div ref={reportRef} className="bg-white p-12 min-h-screen flex flex-col justify-between font-inter text-slate-900 relative">
+            
+            {/* Header: Logo + Text */}
+            <header className="flex justify-between items-center mb-8 border-b-2 border-slate-900 pb-6">
+                {/* Logo Left */}
+                <div className="flex items-center gap-4">
+                    <div className="bg-slate-900 p-3 rounded-xl">
+                        <ClipboardCheck className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Evidência de Teste</h1>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Relatório Técnico QA</p>
+                    </div>
+                </div>
+                
+                {/* Text Right */}
                 <div className="text-right">
-                    <p className="text-sm font-bold text-slate-600">Gerado em: {new Date().toLocaleDateString('pt-BR')}</p>
-                    <p className="text-xs text-slate-400">QA Evidence System</p>
+                     <div className="bg-slate-100 px-4 py-2 rounded-lg border border-slate-200 inline-block mb-2">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block text-left">Chamado</span>
+                        <span className="text-xl font-black text-slate-900">{modalTicketInfo?.ticketId || 'N/A'}</span>
+                     </div>
                 </div>
-            </div>
+            </header>
             
-            {/* Static Form View for PDF */}
-            <EvidenceForm 
-               onSubmit={() => {}} 
-               onWizardSave={() => {}}
-               evidences={evidences}
-               initialTicketInfo={modalTicketInfo}
-               // We pass a readonly mode implicitly by not providing handlers or by structure?
-               // Actually EvidenceForm fields are inputs. For PDF, they render as inputs with values.
-               // HTML2PDF captures them fine.
-            />
+            {/* Middle Section / Content */}
+            <main className="flex-grow">
+                 {/* Ticket Details Summary */}
+                 <div className="mb-8 p-6 border border-slate-200 rounded-2xl bg-slate-50">
+                     <h3 className="text-lg font-bold text-slate-900 mb-4">{modalTicketInfo?.ticketTitle || 'Sem Título'}</h3>
+                     <div className="grid grid-cols-4 gap-6 text-sm">
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Solicitante</span>
+                            <span className="font-bold text-slate-800">{modalTicketInfo?.requester || '-'}</span>
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Analista</span>
+                            <span className="font-bold text-slate-800">{modalTicketInfo?.analyst || currentUser.acronym}</span>
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Data</span>
+                            <span className="font-bold text-slate-800">{modalTicketInfo?.evidenceDate ? modalTicketInfo.evidenceDate.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sistema</span>
+                            <span className="font-bold text-slate-800">{modalTicketInfo?.clientSystem || '-'}</span>
+                        </div>
+                     </div>
+                 </div>
 
-            <div className="mt-8">
-                <div className="bg-slate-800 text-white px-4 py-2 rounded-t-lg font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                    <ListChecks className="w-4 h-4" />
-                    Detalhamento dos Testes
-                </div>
-                <EvidenceList 
-                    evidences={evidences} 
-                    onDelete={() => {}} // No delete in PDF
-                />
-            </div>
+                 {/* Evidence List */}
+                 <div className="space-y-6">
+                    <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+                        <ListChecks className="w-5 h-5 text-slate-900" />
+                        <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Detalhamento da Execução</h3>
+                    </div>
+                    <EvidenceList 
+                        evidences={evidences} 
+                        onDelete={() => {}} 
+                    />
+                 </div>
+            </main>
             
-            <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between text-xs text-slate-400">
-                <span>Responsável: {currentUser.name}</span>
-                <span>Confidencial - Uso Interno</span>
-            </div>
+            {/* Footer: Text + Logo */}
+            <footer className="mt-auto pt-6 border-t-2 border-slate-100 flex justify-between items-center">
+                {/* Text Left */}
+                <div className="text-xs text-slate-400">
+                    <p className="font-bold text-slate-600 uppercase tracking-wider mb-0.5">Confidencial - Uso Interno</p>
+                    <p>Gerado automaticamente pelo Sistema Narnia QA • {new Date().toLocaleString('pt-BR')}</p>
+                </div>
+                
+                {/* Logo Right */}
+                <div className="flex items-center gap-3 opacity-60">
+                    <span className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">Narnia QA</span>
+                    <ShieldCheck className="w-6 h-6 text-slate-300" />
+                </div>
+            </footer>
          </div>
       </div>
       
-      {/* Hidden History Print Container */}
+      {/* Hidden History Print Container - REFACTORED FOR SINGLE HEADER/CONTENT/FOOTER */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
-         <div ref={historyPrintRef} className="bg-white p-10 min-h-screen">
+         <div ref={historyPrintRef} className="bg-white p-12 min-h-screen flex flex-col justify-between font-inter text-slate-900 relative">
             {ticketToPrint && (
                 <>
-                    <div className="flex justify-between items-center mb-8 border-b-2 border-slate-800 pb-4">
-                        <h1 className="text-2xl font-bold text-slate-900">Relatório de Evidência de Teste (Histórico)</h1>
+                    {/* Header: Logo + Text */}
+                    <header className="flex justify-between items-center mb-8 border-b-2 border-slate-900 pb-6">
+                        {/* Logo Left */}
+                        <div className="flex items-center gap-4">
+                            <div className="bg-slate-900 p-3 rounded-xl">
+                                <ClipboardCheck className="w-8 h-8 text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Evidência de Teste</h1>
+                                <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Relatório Histórico</p>
+                            </div>
+                        </div>
+                        
+                        {/* Text Right */}
                         <div className="text-right">
-                            <p className="text-sm font-bold text-slate-600">Data Original: {ticketToPrint.ticketInfo.evidenceDate}</p>
-                            <p className="text-xs text-slate-400">ID: {ticketToPrint.ticketInfo.ticketId}</p>
+                             <div className="bg-slate-100 px-4 py-2 rounded-lg border border-slate-200 inline-block mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block text-left">Chamado</span>
+                                <span className="text-xl font-black text-slate-900">{ticketToPrint.ticketInfo.ticketId}</span>
+                             </div>
                         </div>
-                    </div>
-                    <EvidenceForm 
-                        onSubmit={() => {}} 
-                        onWizardSave={() => {}}
-                        evidences={ticketToPrint.items}
-                        initialTicketInfo={ticketToPrint.ticketInfo}
-                    />
-                    <div className="mt-8">
-                         <div className="bg-slate-800 text-white px-4 py-2 rounded-t-lg font-bold text-sm uppercase tracking-wider flex items-center gap-2">
-                            <ListChecks className="w-4 h-4" />
-                            Detalhamento dos Testes
+                    </header>
+
+                    {/* Middle Section */}
+                    <main className="flex-grow">
+                         {/* Ticket Data */}
+                         <div className="mb-8 p-6 border border-slate-200 rounded-2xl bg-slate-50">
+                             <h3 className="text-lg font-bold text-slate-900 mb-4">{ticketToPrint.ticketInfo.ticketTitle}</h3>
+                             <div className="grid grid-cols-4 gap-6 text-sm">
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Solicitante</span>
+                                    <span className="font-bold text-slate-800">{ticketToPrint.ticketInfo.requester || '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Analista</span>
+                                    <span className="font-bold text-slate-800">{ticketToPrint.ticketInfo.analyst || ticketToPrint.createdBy}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Data Original</span>
+                                    <span className="font-bold text-slate-800">{ticketToPrint.ticketInfo.evidenceDate ? ticketToPrint.ticketInfo.evidenceDate.split('-').reverse().join('/') : '-'}</span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sistema</span>
+                                    <span className="font-bold text-slate-800">{ticketToPrint.ticketInfo.clientSystem || '-'}</span>
+                                </div>
+                             </div>
+                         </div>
+
+                         {/* Evidence List */}
+                         <div className="space-y-6">
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+                                <ListChecks className="w-5 h-5 text-slate-900" />
+                                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Detalhamento da Execução</h3>
+                            </div>
+                            <EvidenceList 
+                                evidences={ticketToPrint.items} 
+                                onDelete={() => {}}
+                            />
+                         </div>
+                    </main>
+
+                    {/* Footer: Text + Logo */}
+                    <footer className="mt-auto pt-6 border-t-2 border-slate-100 flex justify-between items-center">
+                        {/* Text Left */}
+                        <div className="text-xs text-slate-400">
+                            <p className="font-bold text-slate-600 uppercase tracking-wider mb-0.5">Confidencial - Uso Interno</p>
+                            <p>Registro Histórico • Recuperado em {new Date().toLocaleString('pt-BR')}</p>
                         </div>
-                        <EvidenceList 
-                            evidences={ticketToPrint.items} 
-                            onDelete={() => {}}
-                        />
-                    </div>
-                    <div className="mt-12 pt-6 border-t border-slate-200 flex justify-between text-xs text-slate-400">
-                        <span>Responsável: {users.find(u => u.acronym === ticketToPrint.createdBy)?.name || ticketToPrint.createdBy}</span>
-                        <span>Confidencial - Uso Interno</span>
-                    </div>
+                        
+                        {/* Logo Right */}
+                        <div className="flex items-center gap-3 opacity-60">
+                            <span className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">Narnia QA</span>
+                            <ShieldCheck className="w-6 h-6 text-slate-300" />
+                        </div>
+                    </footer>
                 </>
             )}
          </div>
