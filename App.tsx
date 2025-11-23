@@ -99,6 +99,22 @@ const App: React.FC = () => {
     }
   }, [ticketHistory]);
 
+  // Helper to generate default ticket info with analyst pre-filled
+  const getDefaultTicketInfo = (userAcronym: string): TicketInfo => ({
+    sprint: '',
+    ticketId: '',
+    ticketTitle: '',
+    ticketSummary: '',
+    clientSystem: '',
+    requester: '',
+    analyst: userAcronym,
+    requestDate: '',
+    environment: '',
+    environmentVersion: '',
+    evidenceDate: '',
+    ticketDescription: '',
+    solution: ''
+  });
 
   // --- AUTH HANDLERS ---
   const handleLogin = (acronym: string, pass: string) => {
@@ -115,10 +131,7 @@ const App: React.FC = () => {
       setCurrentUser(user);
       setLoginError(null);
       // Reset form info to current user defaults
-      setEditingTicketInfo({
-         ...editingTicketInfo!,
-         analyst: user.acronym // Use Acronym instead of Name
-      });
+      setEditingTicketInfo(getDefaultTicketInfo(user.acronym));
     } else {
       setLoginError('Credenciais inválidas. Verifique sigla e senha.');
     }
@@ -200,6 +213,12 @@ const App: React.FC = () => {
     setEvidences(evidences.filter(e => e.id !== id));
   };
 
+  const handleDeleteScenario = (scenarioNum: number) => {
+    if (confirm(`Tem certeza que deseja excluir todo o Cenário #${scenarioNum} e seus casos de teste? Esta ação não pode ser desfeita.`)) {
+      setEvidences(prev => prev.filter(e => e.testCaseDetails?.scenarioNumber !== scenarioNum));
+    }
+  };
+
   const handleAddCase = (originId: string) => {
     const origin = evidences.find(e => e.id === originId);
     if (!origin || !origin.testCaseDetails) return;
@@ -241,18 +260,26 @@ const App: React.FC = () => {
 
   const handleCancelEdit = () => {
     if (!editingHistoryId && evidences.length > 0) {
-        if (!window.confirm('Tem certeza que deseja limpar todos os dados e cancelar este registro?')) {
+        if (!window.confirm('Tem certeza que deseja limpar todos os dados e reiniciar o fluxo?')) {
             return;
         }
     }
     
     setEvidences([]);
     setWizardTrigger(null);
-    setEditingTicketInfo(null);
+    
+    // Reset to default state with current user as analyst
+    if (currentUser) {
+        setEditingTicketInfo(getDefaultTicketInfo(currentUser.acronym));
+    } else {
+        setEditingTicketInfo(null);
+    }
+    
     setEditingHistoryId(null);
     setPdfError(null);
+    formTicketInfoRef.current = null; // Explicitly clear the form reference
     
-    setFormKey(prev => prev + 1); 
+    setFormKey(prev => prev + 1); // Force remount of form
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -269,8 +296,7 @@ const App: React.FC = () => {
        { key: 'requestDate', label: 'Data da Solicitação' },
        { key: 'ticketId', label: 'Chamado (ID)' },
        { key: 'sprint', label: 'Sprint' },
-       { key: 'requester', label: 'Solicitante' },
-       { key: 'ticketTitle', label: 'Título do Chamado' }
+       { key: 'requester', label: 'Solicitante' }
     ];
 
     const missingFields = requiredFields.filter(field => {
@@ -323,11 +349,12 @@ const App: React.FC = () => {
           setTicketHistory(prev => [archivedTicket, ...prev]);
       }
 
-      // Clear Workspace
+      // Clear Workspace and Reset to Default (Preserving Analyst)
       setEvidences([]);
       setWizardTrigger(null);
-      setEditingTicketInfo(null);
       setEditingHistoryId(null);
+      setEditingTicketInfo(getDefaultTicketInfo(currentUser.acronym));
+      formTicketInfoRef.current = null;
       setFormKey(prev => prev + 1);
   };
 
@@ -638,25 +665,13 @@ const App: React.FC = () => {
                 <EvidenceList 
                     evidences={evidences}
                     onDelete={handleDeleteEvidence}
+                    onDeleteScenario={handleDeleteScenario}
                     onAddCase={handleAddCase}
                     onEditCase={handleEditCase}
                 />
 
-                {/* CANCEL BUTTON (Above Final Actions) - Modernized */}
-                {(evidences.length > 0 || editingHistoryId) && (
-                    <div className="flex justify-center mt-20 mb-8 animate-fade-in">
-                        <button
-                            onClick={handleCancelEdit}
-                            className="flex items-center gap-2 px-6 py-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-bold transition-all border border-red-200 hover:border-red-300 text-xs uppercase tracking-wider shadow-sm hover:shadow-md active:scale-95"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                            {editingHistoryId ? 'Cancelar Edição' : 'Cancelar Tudo'}
-                        </button>
-                    </div>
-                )}
-
                 {/* FINAL ACTIONS - COMPACT & VIVID */}
-                <div className={`mb-32 ${!(evidences.length > 0 || editingHistoryId) ? 'mt-16' : 'mt-0'}`}>
+                <div className={`mb-32 ${!(evidences.length > 0 || editingHistoryId) ? 'mt-16' : 'mt-12'}`}>
                    <div className="flex flex-col items-center justify-center">
                         <div className="flex flex-wrap gap-4 justify-center">
                             {/* Save Button */}
@@ -746,7 +761,7 @@ const App: React.FC = () => {
                             return (
                                 <div 
                                     key={ticket.id}
-                                    className="min-w-[85vw] md:min-w-[340px] lg:min-w-[380px] snap-center flex-shrink-0"
+                                    className="min-w-[85vw] md:min-w-[280px] lg:min-w-[260px] snap-center flex-shrink-0"
                                 >
                                     <div 
                                         onClick={() => handleOpenArchivedTicket(ticket)}

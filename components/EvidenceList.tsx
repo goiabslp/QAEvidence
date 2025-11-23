@@ -9,6 +9,7 @@ interface EvidenceListProps {
   onDelete: (id: string) => void;
   onAddCase?: (id: string) => void;
   onEditCase?: (id: string) => void;
+  onDeleteScenario?: (scenarioNum: number) => void;
 }
 
 interface ScenarioGroup {
@@ -25,7 +26,7 @@ interface ManualItem {
 
 type GroupedItem = ScenarioGroup | ManualItem;
 
-const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddCase, onEditCase }) => {
+const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddCase, onEditCase, onDeleteScenario }) => {
   const [expandedScenarios, setExpandedScenarios] = useState<Set<number>>(new Set());
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
 
@@ -152,6 +153,19 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                 </div>
 
                 <div className="flex items-center justify-end gap-3 pl-14 sm:pl-0">
+                  {onDeleteScenario && (
+                     <button
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         onDeleteScenario(group.scenarioNumber);
+                       }}
+                       className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors mr-1"
+                       title="Excluir Cenário Inteiro"
+                     >
+                       <Trash2 className="w-5 h-5" />
+                     </button>
+                  )}
+
                   {onAddCase && (
                     <button 
                       onClick={(e) => {
@@ -240,7 +254,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 {onEditCase && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onEditCase(evidence.id); }}
-                                        className="text-slate-300 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
+                                        className="text-slate-300 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
                                         title="Editar Caso"
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
@@ -248,7 +262,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 )}
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); onDelete(evidence.id); }}
-                                  className="text-slate-300 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                  className="text-slate-300 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                   title="Excluir Caso"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
