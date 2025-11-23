@@ -80,8 +80,9 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         setSelectedEnvs(envs);
       }
       
-      // Changed: Set to false so auto-generation works when editing fields, 
-      // even if a title was loaded from history.
+      // CRITICAL: Reset manual edit flag to false when loading a ticket.
+      // This ensures that any subsequent edits to fields (ID, Sprint, etc.) 
+      // will trigger the auto-generation logic immediately.
       setIsTitleManuallyEdited(false);
     }
   }, [initialTicketInfo]);
