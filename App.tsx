@@ -10,7 +10,7 @@ import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2 } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -47,6 +47,9 @@ const App: React.FC = () => {
   // State for History PDF generation
   const [printingHistoryId, setPrintingHistoryId] = useState<string | null>(null);
   const historyPrintRef = useRef<HTMLDivElement>(null);
+
+  // State for Ticket Deletion
+  const [ticketToDelete, setTicketToDelete] = useState<ArchivedTicket | null>(null);
   
   const reportRef = useRef<HTMLDivElement>(null);
   
@@ -352,6 +355,19 @@ const App: React.FC = () => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }
   };
+  
+  const handleConfirmDelete = () => {
+    if (!ticketToDelete) return;
+    
+    setTicketHistory(prev => prev.filter(t => t.id !== ticketToDelete.id));
+    
+    // If we are currently editing this ticket, cancel the edit
+    if (editingHistoryId === ticketToDelete.id) {
+        handleCancelEdit();
+    }
+    
+    setTicketToDelete(null);
+  };
 
   const executePdfGeneration = () => {
     if (!reportRef.current || !currentUser) return;
@@ -557,7 +573,7 @@ const App: React.FC = () => {
                         currentUserId={currentUser.id}
                     />
                 ) : adminTab === 'evidences' && currentUser.role === 'ADMIN' ? (
-                     <EvidenceManagement tickets={ticketHistory} users={users} />
+                     <EvidenceManagement tickets={ticketHistory} users={users} onDeleteTicket={(t) => setTicketToDelete(t)} />
                 ) : adminTab === 'dashboard' ? (
                      <DashboardMetrics tickets={ticketHistory} users={users} currentUser={currentUser} />
                 ) : (
@@ -621,30 +637,30 @@ const App: React.FC = () => {
 
                 {/* CANCEL BUTTON (Above Final Actions) - Modernized */}
                 {(evidences.length > 0 || editingHistoryId) && (
-                    <div className="flex justify-center mt-12 mb-4 animate-fade-in">
+                    <div className="flex justify-center mt-20 mb-8 animate-fade-in">
                         <button
                             onClick={handleCancelEdit}
-                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 font-bold transition-all border border-slate-200 hover:border-red-200 text-xs uppercase tracking-wide active:scale-95"
+                            className="flex items-center gap-2 px-6 py-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-bold transition-all border border-red-200 hover:border-red-300 text-xs uppercase tracking-wider shadow-sm hover:shadow-md active:scale-95"
                         >
                             <X className="w-3.5 h-3.5" />
-                            {editingHistoryId ? 'Cancelar Edição' : 'Cancelar'}
+                            {editingHistoryId ? 'Cancelar Edição' : 'Cancelar Tudo'}
                         </button>
                     </div>
                 )}
 
                 {/* FINAL ACTIONS - COMPACT & VIVID */}
-                <div className="mt-0 mb-24">
+                <div className={`mb-32 ${!(evidences.length > 0 || editingHistoryId) ? 'mt-16' : 'mt-0'}`}>
                    <div className="flex flex-col items-center justify-center">
-                        <div className="flex flex-wrap gap-3 justify-center">
+                        <div className="flex flex-wrap gap-4 justify-center">
                             {/* Save Button */}
                             <button
                                 onClick={handleSaveAndClose}
                                 disabled={false}
-                                className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-white shadow-lg shadow-emerald-200/50 transition-all hover:shadow-emerald-300/50 hover:-translate-y-0.5 active:scale-95 w-full sm:w-auto min-w-[150px]"
+                                className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-200/40 transition-all hover:shadow-emerald-300/60 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20"
                             >
-                                <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
-                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-wide">
-                                     <Save className="w-4 h-4" />
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
+                                     <Save className="w-5 h-5" />
                                      Salvar
                                 </div>
                             </button>
@@ -653,11 +669,11 @@ const App: React.FC = () => {
                             <button
                                 onClick={handlePdfFlow}
                                 disabled={evidences.length === 0 || isGeneratingPdf}
-                                className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2.5 text-white shadow-lg shadow-indigo-200/50 transition-all hover:shadow-indigo-300/50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[150px]"
+                                className="group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-200/40 transition-all hover:shadow-blue-300/60 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20"
                             >
-                                <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
-                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-wide">
-                                     {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
+                                     {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
                                      Gerar PDF
                                 </div>
                             </button>
@@ -733,14 +749,27 @@ const App: React.FC = () => {
                                                 {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
                                             </span>
                                             
-                                            <button
-                                                onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
-                                                className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors font-bold"
-                                                title="Baixar PDF"
-                                            >
-                                                {printingHistoryId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                                                PDF
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setTicketToDelete(ticket);
+                                                    }}
+                                                    className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                                
+                                                <button
+                                                    onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
+                                                    className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors font-bold"
+                                                    title="Baixar PDF"
+                                                >
+                                                    {printingHistoryId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                                    PDF
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {/* Case IDs (Truncated) */}
@@ -806,6 +835,55 @@ const App: React.FC = () => {
                       Confirmar
                     </button>
                 </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {ticketToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 animate-fade-in">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setTicketToDelete(null)}
+          ></div>
+          
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all scale-100 border border-slate-100">
+             <div className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer" onClick={() => setTicketToDelete(null)}>
+               <X className="w-5 h-5" />
+             </div>
+
+             <div className="flex flex-col items-center text-center">
+               <div className="bg-red-100 p-4 rounded-full mb-4 border border-red-200">
+                 <Trash2 className="w-8 h-8 text-red-600" />
+               </div>
+               
+               <h3 className="text-xl font-bold text-slate-900 mb-2">Excluir Histórico</h3>
+               <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+                 Tem certeza que deseja remover permanentemente este registro? Esta ação não pode ser desfeita.
+               </p>
+
+               <div className="w-full bg-slate-50 rounded-lg p-4 mb-6 text-left text-sm border border-slate-200">
+                  <p className="mb-2 border-b border-slate-200 pb-2"><span className="font-bold text-slate-700 block text-xs uppercase">Chamado</span> {ticketToDelete.ticketInfo.ticketId}</p>
+                  <p className="line-clamp-2"><span className="font-bold text-slate-700 block text-xs uppercase">Título</span> {ticketToDelete.ticketInfo.ticketTitle}</p>
+               </div>
+
+               <div className="flex gap-3 w-full">
+                 <button 
+                   type="button"
+                   onClick={() => setTicketToDelete(null)}
+                   className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
+                 >
+                   Cancelar
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={handleConfirmDelete}
+                   className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 shadow-md hover:shadow-lg transition-all"
+                 >
+                   Excluir
+                 </button>
+               </div>
              </div>
           </div>
         </div>
