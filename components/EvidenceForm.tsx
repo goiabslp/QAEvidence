@@ -5,7 +5,7 @@ import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority } from '
 import { PRIORITY_CONFIG } from '../constants';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -306,19 +306,30 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                       </div>
                       <div>
                         <label className={labelClass}>Prioridade</label>
-                        <div className="relative">
-                            <select
-                                value={priority}
-                                onChange={(e) => setPriority(e.target.value as TicketPriority)}
-                                className={`${ticketInputClass} appearance-none`}
-                            >
-                                <option value={TicketPriority.HIGH}>Alta</option>
-                                <option value={TicketPriority.MEDIUM}>Média</option>
-                                <option value={TicketPriority.LOW}>Baixa</option>
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <ChevronDown className="w-4 h-4" />
-                            </div>
+                        <div className="flex gap-2">
+                           {[
+                              { value: TicketPriority.LOW, label: 'Baixa', icon: ArrowDown, colorClass: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200', activeClass: 'bg-blue-100 text-blue-700 border-blue-200 ring-1 ring-blue-300' },
+                              { value: TicketPriority.MEDIUM, label: 'Média', icon: ArrowRight, colorClass: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200', activeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 ring-1 ring-emerald-300' },
+                              { value: TicketPriority.HIGH, label: 'Alta', icon: ArrowUp, colorClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-200', activeClass: 'bg-red-100 text-red-700 border-red-200 ring-1 ring-red-300' }
+                           ].map((option) => {
+                               const Icon = option.icon;
+                               const isActive = priority === option.value;
+                               return (
+                                   <button
+                                      key={option.value}
+                                      type="button"
+                                      onClick={() => setPriority(option.value)}
+                                      className={`flex-1 py-2.5 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                                          isActive 
+                                          ? option.activeClass 
+                                          : `bg-white text-slate-400 border-slate-200 ${option.colorClass}`
+                                      }`}
+                                   >
+                                      <Icon className="w-3.5 h-3.5" />
+                                      {option.label}
+                                   </button>
+                               );
+                           })}
                         </div>
                       </div>
                       <div>
@@ -347,7 +358,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                       </div>
                       <div>
                           <label className={labelClass}>Solicitante</label>
-                          <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Quem solicitou o Teste?" />
+                          <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Ex: YEB, LVM, EDV, RSR..." />
                       </div>
                       <div>
                           <label className={labelClass}>Analista de Teste</label>
@@ -364,7 +375,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         value={ticketSummary} 
                         onChange={e => setTicketSummary(e.target.value)} 
                         className={ticketInputClass} 
-                        placeholder="Breve descrição (máx 3 palavras)" 
+                        placeholder="Ex: Erro de Anexo (Máx. 3 palavras)" 
                         />
                     </div>
                     <div>

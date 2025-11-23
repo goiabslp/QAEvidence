@@ -132,6 +132,8 @@ const App: React.FC = () => {
       setLoginError(null);
       // Reset form info to current user defaults
       setEditingTicketInfo(getDefaultTicketInfo(user.acronym));
+      // Set default admin tab: Evidences for Admin, Users for regular user
+      setAdminTab(user.role === 'ADMIN' ? 'evidences' : 'users');
     } else {
       setLoginError('Credenciais inválidas. Verifique sigla e senha.');
     }
@@ -988,12 +990,8 @@ const App: React.FC = () => {
              </div>
         )}
 
-      </main>
-      
-      <Footer />
-
-      {/* PDF Confirmation Modal */}
-      {showPdfModal && (
+        {/* PDF Confirmation Modal */}
+        {showPdfModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div 
              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
