@@ -10,7 +10,7 @@ import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2 } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -56,6 +56,7 @@ const App: React.FC = () => {
   const [wizardTrigger, setWizardTrigger] = useState<WizardTriggerContext | null>(null);
   
   const formTicketInfoRef = useRef<TicketInfo | null>(null);
+  const historyCarouselRef = useRef<HTMLDivElement>(null);
 
   // --- PERSISTENCE & INITIALIZATION ---
   useEffect(() => {
@@ -340,6 +341,10 @@ const App: React.FC = () => {
 
   // Button 2: Generate PDF (and Save)
   const handlePdfFlow = () => {
+    if (evidences.length === 0) {
+        setPdfError("Não há evidências para gerar o PDF. Adicione pelo menos um caso.");
+        return;
+    }
     if (!validateTicketRequirements()) return;
     setConfirmationMode('PDF');
     setShowPdfModal(true);
@@ -473,6 +478,14 @@ const App: React.FC = () => {
     if (formTicketInfoRef.current) return formTicketInfoRef.current;
     return null;
   };
+
+  // Carousel Scroll Logic
+  const scrollHistory = (direction: 'left' | 'right') => {
+    if (historyCarouselRef.current) {
+      const scrollAmount = direction === 'left' ? -350 : 350;
+      historyCarouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
   
   const modalTicketInfo = getCurrentTicketInfo();
 
@@ -494,6 +507,7 @@ const App: React.FC = () => {
   }
   
   const isPdfMode = confirmationMode === 'PDF';
+  const isPdfLocked = evidences.length === 0;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
@@ -668,12 +682,21 @@ const App: React.FC = () => {
                             {/* PDF Button */}
                             <button
                                 onClick={handlePdfFlow}
-                                disabled={evidences.length === 0 || isGeneratingPdf}
-                                className="group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-200/40 transition-all hover:shadow-blue-300/60 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20"
+                                disabled={isGeneratingPdf}
+                                className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-200/40 transition-all hover:shadow-blue-300/60 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 ${isPdfLocked ? 'cursor-not-allowed opacity-90' : ''}`}
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
                                 <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
-                                     {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
+                                     {isGeneratingPdf ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" /> 
+                                     ) : isPdfLocked ? (
+                                        <div className="relative w-5 h-5 flex items-center justify-center">
+                                            <FileDown className="w-5 h-5 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-75" />
+                                            <Lock className="w-5 h-5 absolute transition-all duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-100" />
+                                        </div>
+                                     ) : (
+                                        <FileDown className="w-5 h-5" />
+                                     )}
                                      Gerar PDF
                                 </div>
                             </button>
@@ -691,108 +714,137 @@ const App: React.FC = () => {
                     </div>
                     Histórico de Chamados
                  </h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                     {displayedHistory.slice(0, 6).map(ticket => {
-                         const statusBadges = getTicketStatusBadges(ticket.items);
-                         const uniqueCaseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))];
-                         
-                         return (
-                            <div 
-                                key={ticket.id} 
-                                onClick={() => handleOpenArchivedTicket(ticket)}
-                                className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full"
-                            >
-                                {/* Header Color Line */}
-                                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
-                                
-                                <div className="p-6 flex-1 flex flex-col">
-                                    {/* Ticket ID & Analyst */}
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chamado</span>
-                                            <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 font-mono inline-block">
-                                                {ticket.ticketInfo.ticketId}
-                                            </span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Analista</span>
-                                             <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-600">
-                                                 <UserIcon className="w-3 h-3" />
-                                                 {ticket.ticketInfo.analyst || ticket.createdBy}
-                                             </div>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Title */}
-                                    <h4 className="text-lg font-bold text-slate-800 mb-3 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
-                                        {ticket.ticketInfo.ticketTitle}
-                                    </h4>
+                 
+                 {/* CAROUSEL WRAPPER */}
+                 <div className="relative group/carousel">
+                     
+                     {/* LEFT NAV BUTTON */}
+                     <button 
+                        onClick={() => scrollHistory('left')}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
+                     >
+                         <ChevronLeft className="w-6 h-6" />
+                     </button>
 
-                                    {/* Status Tags (Accumulated) */}
-                                    <div className="flex flex-wrap gap-2 mb-6">
-                                        {statusBadges.map((conf, idx) => {
-                                            const Icon = conf.icon;
-                                            return (
-                                                <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border shadow-sm ${conf.color}`}>
-                                                    <Icon className="w-3 h-3 mr-1" />
-                                                    {conf.label}
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                    
-                                    {/* Metadata Footer */}
-                                    <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
-                                        <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                                            <span className="flex items-center gap-1.5">
-                                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                                {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
-                                            </span>
-                                            
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setTicketToDelete(ticket);
-                                                    }}
-                                                    className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                                    title="Excluir"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                                
-                                                <button
-                                                    onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
-                                                    className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors font-bold"
-                                                    title="Baixar PDF"
-                                                >
-                                                    {printingHistoryId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                                                    PDF
-                                                </button>
-                                            </div>
-                                        </div>
+                     {/* RIGHT NAV BUTTON */}
+                     <button 
+                        onClick={() => scrollHistory('right')}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
+                     >
+                         <ChevronRight className="w-6 h-6" />
+                     </button>
 
-                                        {/* Case IDs (Truncated) */}
-                                        {uniqueCaseIds.length > 0 && (
-                                            <div className="flex items-center gap-1.5 overflow-hidden">
-                                                <Hash className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
-                                                <div className="flex gap-1 overflow-hidden whitespace-nowrap mask-linear-fade">
-                                                    {uniqueCaseIds.slice(0, 3).map((id, idx) => (
-                                                        <span key={idx} className="text-[10px] font-mono text-slate-500 bg-slate-50 border border-slate-100 px-1.5 rounded">
-                                                            {id}
-                                                        </span>
-                                                    ))}
-                                                    {uniqueCaseIds.length > 3 && (
-                                                        <span className="text-[10px] text-slate-400 font-bold">+{uniqueCaseIds.length - 3}</span>
-                                                    )}
+                     {/* SCROLLABLE CONTAINER */}
+                     <div 
+                        ref={historyCarouselRef}
+                        className="flex overflow-x-auto gap-6 pb-8 px-2 scroll-smooth snap-x snap-mandatory scrollbar-hide"
+                     >
+                        {displayedHistory.map(ticket => {
+                            const statusBadges = getTicketStatusBadges(ticket.items);
+                            const uniqueCaseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))];
+                            
+                            return (
+                                <div 
+                                    key={ticket.id}
+                                    className="min-w-[85vw] md:min-w-[380px] lg:min-w-[420px] snap-center flex-shrink-0"
+                                >
+                                    <div 
+                                        onClick={() => handleOpenArchivedTicket(ticket)}
+                                        className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full h-[320px]"
+                                    >
+                                        {/* Header Color Line */}
+                                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
+                                        
+                                        <div className="p-6 flex-1 flex flex-col">
+                                            {/* Ticket ID & Analyst */}
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chamado</span>
+                                                    <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 font-mono inline-block">
+                                                        {ticket.ticketInfo.ticketId}
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Analista</span>
+                                                    <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-600">
+                                                        <UserIcon className="w-3 h-3" />
+                                                        {ticket.ticketInfo.analyst || ticket.createdBy}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )}
+                                            
+                                            {/* Title */}
+                                            <h4 className="text-lg font-bold text-slate-800 mb-3 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                                                {ticket.ticketInfo.ticketTitle}
+                                            </h4>
+
+                                            {/* Status Tags (Accumulated) */}
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                {statusBadges.map((conf, idx) => {
+                                                    const Icon = conf.icon;
+                                                    return (
+                                                        <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border shadow-sm ${conf.color}`}>
+                                                            <Icon className="w-3 h-3 mr-1" />
+                                                            {conf.label}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                            
+                                            {/* Metadata Footer */}
+                                            <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
+                                                <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                        {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                    
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setTicketToDelete(ticket);
+                                                            }}
+                                                            className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                            title="Excluir"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                        
+                                                        <button
+                                                            onClick={(e) => handleDownloadHistoryPdf(e, ticket)}
+                                                            className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors font-bold"
+                                                            title="Baixar PDF"
+                                                        >
+                                                            {printingHistoryId === ticket.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                                            PDF
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Case IDs (Truncated) */}
+                                                {uniqueCaseIds.length > 0 && (
+                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                        <Hash className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                                                        <div className="flex gap-1 overflow-hidden whitespace-nowrap mask-linear-fade">
+                                                            {uniqueCaseIds.slice(0, 3).map((id, idx) => (
+                                                                <span key={idx} className="text-[10px] font-mono text-slate-500 bg-slate-50 border border-slate-100 px-1.5 rounded">
+                                                                    {id}
+                                                                </span>
+                                                            ))}
+                                                            {uniqueCaseIds.length > 3 && (
+                                                                <span className="text-[10px] text-slate-400 font-bold">+{uniqueCaseIds.length - 3}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                         );
-                     })}
+                            );
+                        })}
+                     </div>
                  </div>
              </div>
         )}
