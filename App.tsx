@@ -10,7 +10,7 @@ import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, Lock, ClipboardCheck, Activity } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -34,6 +34,7 @@ const App: React.FC = () => {
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [ticketHistory, setTicketHistory] = useState<ArchivedTicket[]>([]);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
   
   const [formKey, setFormKey] = useState(0);
   const [editingTicketInfo, setEditingTicketInfo] = useState<TicketInfo | null>(null);
@@ -549,12 +550,22 @@ const App: React.FC = () => {
 
   // Helper to extract ALL unique statuses present in a ticket
   const getTicketStatusBadges = (items: EvidenceItem[]) => {
+      // RULE: If no items, return Pending
+      if (!items || items.length === 0) {
+           return [STATUS_CONFIG[TestStatus.PENDING]];
+      }
+
       const statuses = new Set<TestStatus>();
       items.forEach(i => {
           if (i.status === TestStatus.SKIPPED) statuses.add(TestStatus.PENDING); // Normalize skipped to pending visually
           else statuses.add(i.status);
       });
       
+      // If items exist but somehow no status recorded (unlikely given TS), fallback
+      if (statuses.size === 0) {
+           return [STATUS_CONFIG[TestStatus.PENDING]];
+      }
+
       // Sort logic: Fail > Blocked > Pass > Pending
       const sortedStatuses = Array.from(statuses).sort((a, b) => {
           const order = { [TestStatus.FAIL]: 0, [TestStatus.BLOCKED]: 1, [TestStatus.PASS]: 2, [TestStatus.PENDING]: 3, [TestStatus.SKIPPED]: 3 };
@@ -582,10 +593,8 @@ const App: React.FC = () => {
   const modalTicketInfo = getCurrentTicketInfo();
 
   // --- FILTERING FOR UI ---
-  // Admin sees ALL tickets. User sees ONLY their tickets.
-  const displayedHistory = currentUser?.role === 'ADMIN' 
-      ? ticketHistory 
-      : ticketHistory.filter(t => t.createdBy === currentUser?.acronym);
+  // User sees ONLY their tickets.
+  const displayedHistory = ticketHistory.filter(t => t.createdBy === currentUser?.acronym);
 
   // --- RENDER ---
 
@@ -790,153 +799,172 @@ const App: React.FC = () => {
 
         {!showAdminPanel && displayedHistory.length > 0 && (
              <div className="mt-16 pt-10 border-t border-slate-200 animate-fade-in">
-                 <h3 className="text-xl font-bold text-slate-800 mb-8 flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 rounded-xl">
-                        <Archive className="w-6 h-6 text-indigo-600" />
+                 <div 
+                    onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+                    className="flex items-center justify-between cursor-pointer group mb-8 select-none"
+                 >
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                        <div className="p-2 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
+                            <Archive className="w-6 h-6 text-indigo-600" />
+                        </div>
+                        Histórico de Chamados
+                    </h3>
+                    <div className={`p-2 rounded-full text-slate-400 group-hover:bg-slate-100 group-hover:text-indigo-600 transition-all duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`}>
+                         <ChevronDown className="w-6 h-6" />
                     </div>
-                    Histórico de Chamados
-                 </h3>
+                 </div>
                  
                  {/* CAROUSEL WRAPPER */}
-                 <div className="relative group/carousel">
-                     
-                     {/* LEFT NAV BUTTON */}
-                     <button 
-                        onClick={() => scrollHistory('left')}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
-                     >
-                         <ChevronLeft className="w-6 h-6" />
-                     </button>
+                 {isHistoryExpanded && (
+                     <div className="relative group/carousel animate-fade-in">
+                         
+                         {/* LEFT NAV BUTTON */}
+                         <button 
+                            onClick={(e) => { e.stopPropagation(); scrollHistory('left'); }}
+                            className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
+                         >
+                             <ChevronLeft className="w-6 h-6" />
+                         </button>
 
-                     {/* RIGHT NAV BUTTON */}
-                     <button 
-                        onClick={() => scrollHistory('right')}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
-                     >
-                         <ChevronRight className="w-6 h-6" />
-                     </button>
+                         {/* RIGHT NAV BUTTON */}
+                         <button 
+                            onClick={(e) => { e.stopPropagation(); scrollHistory('right'); }}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
+                         >
+                             <ChevronRight className="w-6 h-6" />
+                         </button>
 
-                     {/* SCROLLABLE CONTAINER */}
-                     <div 
-                        ref={historyCarouselRef}
-                        className="flex overflow-x-auto gap-6 pb-8 px-2 scroll-smooth snap-x snap-mandatory scrollbar-hide"
-                     >
-                        {displayedHistory.map(ticket => {
-                            const statusBadges = getTicketStatusBadges(ticket.items);
-                            const uniqueScenarios = new Set(ticket.items.filter(i => i.testCaseDetails).map(i => i.testCaseDetails?.scenarioNumber)).size;
-                            const totalCases = ticket.items.filter(i => i.testCaseDetails).length;
-                            const caseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))];
-                            
-                            return (
-                                <div 
-                                    key={ticket.id}
-                                    className="w-[360px] h-[320px] snap-center flex-shrink-0"
-                                >
+                         {/* SCROLLABLE CONTAINER */}
+                         <div 
+                            ref={historyCarouselRef}
+                            className="flex overflow-x-auto gap-6 pb-8 px-2 scroll-smooth snap-x snap-mandatory scrollbar-hide"
+                         >
+                            {displayedHistory.map(ticket => {
+                                const statusBadges = getTicketStatusBadges(ticket.items);
+                                const uniqueScenarios = new Set(ticket.items.filter(i => i.testCaseDetails).map(i => i.testCaseDetails?.scenarioNumber)).size;
+                                const totalCases = ticket.items.filter(i => i.testCaseDetails).length;
+                                const caseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))].sort(); 
+                                
+                                return (
                                     <div 
-                                        onClick={() => handleOpenArchivedTicket(ticket)}
-                                        className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full select-none"
+                                        key={ticket.id}
+                                        className="w-[350px] h-[520px] snap-center flex-shrink-0 pb-4"
                                     >
-                                        <div className="p-5 flex flex-col h-full">
-                                            
-                                            {/* HEADER ROW */}
-                                            <div className="flex justify-between items-start mb-3">
-                                                 <div className="flex flex-col gap-1">
-                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold font-mono">
-                                                         {ticket.ticketInfo.ticketId || '#0000'}
-                                                     </span>
-                                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                                                         Analista: <span className="text-slate-600">{ticket.ticketInfo.analyst || ticket.createdBy}</span>
-                                                     </span>
-                                                 </div>
-                                                 
-                                                 <div className="flex flex-wrap justify-end gap-1 max-w-[60%]">
-                                                     {statusBadges.map((conf, idx) => {
-                                                        const Icon = conf.icon;
-                                                        return (
-                                                            <span key={idx} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${conf.color}`}>
-                                                                <Icon className="w-2.5 h-2.5 mr-1" />
-                                                                {conf.label}
-                                                            </span>
-                                                        );
-                                                     })}
-                                                 </div>
-                                            </div>
-
-                                            {/* TITLE ROW */}
-                                            <div className="flex-1 flex items-center justify-center my-2">
-                                                <h4 className="text-sm font-bold text-slate-800 text-center leading-snug line-clamp-3 group-hover:text-indigo-600 transition-colors w-full" title={ticket.ticketInfo.ticketTitle}>
-                                                    {ticket.ticketInfo.ticketTitle || 'Sem Título'}
-                                                </h4>
-                                            </div>
-
-                                            {/* STATS ROW */}
-                                            <div className="grid grid-cols-2 gap-3 mb-3">
-                                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 flex flex-col items-center justify-center">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Cenários</span>
-                                                    <div className="text-lg font-black text-slate-700 flex items-center gap-1">
-                                                        <Layers className="w-3.5 h-3.5 text-slate-400" />
-                                                        {uniqueScenarios}
-                                                    </div>
-                                                </div>
-                                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 flex flex-col items-center justify-center">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Casos</span>
-                                                    <div className="text-lg font-black text-slate-700 flex items-center gap-1">
-                                                        <Activity className="w-3.5 h-3.5 text-slate-400" />
-                                                        {totalCases}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* CASE IDs ROW */}
-                                            <div className="mb-4">
-                                                <div className="flex flex-wrap gap-1 max-h-[26px] overflow-hidden">
-                                                    {caseIds.length > 0 ? caseIds.map((id, idx) => (
-                                                        <span key={idx} className="inline-block px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono font-medium text-slate-500">
-                                                            {id}
-                                                        </span>
-                                                    )) : <span className="text-[9px] text-slate-300 italic">Sem casos</span>}
-                                                </div>
-                                            </div>
-
-                                            {/* FOOTER ROW */}
-                                            <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                                    {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
-                                                </div>
+                                        <div 
+                                            onClick={() => handleOpenArchivedTicket(ticket)}
+                                            className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full select-none"
+                                        >
+                                            <div className="p-6 flex flex-col h-full">
                                                 
-                                                <div className="flex items-center gap-2">
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDownloadArchivedPdf(ticket);
-                                                        }}
-                                                        disabled={isGeneratingPdf}
-                                                        className="p-2 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors disabled:opacity-50"
-                                                        title="Baixar PDF"
-                                                    >
-                                                        {isGeneratingPdf && printingTicket?.id === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setTicketToDelete(ticket);
-                                                        }}
-                                                        className="p-2 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 transition-colors"
-                                                        title="Excluir"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </div>
+                                                {/* HEADER SECTION */}
+                                                <div className="mb-5 space-y-3">
+                                                    {/* Row 1: ID & Analyst */}
+                                                    <div className="flex justify-between items-center">
+                                                        <div className="bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl">
+                                                            <span className="font-mono font-bold text-sm text-slate-700 tracking-tight">
+                                                                {ticket.ticketInfo.ticketId || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                                                            <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                            <span className="font-bold text-xs text-slate-600">
+                                                                {ticket.ticketInfo.analyst || ticket.createdBy}
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
+                                                    {/* Row 2: Status Badges */}
+                                                    <div className="flex flex-wrap gap-2 justify-center min-h-[28px]">
+                                                        {statusBadges.map((conf, idx) => {
+                                                            const Icon = conf.icon;
+                                                            return (
+                                                                <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold border uppercase tracking-wider shadow-sm ${conf.color}`}>
+                                                                    <Icon className="w-3 h-3 mr-1.5" />
+                                                                    {conf.label}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* TITLE SECTION */}
+                                                <div className="flex items-center justify-center mb-5 px-1 min-h-[4rem] border-b border-slate-50 pb-2">
+                                                    <h4 className="text-sm font-bold text-slate-800 text-center leading-snug line-clamp-3 group-hover:text-indigo-600 transition-colors w-full px-2" title={ticket.ticketInfo.ticketTitle}>
+                                                        {ticket.ticketInfo.ticketTitle || 'Sem Título'}
+                                                    </h4>
+                                                </div>
+
+                                                {/* STATS SECTION */}
+                                                <div className="grid grid-cols-2 gap-3 mb-5">
+                                                    <div className="bg-slate-50 border border-slate-100 rounded-2xl py-2.5 px-3 flex flex-col items-center justify-center group-hover:bg-slate-100/50 transition-colors">
+                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Cenários</span>
+                                                        <div className="text-xl font-black text-slate-700 flex items-center gap-1.5">
+                                                            <Layers className="w-4 h-4 text-indigo-400" />
+                                                            {uniqueScenarios}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-50 border border-slate-100 rounded-2xl py-2.5 px-3 flex flex-col items-center justify-center group-hover:bg-slate-100/50 transition-colors">
+                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Casos</span>
+                                                        <div className="text-xl font-black text-slate-700 flex items-center gap-1.5">
+                                                            <ListChecks className="w-4 h-4 text-emerald-500" />
+                                                            {totalCases}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* CASE IDS SECTION */}
+                                                <div className="mb-4 flex-1 overflow-hidden relative">
+                                                    <div className="absolute inset-0 overflow-y-auto scrollbar-hide">
+                                                        <div className="flex flex-wrap justify-center gap-1.5 content-start">
+                                                            {caseIds.length > 0 ? caseIds.map((id, idx) => (
+                                                                <span key={idx} className="inline-block px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-mono font-bold text-slate-500 shadow-sm">
+                                                                    {id}
+                                                                </span>
+                                                            )) : <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-300 italic">Sem IDs registrados</div>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* FOOTER SECTION */}
+                                                <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                                                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1.5 rounded-lg">
+                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                        {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDownloadArchivedPdf(ticket);
+                                                            }}
+                                                            disabled={isGeneratingPdf}
+                                                            className="p-2 rounded-xl text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors disabled:opacity-50 hover:shadow-md"
+                                                            title="Baixar PDF"
+                                                        >
+                                                            {isGeneratingPdf && printingTicket?.id === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setTicketToDelete(ticket);
+                                                            }}
+                                                            className="p-2 rounded-xl text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 transition-colors hover:shadow-md"
+                                                            title="Excluir Chamado"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                         </div>
                      </div>
-                 </div>
+                 )}
              </div>
         )}
 
