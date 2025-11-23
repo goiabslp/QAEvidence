@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { ArchivedTicket, User, EvidenceItem, TestStatus } from '../types';
 import { STATUS_CONFIG } from '../constants';
@@ -160,15 +161,34 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     }, 800);
   };
 
-  const getAggregateStatus = (items: EvidenceItem[]) => {
-    const hasFailure = items.some(i => i.status === TestStatus.FAIL);
-    const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
-    const hasPending = items.some(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
+  const getUniqueTicketStatuses = (items: EvidenceItem[]) => {
+    // REGRA: Se não há itens (0 cenários/casos), o status é PENDENTE
+    if (!items || items.length === 0) {
+        return [STATUS_CONFIG[TestStatus.PENDING]];
+    }
+
+    const seenLabels = new Set<string>();
+    const resultConfigs = [];
+
+    // Priority order for processing to ensure proper display order
+    const priority = [TestStatus.FAIL, TestStatus.BLOCKED, TestStatus.PENDING, TestStatus.SKIPPED, TestStatus.PASS];
     
-    if (hasFailure) return STATUS_CONFIG[TestStatus.FAIL];
-    if (hasBlocker) return STATUS_CONFIG[TestStatus.BLOCKED];
-    if (hasPending) return STATUS_CONFIG[TestStatus.SKIPPED]; 
-    return STATUS_CONFIG[TestStatus.PASS];
+    // Get all unique statuses present in items
+    const presentStatuses = new Set(items.map(i => i.status));
+    
+    // Iterate in priority order to build the result list
+    for (const status of priority) {
+        if (presentStatuses.has(status)) {
+            const config = STATUS_CONFIG[status];
+            // Merge labels (e.g., PENDING and SKIPPED both map to "Pendente")
+            if (!seenLabels.has(config.label)) {
+                seenLabels.add(config.label);
+                resultConfigs.push(config);
+            }
+        }
+    }
+    
+    return resultConfigs;
   };
 
   const ticketToPrint = tickets.find(t => t.id === printingTicketId);
@@ -250,8 +270,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                     ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') 
                                     : new Date(ticket.archivedAt).toLocaleDateString('pt-BR');
                                 
-                                const statusConfig = getAggregateStatus(ticket.items);
-                                const StatusIcon = statusConfig.icon;
+                                const statusConfigs = getUniqueTicketStatuses(ticket.items);
                                 const isOwner = currentUser.acronym === ticket.createdBy;
 
                                 return (
@@ -269,15 +288,25 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                         </div>
 
                                         {/* Info */}
-                                        <div className="flex-1 w-full">
-                                            <div className="flex items-start justify-between gap-2 mb-2">
-                                                <h4 className={`font-bold text-base transition-colors ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
+                                        <div className="flex-1 w-full min-w-0">
+                                            <div className="flex flex-col md:flex-row md:items-start gap-4 mb-2">
+                                                {/* Title */}
+                                                <h4 className={`font-bold text-base leading-snug transition-colors flex-1 min-w-0 break-words pr-2 ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
                                                     {ticket.ticketInfo.ticketTitle}
                                                 </h4>
-                                                <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusConfig.color}`}>
-                                                    <StatusIcon className="w-3 h-3 mr-1" />
-                                                    {statusConfig.label}
-                                                </span>
+                                                
+                                                {/* Status Badges - Multiple */}
+                                                <div className="flex flex-wrap gap-1.5 md:justify-end mt-1 md:mt-0 flex-shrink-0 md:max-w-[180px]">
+                                                    {statusConfigs.map((config, idx) => {
+                                                        const StatusIcon = config.icon;
+                                                        return (
+                                                            <span key={idx} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border shadow-sm ${config.color} mb-0.5`}>
+                                                                <StatusIcon className="w-3 h-3 mr-1" />
+                                                                {config.label}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                             
                                             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
@@ -300,7 +329,6 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
 
                                         {/* Actions - Stop Propagation to prevent row click */}
                                         <div className="flex-shrink-0 w-full md:w-auto flex items-center gap-2">
-                                            {/* Only Owner can delete? Or Admin? Prompt said Admin views all, owner edits. Usually admin can delete. Keeping delete for both but preventing click propagation */}
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
