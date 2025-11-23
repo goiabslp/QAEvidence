@@ -635,13 +635,6 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {pdfError && (
-                    <div className="mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-red-100 animate-pulse">
-                        <AlertCircle className="w-4 h-4" />
-                        {pdfError}
-                    </div>
-                )}
-
                 <EvidenceList 
                     evidences={evidences}
                     onDelete={handleDeleteEvidence}
@@ -701,6 +694,13 @@ const App: React.FC = () => {
                                 </div>
                             </button>
                         </div>
+                        
+                        {pdfError && (
+                            <div className="mt-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-red-100 animate-pulse max-w-lg text-center shadow-sm">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                {pdfError}
+                            </div>
+                        )}
                    </div>
                 </div>
              </>
@@ -746,7 +746,7 @@ const App: React.FC = () => {
                             return (
                                 <div 
                                     key={ticket.id}
-                                    className="min-w-[85vw] md:min-w-[380px] lg:min-w-[420px] snap-center flex-shrink-0"
+                                    className="min-w-[85vw] md:min-w-[340px] lg:min-w-[380px] snap-center flex-shrink-0"
                                 >
                                     <div 
                                         onClick={() => handleOpenArchivedTicket(ticket)}
