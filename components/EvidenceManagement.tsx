@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { ArchivedTicket, User, EvidenceItem, TestStatus } from '../types';
 import { STATUS_CONFIG } from '../constants';
-import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen, Trash2, ListChecks, ClipboardCheck, ShieldCheck } from 'lucide-react';
+import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen, Trash2, ListChecks, ClipboardCheck, ShieldCheck, Edit, Lock, Ban } from 'lucide-react';
 import EvidenceForm from './EvidenceForm';
 import EvidenceList from './EvidenceList';
 
@@ -12,12 +11,15 @@ interface EvidenceManagementProps {
   tickets: ArchivedTicket[];
   users: User[];
   onDeleteTicket: (ticket: ArchivedTicket) => void;
+  currentUser: User;
+  onOpenTicket: (ticket: ArchivedTicket) => void;
 }
 
-const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users, onDeleteTicket }) => {
+const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users, onDeleteTicket, currentUser, onOpenTicket }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [printingTicketId, setPrintingTicketId] = useState<string | null>(null);
+  const [permissionError, setPermissionError] = useState<boolean>(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const toggleUser = (acronym: string) => {
@@ -25,6 +27,17 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     if (newSet.has(acronym)) newSet.delete(acronym);
     else newSet.add(acronym);
     setExpandedUsers(newSet);
+  };
+
+  const handleTicketClick = (ticket: ArchivedTicket) => {
+    // Permission Check: Only the creator (owner) can open/edit the ticket.
+    if (currentUser.acronym === ticket.createdBy) {
+        onOpenTicket(ticket);
+    } else {
+        // Show error for non-owners (including admins, as per requirement)
+        setPermissionError(true);
+        setTimeout(() => setPermissionError(false), 3000);
+    }
   };
 
   const filteredData = useMemo(() => {
@@ -161,7 +174,20 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
   const ticketToPrint = tickets.find(t => t.id === printingTicketId);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in relative">
+      
+      {/* Permission Error Toast */}
+      {permissionError && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-bounce-in">
+           <div className="bg-red-500 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-red-600">
+               <div className="bg-white/20 p-1 rounded-full">
+                  <Ban className="w-4 h-4" />
+               </div>
+               <span className="font-bold text-sm">Você não tem permissão para editar este chamado.</span>
+           </div>
+        </div>
+      )}
+
       {/* Header & Search */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
@@ -226,18 +252,26 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 
                                 const statusConfig = getAggregateStatus(ticket.items);
                                 const StatusIcon = statusConfig.icon;
+                                const isOwner = currentUser.acronym === ticket.createdBy;
 
                                 return (
-                                    <div key={ticket.id} className="p-5 flex flex-col md:flex-row items-center gap-5 hover:bg-slate-50/80 transition-colors group">
+                                    <div 
+                                        key={ticket.id} 
+                                        onClick={() => handleTicketClick(ticket)}
+                                        className={`p-5 flex flex-col md:flex-row items-center gap-5 transition-all group relative ${isOwner ? 'hover:bg-indigo-50/30 cursor-pointer' : 'hover:bg-slate-50 cursor-default'}`}
+                                    >
+                                        {/* Status Line Indicator */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${isOwner ? 'group-hover:bg-indigo-500' : 'group-hover:bg-slate-300'}`}></div>
+
                                         {/* Icon */}
-                                        <div className="hidden md:flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 text-slate-400 group-hover:bg-white group-hover:text-indigo-600 group-hover:shadow-sm transition-all">
-                                            <FileText className="w-5 h-5" />
+                                        <div className={`hidden md:flex items-center justify-center w-10 h-10 rounded-full transition-all ${isOwner ? 'bg-indigo-50 text-indigo-500 group-hover:bg-indigo-100' : 'bg-slate-100 text-slate-400'}`}>
+                                            {isOwner ? <Edit className="w-5 h-5" /> : <Lock className="w-4 h-4" />}
                                         </div>
 
                                         {/* Info */}
                                         <div className="flex-1 w-full">
                                             <div className="flex items-start justify-between gap-2 mb-2">
-                                                <h4 className="font-bold text-slate-800 text-base group-hover:text-indigo-700 transition-colors">
+                                                <h4 className={`font-bold text-base transition-colors ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
                                                     {ticket.ticketInfo.ticketTitle}
                                                 </h4>
                                                 <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusConfig.color}`}>
@@ -264,8 +298,9 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                             </div>
                                         </div>
 
-                                        {/* Actions */}
+                                        {/* Actions - Stop Propagation to prevent row click */}
                                         <div className="flex-shrink-0 w-full md:w-auto flex items-center gap-2">
+                                            {/* Only Owner can delete? Or Admin? Prompt said Admin views all, owner edits. Usually admin can delete. Keeping delete for both but preventing click propagation */}
                                             <button 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -278,7 +313,10 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                             </button>
 
                                             <button 
-                                                onClick={() => handleDownloadPdf(ticket)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDownloadPdf(ticket);
+                                                }}
                                                 disabled={!!printingTicketId}
                                                 className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 border border-emerald-200 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-wait hover:shadow-sm active:scale-95"
                                             >

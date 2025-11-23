@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -652,7 +651,13 @@ const App: React.FC = () => {
                         currentUserId={currentUser.id}
                     />
                 ) : adminTab === 'evidences' && currentUser.role === 'ADMIN' ? (
-                     <EvidenceManagement tickets={ticketHistory} users={users} onDeleteTicket={(t) => setTicketToDelete(t)} />
+                     <EvidenceManagement 
+                        tickets={ticketHistory} 
+                        users={users} 
+                        onDeleteTicket={(t) => setTicketToDelete(t)} 
+                        currentUser={currentUser}
+                        onOpenTicket={handleOpenArchivedTicket}
+                    />
                 ) : adminTab === 'dashboard' ? (
                      <DashboardMetrics tickets={ticketHistory} users={users} currentUser={currentUser} />
                 ) : (
