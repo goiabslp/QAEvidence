@@ -1,7 +1,8 @@
 
+
 import React, { useState, useMemo } from 'react';
-import { EvidenceItem, TestStatus } from '../types';
-import { STATUS_CONFIG, SEVERITY_COLORS } from '../constants';
+import { EvidenceItem, TestStatus, TicketPriority } from '../types';
+import { STATUS_CONFIG, SEVERITY_COLORS, PRIORITY_CONFIG } from '../constants';
 import { Trash2, ExternalLink, Calendar, User, Tag, Monitor, ChevronDown, ChevronUp, Plus, Layers, FileText, ChevronRight, Pencil, ListChecks, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 
 interface EvidenceListProps {
@@ -113,6 +114,8 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
         if (group.type === 'scenario') {
           const isScenarioOpen = readOnly || expandedScenarios.has(group.scenarioNumber);
           const firstItem = group.items[0];
+          const priority = firstItem.ticketInfo.priority || TicketPriority.MEDIUM;
+          const PriorityConfig = PRIORITY_CONFIG[priority];
           
           return (
             <div key={`scenario-${group.scenarioNumber}`} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md page-break-avoid">
@@ -127,9 +130,15 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                     <Layers className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">
-                      Cenário #{group.scenarioNumber}
-                    </h3>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-bold text-slate-900">
+                            Cenário #{group.scenarioNumber}
+                        </h3>
+                        {/* PRIORITY TAG */}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${PriorityConfig.color}`}>
+                            {PriorityConfig.label}
+                        </span>
+                    </div>
                     
                     <div className="flex flex-wrap items-center gap-2 mt-2">
                         <span className="inline-flex items-center text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 mr-1">

@@ -1,6 +1,8 @@
+
+
 import React, { useState, useMemo, useRef } from 'react';
-import { ArchivedTicket, User, EvidenceItem, TestStatus } from '../types';
-import { STATUS_CONFIG } from '../constants';
+import { ArchivedTicket, User, EvidenceItem, TestStatus, TicketPriority } from '../types';
+import { STATUS_CONFIG, PRIORITY_CONFIG } from '../constants';
 import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen, Trash2, ListChecks, ClipboardCheck, ShieldCheck, Edit, Lock, Ban } from 'lucide-react';
 import EvidenceForm from './EvidenceForm';
 import EvidenceList from './EvidenceList';
@@ -271,6 +273,8 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 
                                 const statusConfigs = getUniqueTicketStatuses(ticket.items);
                                 const isOwner = currentUser.acronym === ticket.createdBy;
+                                const priority = ticket.ticketInfo.priority || TicketPriority.MEDIUM;
+                                const PriorityConfig = PRIORITY_CONFIG[priority];
 
                                 return (
                                     <div 
@@ -290,9 +294,16 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                         <div className="flex-1 w-full min-w-0">
                                             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-2">
                                                 {/* Title */}
-                                                <h4 className={`font-bold text-base leading-snug transition-colors flex-1 min-w-0 break-words pr-4 ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
-                                                    {ticket.ticketInfo.ticketTitle}
-                                                </h4>
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${PriorityConfig.color}`}>
+                                                            {PriorityConfig.label}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className={`font-bold text-base leading-snug transition-colors flex-1 min-w-0 break-words pr-4 ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
+                                                        {ticket.ticketInfo.ticketTitle}
+                                                    </h4>
+                                                </div>
                                                 
                                                 {/* Status Badges - Multiple - Constrained width to force multiline/compact display if needed */}
                                                 <div className="flex flex-wrap gap-1.5 md:justify-end mt-1 md:mt-0 flex-shrink-0 md:w-[130px]">
@@ -399,9 +410,18 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.ticketId || '-'}</p>
                             </div>
                             <div className="col-span-1">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
-                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.sprint || '-'}</p>
-                            </div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Prioridade</label>
+                                {(() => {
+                                   const p = ticketToPrint.ticketInfo.priority || TicketPriority.MEDIUM;
+                                   const conf = PRIORITY_CONFIG[p];
+                                   return (
+                                       <p className={`text-sm font-bold border-b border-slate-200 pb-1 flex items-center gap-1`}>
+                                           <span className={`inline-block w-2 h-2 rounded-full ${conf.color.split(' ')[0].replace('bg-', 'bg-')}`}></span>
+                                           {conf.label}
+                                       </p>
+                                   );
+                                })()}
+                           </div>
                             <div className="col-span-1">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Solicitação</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.requestDate ? ticketToPrint.ticketInfo.requestDate.split('-').reverse().join('/') : '-'}</p>
@@ -434,6 +454,11 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Versão</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.environmentVersion || '-'}</p>
                             </div>
+                            
+                            <div className="col-span-4">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.sprint || '-'}</p>
+                           </div>
                         </div>
 
                         {/* ROW 5: DESCRIPTION */}

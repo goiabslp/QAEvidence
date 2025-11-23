@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -8,8 +9,8 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
-import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
-import { STATUS_CONFIG } from './constants';
+import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority } from './types';
+import { STATUS_CONFIG, PRIORITY_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity } from 'lucide-react';
 
 declare const html2pdf: any;
@@ -105,6 +106,7 @@ const App: React.FC = () => {
     ticketSummary: '',
     clientSystem: '',
     requester: '',
+    priority: TicketPriority.MEDIUM,
     analyst: userAcronym,
     requestDate: '',
     environment: '',
@@ -844,7 +846,9 @@ const App: React.FC = () => {
                                 const uniqueScenarios = new Set(ticket.items.filter(i => i.testCaseDetails).map(i => i.testCaseDetails?.scenarioNumber)).size;
                                 const totalCases = ticket.items.filter(i => i.testCaseDetails).length;
                                 const caseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))].sort(); 
-                                
+                                const priority = ticket.ticketInfo.priority || TicketPriority.MEDIUM;
+                                const PriorityConfig = PRIORITY_CONFIG[priority];
+
                                 return (
                                     <div key={ticket.id} className="w-[350px] h-[550px] snap-center flex-shrink-0 pb-4">
                                         <div 
@@ -865,6 +869,14 @@ const App: React.FC = () => {
                                                          </span>
                                                     </div>
                                                     
+                                                    {/* PRIORITY TAG */}
+                                                    <div className="flex flex-col items-center">
+                                                         <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Prioridade</span>
+                                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${PriorityConfig.color}`}>
+                                                            {PriorityConfig.label}
+                                                         </span>
+                                                    </div>
+
                                                     {/* Analyst */}
                                                     <div className="flex flex-col items-end">
                                                          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-0.5">Analista</span>
@@ -1086,8 +1098,17 @@ const App: React.FC = () => {
                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.ticketId : modalTicketInfo?.ticketId) || '-'}</p>
                         </div>
                         <div className="col-span-1">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
-                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.sprint : modalTicketInfo?.sprint) || '-'}</p>
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Prioridade</label>
+                             {(() => {
+                                const p = (printingTicket ? printingTicket.ticketInfo.priority : modalTicketInfo?.priority) || TicketPriority.MEDIUM;
+                                const conf = PRIORITY_CONFIG[p];
+                                return (
+                                    <p className={`text-sm font-bold border-b border-slate-200 pb-1 flex items-center gap-1`}>
+                                        <span className={`inline-block w-2 h-2 rounded-full ${conf.color.split(' ')[0].replace('bg-', 'bg-')}`}></span>
+                                        {conf.label}
+                                    </p>
+                                );
+                             })()}
                         </div>
                         <div className="col-span-1">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Solicitação</label>
@@ -1100,16 +1121,16 @@ const App: React.FC = () => {
 
                         {/* ROW 3 */}
                         <div className="col-span-1">
-                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitante</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.requester : modalTicketInfo?.requester) || '-'}</p>
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.sprint : modalTicketInfo?.sprint) || '-'}</p>
                         </div>
                         <div className="col-span-1">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Analista</label>
                              <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.analyst : (modalTicketInfo?.analyst || currentUser?.acronym))}</p>
                         </div>
                         <div className="col-span-2">
-                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Cliente / Sistema</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.clientSystem : modalTicketInfo?.clientSystem) || '-'}</p>
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitante</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.requester : modalTicketInfo?.requester) || '-'}</p>
                         </div>
 
                         {/* ROW 4 */}
@@ -1120,6 +1141,11 @@ const App: React.FC = () => {
                         <div className="col-span-2">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Versão</label>
                              <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.environmentVersion : modalTicketInfo?.environmentVersion) || '-'}</p>
+                        </div>
+                        
+                        <div className="col-span-4">
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Cliente / Sistema</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.clientSystem : modalTicketInfo?.clientSystem) || '-'}</p>
                         </div>
                     </div>
 

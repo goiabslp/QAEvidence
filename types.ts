@@ -1,4 +1,5 @@
 
+
 export enum TestStatus {
   PASS = 'PASS',
   FAIL = 'FAIL',
@@ -12,6 +13,12 @@ export enum Severity {
   MEDIUM = 'MEDIUM',
   HIGH = 'HIGH',
   CRITICAL = 'CRITICAL'
+}
+
+export enum TicketPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH'
 }
 
 export type UserRole = 'ADMIN' | 'USER';
@@ -28,6 +35,7 @@ export interface User {
 export interface TicketInfo {
   sprint: string;
   ticketId: string;
+  priority: TicketPriority; // Novo campo
   ticketTitle: string;
   ticketSummary: string;
   clientSystem: string;

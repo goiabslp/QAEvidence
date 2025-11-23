@@ -1,8 +1,11 @@
+
+
 import React, { useState, useRef, useEffect } from 'react';
-import { TestStatus, Severity, EvidenceItem, TicketInfo } from '../types';
+import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority } from '../types';
+import { PRIORITY_CONFIG } from '../constants';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -46,6 +49,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const [evidenceDate, setEvidenceDate] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
   const [solution, setSolution] = useState('');
+  const [priority, setPriority] = useState<TicketPriority>(TicketPriority.MEDIUM);
   
   const [isTitleManuallyEdited, setIsTitleManuallyEdited] = useState(false);
   const [isTicketInfoExpanded, setIsTicketInfoExpanded] = useState(true);
@@ -74,6 +78,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       setEvidenceDate(initialTicketInfo.evidenceDate || '');
       setTicketDescription(initialTicketInfo.ticketDescription || '');
       setSolution(initialTicketInfo.solution || '');
+      setPriority(initialTicketInfo.priority || TicketPriority.MEDIUM);
       
       if (initialTicketInfo.environment) {
         const envs = initialTicketInfo.environment.split(',').map(e => e.trim()).filter(Boolean);
@@ -81,8 +86,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       }
       
       // CRITICAL: Reset manual edit flag to false when loading a ticket.
-      // This ensures that any subsequent edits to fields (ID, Sprint, etc.) 
-      // will trigger the auto-generation logic immediately.
       setIsTitleManuallyEdited(false);
     }
   }, [initialTicketInfo]);
@@ -96,6 +99,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     requester,
     analyst,
     requestDate,
+    priority,
     environment: selectedEnvs.join(', '),
     environmentVersion,
     evidenceDate: evidenceDate || new Date().toISOString().split('T')[0],
@@ -110,7 +114,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   }, [
     sprint, ticketId, ticketTitle, ticketSummary, clientSystem, 
     requester, analyst, requestDate, selectedEnvs, environmentVersion, 
-    evidenceDate, ticketDescription, solution, onTicketInfoChange
+    evidenceDate, ticketDescription, solution, priority, onTicketInfoChange
   ]);
 
   useEffect(() => {
@@ -294,44 +298,61 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     />
                     </div>
 
-                    {/* LINHA 2: DATAS (UPDATED TO CUSTOM DATE PICKER) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className={labelClass}>Data da Solicitação</label>
-                        <CustomDatePicker 
-                           value={requestDate}
-                           onChange={setRequestDate}
-                           placeholder="Selecione a data"
-                        />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Data da Evidência</label>
-                        <CustomDatePicker 
-                           value={evidenceDate}
-                           onChange={setEvidenceDate}
-                           placeholder="Selecione a data"
-                        />
-                    </div>
+                    {/* LINHA 2: ID, PRIORIDADE, DATAS */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                      <div>
+                          <label className={labelClass}>Chamado (ID)</label>
+                          <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="Ex: 58645" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Prioridade</label>
+                        <div className="relative">
+                            <select
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value as TicketPriority)}
+                                className={`${ticketInputClass} appearance-none`}
+                            >
+                                <option value={TicketPriority.HIGH}>Alta</option>
+                                <option value={TicketPriority.MEDIUM}>Média</option>
+                                <option value={TicketPriority.LOW}>Baixa</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <ChevronDown className="w-4 h-4" />
+                            </div>
+                        </div>
+                      </div>
+                      <div>
+                          <label className={labelClass}>Data da Solicitação</label>
+                          <CustomDatePicker 
+                            value={requestDate}
+                            onChange={setRequestDate}
+                            placeholder="Selecione a data"
+                          />
+                      </div>
+                      <div>
+                          <label className={labelClass}>Data da Evidência</label>
+                          <CustomDatePicker 
+                            value={evidenceDate}
+                            onChange={setEvidenceDate}
+                            placeholder="Selecione a data"
+                          />
+                      </div>
                     </div>
 
                     {/* LINHA 3 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div>
-                        <label className={labelClass}>Chamado (ID)</label>
-                        <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="Ex: 58645" />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Sprint</label>
-                        <input type="text" value={sprint} onChange={e => setSprint(e.target.value)} className={ticketInputClass} placeholder="Ex: 24" />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Solicitante</label>
-                        <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Quem solicitou o Teste?" />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Analista de Teste</label>
-                        <input type="text" value={analyst} onChange={e => setAnalyst(e.target.value)} className={ticketInputClass} placeholder="Analista que Realizou o Teste" />
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                          <label className={labelClass}>Sprint</label>
+                          <input type="text" value={sprint} onChange={e => setSprint(e.target.value)} className={ticketInputClass} placeholder="Ex: 24" />
+                      </div>
+                      <div>
+                          <label className={labelClass}>Solicitante</label>
+                          <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Quem solicitou o Teste?" />
+                      </div>
+                      <div>
+                          <label className={labelClass}>Analista de Teste</label>
+                          <input type="text" value={analyst} onChange={e => setAnalyst(e.target.value)} className={ticketInputClass} placeholder="Analista que Realizou o Teste" />
+                      </div>
                     </div>
 
                     {/* LINHA 4 */}

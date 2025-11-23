@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep } from '../types';
+import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep, TicketPriority } from '../types';
 import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
@@ -301,6 +300,7 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
         clientSystem: 'N/A',
         requester: 'QA',
         analyst: 'QA',
+        priority: TicketPriority.MEDIUM,
         requestDate: new Date().toISOString().split('T')[0],
         environment: 'N/A',
         environmentVersion: 'N/A',
