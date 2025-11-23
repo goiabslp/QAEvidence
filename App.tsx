@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -9,7 +10,7 @@ import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User } from './types';
 import { STATUS_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, Lock, ClipboardCheck } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, Lock, ClipboardCheck, Activity } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [printingTicket, setPrintingTicket] = useState<ArchivedTicket | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [confirmationMode, setConfirmationMode] = useState<'PDF' | 'SAVE'>('PDF');
@@ -404,15 +406,34 @@ const App: React.FC = () => {
     setTicketToDelete(null);
   };
 
-  const executePdfGeneration = () => {
-    if (!reportRef.current || !currentUser) return;
-
-    setShowPdfModal(false);
+  const handleDownloadArchivedPdf = (ticket: ArchivedTicket) => {
+    setPrintingTicket(ticket);
     setIsGeneratingPdf(true);
     
-    const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
-    const ticketTitle = masterTicketInfo.ticketTitle;
+    // Allow React to render the hidden container with new data
+    setTimeout(() => {
+        executePdfGeneration(true);
+    }, 500);
+  };
+
+  const executePdfGeneration = (isArchived: boolean = false) => {
+    if (!reportRef.current || !currentUser) return;
+
+    if (!isArchived) setShowPdfModal(false);
+    setIsGeneratingPdf(true);
+    
+    const targetTicketInfo = isArchived && printingTicket ? printingTicket.ticketInfo : (formTicketInfoRef.current || evidences[0]?.ticketInfo);
+    if (!targetTicketInfo) {
+        setIsGeneratingPdf(false);
+        setPrintingTicket(null);
+        return;
+    }
+
+    const ticketTitle = targetTicketInfo.ticketTitle;
     const safeFilename = ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
+    const authorName = isArchived && printingTicket 
+        ? users.find(u => u.acronym === printingTicket.createdBy)?.name || printingTicket.createdBy 
+        : currentUser.name;
 
     // Strict Margins for Header (35mm) and Footer (25mm)
     // Left/Right margin 10mm
@@ -460,16 +481,16 @@ const App: React.FC = () => {
              pdf.text("CONTROLE DE QUALIDADE NARNIA", 26, 21);
 
              // Ticket ID (Right)
-             if (masterTicketInfo.ticketId) {
+             if (targetTicketInfo.ticketId) {
                  pdf.setFontSize(16);
                  pdf.setTextColor(15, 23, 42);
                  pdf.setFont("helvetica", "bold");
-                 pdf.text(masterTicketInfo.ticketId, pageWidth - 10, 18, { align: 'right' });
+                 pdf.text(targetTicketInfo.ticketId, pageWidth - 10, 18, { align: 'right' });
              }
 
              // Horizontal Line Separator (at y=30mm)
              pdf.setDrawColor(15, 23, 42);
-             pdf.setLineWidth(0.5);
+                     pdf.setLineWidth(0.5);
              pdf.line(10, 30, pageWidth - 10, 30);
 
 
@@ -485,14 +506,15 @@ const App: React.FC = () => {
              pdf.setFontSize(8);
              pdf.setTextColor(100, 116, 139); // slate-500
              pdf.setFont("helvetica", "normal");
-             pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} por ${currentUser.name}`, 10, pageHeight - 8);
+             pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} por ${authorName}`, 10, pageHeight - 8);
 
              // Right: Page Number
              pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 8, { align: 'right' });
         }
     }).save().then(() => {
-      persistCurrentTicket();
+      if (!isArchived) persistCurrentTicket();
       setIsGeneratingPdf(false);
+      setPrintingTicket(null);
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     });
   };
@@ -543,6 +565,7 @@ const App: React.FC = () => {
   };
 
   const getCurrentTicketInfo = () => {
+    if (printingTicket) return printingTicket.ticketInfo;
     if (evidences.length > 0) return evidences[0].ticketInfo;
     if (formTicketInfoRef.current) return formTicketInfoRef.current;
     return null;
@@ -800,95 +823,113 @@ const App: React.FC = () => {
                      >
                         {displayedHistory.map(ticket => {
                             const statusBadges = getTicketStatusBadges(ticket.items);
-                            const uniqueCaseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))];
+                            const uniqueScenarios = new Set(ticket.items.filter(i => i.testCaseDetails).map(i => i.testCaseDetails?.scenarioNumber)).size;
+                            const totalCases = ticket.items.filter(i => i.testCaseDetails).length;
+                            const caseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))];
                             
                             return (
                                 <div 
                                     key={ticket.id}
-                                    className="min-w-[85vw] md:min-w-[280px] lg:min-w-[260px] snap-center flex-shrink-0"
+                                    className="w-[360px] h-[320px] snap-center flex-shrink-0"
                                 >
                                     <div 
                                         onClick={() => handleOpenArchivedTicket(ticket)}
-                                        className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full h-[320px]"
+                                        className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full select-none"
                                     >
-                                        {/* Header Color Line */}
-                                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-80 group-hover:opacity-100 transition-opacity"></div>
-                                        
-                                        <div className="p-6 flex-1 flex flex-col">
-                                            {/* Ticket ID & Analyst */}
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className="flex flex-col">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Chamado</span>
-                                                    <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 font-mono inline-block">
-                                                        {ticket.ticketInfo.ticketId}
-                                                    </span>
+                                        <div className="p-5 flex flex-col h-full">
+                                            
+                                            {/* HEADER ROW */}
+                                            <div className="flex justify-between items-start mb-3">
+                                                 <div className="flex flex-col gap-1">
+                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold font-mono">
+                                                         {ticket.ticketInfo.ticketId || '#0000'}
+                                                     </span>
+                                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                                                         Analista: <span className="text-slate-600">{ticket.ticketInfo.analyst || ticket.createdBy}</span>
+                                                     </span>
+                                                 </div>
+                                                 
+                                                 <div className="flex flex-wrap justify-end gap-1 max-w-[60%]">
+                                                     {statusBadges.map((conf, idx) => {
+                                                        const Icon = conf.icon;
+                                                        return (
+                                                            <span key={idx} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${conf.color}`}>
+                                                                <Icon className="w-2.5 h-2.5 mr-1" />
+                                                                {conf.label}
+                                                            </span>
+                                                        );
+                                                     })}
+                                                 </div>
+                                            </div>
+
+                                            {/* TITLE ROW */}
+                                            <div className="flex-1 flex items-center justify-center my-2">
+                                                <h4 className="text-sm font-bold text-slate-800 text-center leading-snug line-clamp-3 group-hover:text-indigo-600 transition-colors w-full" title={ticket.ticketInfo.ticketTitle}>
+                                                    {ticket.ticketInfo.ticketTitle || 'Sem Título'}
+                                                </h4>
+                                            </div>
+
+                                            {/* STATS ROW */}
+                                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 flex flex-col items-center justify-center">
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Cenários</span>
+                                                    <div className="text-lg font-black text-slate-700 flex items-center gap-1">
+                                                        <Layers className="w-3.5 h-3.5 text-slate-400" />
+                                                        {uniqueScenarios}
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Analista</span>
-                                                    <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-600">
-                                                        <UserIcon className="w-3 h-3" />
-                                                        {ticket.ticketInfo.analyst || ticket.createdBy}
+                                                <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 flex flex-col items-center justify-center">
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Casos</span>
+                                                    <div className="text-lg font-black text-slate-700 flex items-center gap-1">
+                                                        <Activity className="w-3.5 h-3.5 text-slate-400" />
+                                                        {totalCases}
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            {/* Title */}
-                                            <h4 className="text-lg font-bold text-slate-800 mb-3 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
-                                                {ticket.ticketInfo.ticketTitle}
-                                            </h4>
 
-                                            {/* Status Tags (Accumulated) */}
-                                            <div className="flex flex-wrap gap-2 mb-4">
-                                                {statusBadges.map((conf, idx) => {
-                                                    const Icon = conf.icon;
-                                                    return (
-                                                        <span key={idx} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border shadow-sm ${conf.color}`}>
-                                                            <Icon className="w-3 h-3 mr-1" />
-                                                            {conf.label}
+                                            {/* CASE IDs ROW */}
+                                            <div className="mb-4">
+                                                <div className="flex flex-wrap gap-1 max-h-[26px] overflow-hidden">
+                                                    {caseIds.length > 0 ? caseIds.map((id, idx) => (
+                                                        <span key={idx} className="inline-block px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-mono font-medium text-slate-500">
+                                                            {id}
                                                         </span>
-                                                    );
-                                                })}
-                                            </div>
-                                            
-                                            {/* Metadata Footer */}
-                                            <div className="mt-auto pt-4 border-t border-slate-100 space-y-3">
-                                                <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-                                                    <span className="flex items-center gap-1.5">
-                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                                        {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
-                                                    </span>
-                                                    
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setTicketToDelete(ticket);
-                                                            }}
-                                                            className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                                            title="Excluir"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
+                                                    )) : <span className="text-[9px] text-slate-300 italic">Sem casos</span>}
                                                 </div>
-
-                                                {/* Case IDs (Truncated) */}
-                                                {uniqueCaseIds.length > 0 && (
-                                                    <div className="flex items-center gap-1.5 overflow-hidden">
-                                                        <Hash className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
-                                                        <div className="flex gap-1 overflow-hidden whitespace-nowrap mask-linear-fade">
-                                                            {uniqueCaseIds.slice(0, 3).map((id, idx) => (
-                                                                <span key={idx} className="text-[10px] font-mono text-slate-500 bg-slate-50 border border-slate-100 px-1.5 rounded">
-                                                                    {id}
-                                                                </span>
-                                                            ))}
-                                                            {uniqueCaseIds.length > 3 && (
-                                                                <span className="text-[10px] text-slate-400 font-bold">+{uniqueCaseIds.length - 3}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
+
+                                            {/* FOOTER ROW */}
+                                            <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
+                                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                    {ticket.ticketInfo.evidenceDate ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/') : new Date(ticket.archivedAt).toLocaleDateString('pt-BR')}
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDownloadArchivedPdf(ticket);
+                                                        }}
+                                                        disabled={isGeneratingPdf}
+                                                        className="p-2 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors disabled:opacity-50"
+                                                        title="Baixar PDF"
+                                                    >
+                                                        {isGeneratingPdf && printingTicket?.id === ticket.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setTicketToDelete(ticket);
+                                                        }}
+                                                        className="p-2 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 transition-colors"
+                                                        title="Excluir"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -1003,7 +1044,7 @@ const App: React.FC = () => {
                     {/* ROW 1: TITLE */}
                     <div className="border-b-2 border-slate-900 pb-4 mb-6">
                         <h1 className="text-2xl font-extrabold text-slate-900 uppercase tracking-tight leading-tight m-0 p-0">
-                            {modalTicketInfo?.ticketTitle || 'Sem Título'}
+                            {(printingTicket ? printingTicket.ticketInfo.ticketTitle : modalTicketInfo?.ticketTitle) || 'Sem Título'}
                         </h1>
                     </div>
 
@@ -1012,56 +1053,56 @@ const App: React.FC = () => {
                         {/* ROW 2 */}
                         <div className="col-span-1">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Chamado (ID)</label>
-                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.ticketId || '-'}</p>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.ticketId : modalTicketInfo?.ticketId) || '-'}</p>
                         </div>
                         <div className="col-span-1">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
-                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.sprint || '-'}</p>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.sprint : modalTicketInfo?.sprint) || '-'}</p>
                         </div>
                         <div className="col-span-1">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Solicitação</label>
-                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.requestDate ? modalTicketInfo.requestDate.split('-').reverse().join('/') : '-'}</p>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.requestDate?.split('-').reverse().join('/') : modalTicketInfo?.requestDate?.split('-').reverse().join('/')) || '-'}</p>
                         </div>
                         <div className="col-span-1">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Evidência</label>
-                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.evidenceDate ? modalTicketInfo.evidenceDate.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR')}</p>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.evidenceDate?.split('-').reverse().join('/') : (modalTicketInfo?.evidenceDate ? modalTicketInfo.evidenceDate.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR'))) || '-'}</p>
                         </div>
 
                         {/* ROW 3 */}
                         <div className="col-span-1">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitante</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.requester || '-'}</p>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.requester : modalTicketInfo?.requester) || '-'}</p>
                         </div>
                         <div className="col-span-1">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Analista</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.analyst || currentUser?.acronym}</p>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.analyst : (modalTicketInfo?.analyst || currentUser?.acronym))}</p>
                         </div>
                         <div className="col-span-2">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Cliente / Sistema</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.clientSystem || '-'}</p>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.clientSystem : modalTicketInfo?.clientSystem) || '-'}</p>
                         </div>
 
                         {/* ROW 4 */}
                         <div className="col-span-2">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Ambiente</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.environment || '-'}</p>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.environment : modalTicketInfo?.environment) || '-'}</p>
                         </div>
                         <div className="col-span-2">
                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Versão</label>
-                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.environmentVersion || '-'}</p>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.environmentVersion : modalTicketInfo?.environmentVersion) || '-'}</p>
                         </div>
                     </div>
 
                     {/* ROW 5: DESCRIPTION */}
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-4">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Descrição do Chamado</label>
-                        <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{modalTicketInfo?.ticketDescription || 'Nenhuma descrição fornecida.'}</p>
+                        <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{(printingTicket ? printingTicket.ticketInfo.ticketDescription : modalTicketInfo?.ticketDescription) || 'Nenhuma descrição fornecida.'}</p>
                     </div>
 
                     {/* ROW 6: SOLUTION */}
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Solução / Correção Aplicada</label>
-                        <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{modalTicketInfo?.solution || 'Não aplicável.'}</p>
+                        <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{(printingTicket ? printingTicket.ticketInfo.solution : modalTicketInfo?.solution) || 'Não aplicável.'}</p>
                     </div>
                 </div>
 
@@ -1071,7 +1112,7 @@ const App: React.FC = () => {
                         <ListChecks className="w-5 h-5" /> Detalhamento da Execução
                     </h2>
                     <EvidenceList 
-                        evidences={evidences} 
+                        evidences={printingTicket ? printingTicket.items : evidences} 
                         onDelete={() => {}} 
                         readOnly={true}
                     />
