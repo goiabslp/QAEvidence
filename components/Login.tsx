@@ -38,7 +38,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, error }) => {
                    </span>
                 </h1>
                 <p className="text-indigo-100 text-lg font-light leading-relaxed">
-                   Documentação profissional e análise inteligente para garantir a qualidade do software.
+                   Aqui até os bugs entram na fila e aprendem a se comportar.<br/>
+                   Os chamados ganham status, os cenários criam juízo e os casos fazem pose.<br/>
+                   No fim, é quase um zoológico… só que organizado..
                 </p>
             </div>
 

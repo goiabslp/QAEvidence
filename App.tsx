@@ -214,9 +214,17 @@ const App: React.FC = () => {
   };
 
   const handleDeleteScenario = (scenarioNum: number) => {
-    if (confirm(`Tem certeza que deseja excluir todo o Cenário #${scenarioNum} e seus casos de teste? Esta ação não pode ser desfeita.`)) {
-      setEvidences(prev => prev.filter(e => e.testCaseDetails?.scenarioNumber !== scenarioNum));
+    if (!window.confirm(`Tem certeza que deseja excluir todo o Cenário #${scenarioNum} e seus casos de teste?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
     }
+
+    setEvidences(prev => prev.filter(e => {
+        // Keep items that don't belong to any scenario (manual)
+        if (!e.testCaseDetails) return true; 
+        
+        // Remove items that match the scenario number
+        return Number(e.testCaseDetails.scenarioNumber) !== Number(scenarioNum);
+    }));
   };
 
   const handleAddCase = (originId: string) => {

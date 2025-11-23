@@ -116,7 +116,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
               
               {/* Header do Cenário */}
               <div 
-                className="bg-gradient-to-r from-slate-50 to-white p-5 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer border-b border-slate-100 gap-4"
+                className="bg-gradient-to-r from-slate-50 to-white p-5 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer border-b border-slate-100 gap-4 relative group/header"
                 onClick={() => toggleScenario(group.scenarioNumber)}
               >
                 <div className="flex items-start gap-4">
@@ -152,19 +152,9 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pl-14 sm:pl-0">
-                  {onDeleteScenario && (
-                     <button
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         onDeleteScenario(group.scenarioNumber);
-                       }}
-                       className="text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors mr-1"
-                       title="Excluir Cenário Inteiro"
-                     >
-                       <Trash2 className="w-5 h-5" />
-                     </button>
-                  )}
+                {/* Wrapper for Actions - Removed global stopPropagation to avoid blocking events */}
+                <div className="flex items-center justify-end gap-3 pl-14 sm:pl-0 relative z-20">
+                  {/* Botão de Excluir Cenário removido conforme solicitado */}
 
                   {onAddCase && (
                     <button 
@@ -172,13 +162,16 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                         e.stopPropagation();
                         onAddCase(firstItem.id);
                       }}
-                      className="flex items-center gap-1.5 text-xs bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all shadow-sm font-bold uppercase tracking-wide mr-2"
+                      className="flex items-center gap-1.5 text-xs bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all shadow-sm font-bold uppercase tracking-wide mr-2 relative z-50"
+                      type="button"
                     >
                       <Plus className="w-3 h-3" />
                       Adicionar Caso
                     </button>
                   )}
-                  <div className={`p-2 rounded-full hover:bg-slate-100 transition-all ${isScenarioOpen ? 'bg-slate-100 rotate-180 text-indigo-600' : 'text-slate-400'}`}>
+                  
+                  {/* Toggle Chevron */}
+                  <div className={`p-2 rounded-full hover:bg-slate-100 transition-all pointer-events-none ${isScenarioOpen ? 'bg-slate-100 rotate-180 text-indigo-600' : 'text-slate-400'}`}>
                     <ChevronDown className="w-5 h-5" />
                   </div>
                 </div>
@@ -254,18 +247,18 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences, onDelete, onAddC
                                 {onEditCase && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onEditCase(evidence.id); }}
-                                        className="text-slate-300 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                                        className="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
                                         title="Editar Caso"
                                     >
-                                        <Pencil className="w-3.5 h-3.5" />
+                                        <Pencil className="w-4 h-4" />
                                     </button>
                                 )}
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); onDelete(evidence.id); }}
-                                  className="text-slate-300 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                  className="text-slate-500 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
                                   title="Excluir Caso"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                            </div>
