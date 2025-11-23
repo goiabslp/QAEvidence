@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo } from '../types';
 import TestScenarioWizard from './TestScenarioWizard';
@@ -81,7 +80,9 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         setSelectedEnvs(envs);
       }
       
-      setIsTitleManuallyEdited(!!initialTicketInfo.ticketTitle);
+      // Changed: Set to false so auto-generation works when editing fields, 
+      // even if a title was loaded from history.
+      setIsTitleManuallyEdited(false);
     }
   }, [initialTicketInfo]);
 

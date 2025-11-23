@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { ArchivedTicket, User, EvidenceItem, TestStatus } from '../types';
 import { STATUS_CONFIG } from '../constants';
@@ -289,14 +288,14 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
 
                                         {/* Info */}
                                         <div className="flex-1 w-full min-w-0">
-                                            <div className="flex flex-col md:flex-row md:items-start gap-4 mb-2">
+                                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-2">
                                                 {/* Title */}
-                                                <h4 className={`font-bold text-base leading-snug transition-colors flex-1 min-w-0 break-words pr-2 ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
+                                                <h4 className={`font-bold text-base leading-snug transition-colors flex-1 min-w-0 break-words pr-4 ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>
                                                     {ticket.ticketInfo.ticketTitle}
                                                 </h4>
                                                 
-                                                {/* Status Badges - Multiple */}
-                                                <div className="flex flex-wrap gap-1.5 md:justify-end mt-1 md:mt-0 flex-shrink-0 md:max-w-[180px]">
+                                                {/* Status Badges - Multiple - Constrained width to force multiline/compact display if needed */}
+                                                <div className="flex flex-wrap gap-1.5 md:justify-end mt-1 md:mt-0 flex-shrink-0 md:w-[130px]">
                                                     {statusConfigs.map((config, idx) => {
                                                         const StatusIcon = config.icon;
                                                         return (
