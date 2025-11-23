@@ -246,7 +246,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
               <button 
                   type="button" 
                   onClick={onCancel}
-                  className="flex items-center gap-2 text-slate-600 hover:text-red-600 px-4 py-2 rounded-lg border border-slate-200 hover:border-red-200 hover:bg-red-50 transition-all text-sm font-bold shadow-sm"
+                  className="flex items-center gap-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-lg border border-red-200 hover:border-red-300 transition-all text-sm font-bold shadow-sm"
               >
                   <X className="w-4 h-4" />
                   Fechar
@@ -571,13 +571,13 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             </div>
           )}
           
-          {/* Action Footer for Form - Added "Close" Button specifically here if editing */}
+          {/* Action Footer for Form - "Close" Button specifically here if editing */}
           {onCancel && (
             <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
                <button 
                   type="button" 
                   onClick={onCancel}
-                  className="px-6 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2"
+                  className="px-6 py-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-sm transition-colors shadow-sm flex items-center gap-2"
               >
                   <X className="w-4 h-4" />
                   Fechar

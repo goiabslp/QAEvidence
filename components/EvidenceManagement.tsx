@@ -66,11 +66,14 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     setTimeout(() => {
         if (printRef.current) {
             const safeFilename = ticket.ticketInfo.ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
+            
+            // Strict Margins for Header (35mm) and Footer (25mm)
+            // Left/Right margin 10mm
             const opt = {
-                margin: [25, 10, 25, 10], // Increased margins: Top 25mm, Bottom 25mm
+                margin: [35, 10, 25, 10], 
                 filename: `${safeFilename}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             };
@@ -79,65 +82,63 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                 const totalPages = pdf.internal.getNumberOfPages();
                 const pageWidth = pdf.internal.pageSize.getWidth();
                 const pageHeight = pdf.internal.pageSize.getHeight();
+                const user = users.find(u => u.acronym === ticket.createdBy);
                 
                 for (let i = 1; i <= totalPages; i++) {
                      pdf.setPage(i);
                      
-                     // --- HEADER ---
-                     // Left: Logo Placeholder
-                     pdf.setFillColor(30, 41, 59); // slate-900
-                     pdf.rect(10, 6, 12, 12, 'F');
+                     // --- HEADER (Top 0mm to 35mm) ---
+                     
+                     // Logo Box (Left)
+                     pdf.setFillColor(15, 23, 42); // slate-900
+                     pdf.rect(10, 10, 12, 12, 'F'); // x=10mm, y=10mm
                      pdf.setTextColor(255, 255, 255);
-                     pdf.setFontSize(12);
+                     pdf.setFontSize(10);
                      pdf.setFont("helvetica", "bold");
-                     pdf.text("QA", 11.5, 14);
+                     pdf.text("QA", 11.5, 17.5);
 
-                     // Left: Title
+                     // Main Title
                      pdf.setTextColor(15, 23, 42); // slate-900
                      pdf.setFontSize(14);
-                     pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 11);
+                     pdf.setFont("helvetica", "bold");
+                     pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 16);
+                     
+                     // Subtitle
                      pdf.setFontSize(9);
                      pdf.setTextColor(100, 116, 139); // slate-500
                      pdf.setFont("helvetica", "normal");
-                     pdf.text("CONTROLE DE QUALIDADE • HISTÓRICO", 26, 16);
+                     pdf.text("CONTROLE DE QUALIDADE NARNIA", 26, 21);
 
-                     // Right: Info
-                     pdf.setFontSize(8);
-                     pdf.setTextColor(100, 116, 139);
-                     pdf.text("IDENTIFICAÇÃO", pageWidth - 10, 10, { align: 'right' });
-                     pdf.setFontSize(11);
-                     pdf.setTextColor(15, 23, 42); // slate-900
-                     pdf.setFont("helvetica", "bold");
-                     // Truncate if too long?
-                     const idText = ticket.ticketInfo.ticketId || "N/A";
-                     pdf.text(idText, pageWidth - 10, 15, { align: 'right' });
+                     // Ticket ID (Right)
+                     if (ticket.ticketInfo.ticketId) {
+                         pdf.setFontSize(16);
+                         pdf.setTextColor(15, 23, 42);
+                         pdf.setFont("helvetica", "bold");
+                         pdf.text(ticket.ticketInfo.ticketId, pageWidth - 10, 18, { align: 'right' });
+                     }
 
-                     // Line
+                     // Horizontal Line Separator (at y=30mm)
                      pdf.setDrawColor(15, 23, 42);
                      pdf.setLineWidth(0.5);
-                     pdf.line(10, 22, pageWidth - 10, 22);
+                     pdf.line(10, 30, pageWidth - 10, 30);
 
-                     // --- FOOTER ---
-                     pdf.line(10, pageHeight - 20, pageWidth - 10, pageHeight - 20);
 
-                     // Left: Institutional
-                     pdf.setFontSize(8);
-                     pdf.setTextColor(100, 116, 139);
-                     pdf.setFont("helvetica", "normal");
-                     pdf.text("Confidencial - Uso Interno", 10, pageHeight - 12);
-                     pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, 10, pageHeight - 8);
-
-                     // Right: Logo/Text
-                     pdf.setFontSize(12);
-                     pdf.setTextColor(15, 23, 42);
-                     pdf.setFont("helvetica", "bold");
-                     pdf.text("Narnia QA", pageWidth - 10, pageHeight - 11, { align: 'right' });
+                     // --- FOOTER (Bottom 25mm) ---
                      
-                     // Page Num
+                     // Footer Line Separator (at pageHeight - 15mm)
+                     const footerLineY = pageHeight - 15;
+                     pdf.setDrawColor(203, 213, 225); // slate-300
+                     pdf.setLineWidth(0.3);
+                     pdf.line(10, footerLineY, pageWidth - 10, footerLineY);
+
+                     // Left: Metadata
                      pdf.setFontSize(8);
-                     pdf.setTextColor(148, 163, 184); // slate-400
+                     pdf.setTextColor(100, 116, 139); // slate-500
                      pdf.setFont("helvetica", "normal");
-                     pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 7, { align: 'right' });
+                     pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} por ${user?.name || 'Sistema'}`, 10, pageHeight - 8);
+
+                     // Right: Page Number
+                     pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 8, { align: 'right' });
                 }
             }).save().then(() => {
                 setPrintingTicketId(null);
@@ -310,52 +311,91 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
       </div>
 
       {/* Hidden Print Container - REFACTORED FOR HEADER/CONTENT/FOOTER */}
-      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
-         <div ref={printRef} className="bg-white p-8 font-inter text-slate-900 relative">
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm' }}>
+         <div ref={printRef} className="bg-white font-inter text-slate-900 relative w-full" style={{ margin: 0, padding: 0 }}>
             {ticketToPrint && (
-                <>
-                    {/* Header Removed - Injected via PDF */}
+                <main className="w-full">
+                     {/* SECTION: TICKET INFORMATION */}
+                    {/* Added mt-0 to ensure first element touches the 'ceiling' of the margin */}
+                    <div className="mb-8 space-y-4">
+                        
+                        {/* ROW 1: TITLE */}
+                        <div className="border-b-2 border-slate-900 pb-4 mb-6">
+                            <h1 className="text-2xl font-extrabold text-slate-900 uppercase tracking-tight leading-tight m-0 p-0">
+                                {ticketToPrint.ticketInfo.ticketTitle || 'Sem Título'}
+                            </h1>
+                        </div>
 
-                    {/* Middle Section */}
-                    <main className="flex-grow">
-                         {/* Ticket Data */}
-                         <div className="mb-8 p-6 border-l-4 border-slate-900 bg-slate-50 rounded-r-lg">
-                             <h3 className="text-xl font-bold text-slate-900 mb-4 leading-tight">{ticketToPrint.ticketInfo.ticketTitle}</h3>
-                             <div className="grid grid-cols-4 gap-6 text-sm">
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Solicitante</span>
-                                    <span className="font-bold text-slate-900">{ticketToPrint.ticketInfo.requester || '-'}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Analista</span>
-                                    <span className="font-bold text-slate-900">{ticketToPrint.ticketInfo.analyst || ticketToPrint.createdBy}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Data Original</span>
-                                    <span className="font-bold text-slate-900">{ticketToPrint.ticketInfo.evidenceDate ? ticketToPrint.ticketInfo.evidenceDate.split('-').reverse().join('/') : '-'}</span>
-                                </div>
-                                <div>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Sistema</span>
-                                    <span className="font-bold text-slate-900">{ticketToPrint.ticketInfo.clientSystem || '-'}</span>
-                                </div>
-                             </div>
-                         </div>
-
-                         {/* Evidence List */}
-                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
-                                <ListChecks className="w-6 h-6 text-slate-900" />
-                                <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Detalhamento da Execução</h3>
+                        {/* GRID INFO */}
+                        <div className="grid grid-cols-4 gap-y-4 gap-x-6 text-left">
+                            {/* ROW 2 */}
+                            <div className="col-span-1">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Chamado (ID)</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.ticketId || '-'}</p>
                             </div>
-                            <EvidenceList 
-                                evidences={ticketToPrint.items} 
-                                onDelete={() => {}}
-                            />
-                         </div>
-                    </main>
+                            <div className="col-span-1">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.sprint || '-'}</p>
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Solicitação</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.requestDate ? ticketToPrint.ticketInfo.requestDate.split('-').reverse().join('/') : '-'}</p>
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Evidência</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.evidenceDate ? ticketToPrint.ticketInfo.evidenceDate.split('-').reverse().join('/') : '-'}</p>
+                            </div>
 
-                    {/* Footer Removed - Injected via PDF */}
-                </>
+                            {/* ROW 3 */}
+                            <div className="col-span-1">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitante</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.requester || '-'}</p>
+                            </div>
+                            <div className="col-span-1">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Analista</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.analyst || ticketToPrint.createdBy}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Cliente / Sistema</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.clientSystem || '-'}</p>
+                            </div>
+
+                            {/* ROW 4 */}
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Ambiente</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.environment || '-'}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Versão</label>
+                                <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.environmentVersion || '-'}</p>
+                            </div>
+                        </div>
+
+                        {/* ROW 5: DESCRIPTION */}
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-4">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Descrição do Chamado</label>
+                            <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{ticketToPrint.ticketInfo.ticketDescription || 'Nenhuma descrição fornecida.'}</p>
+                        </div>
+
+                        {/* ROW 6: SOLUTION */}
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Solução / Correção Aplicada</label>
+                            <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{ticketToPrint.ticketInfo.solution || 'Não aplicável.'}</p>
+                        </div>
+                    </div>
+
+                     {/* EVIDENCES */}
+                     <div className="pt-4 border-t-2 border-slate-900">
+                        <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2">
+                            <ListChecks className="w-5 h-5" /> Detalhamento da Execução
+                        </h2>
+                        <EvidenceList 
+                            evidences={ticketToPrint.items} 
+                            onDelete={() => {}}
+                            readOnly={true}
+                        />
+                     </div>
+                </main>
             )}
          </div>
       </div>

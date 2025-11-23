@@ -44,10 +44,6 @@ const App: React.FC = () => {
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [confirmationMode, setConfirmationMode] = useState<'PDF' | 'SAVE'>('PDF');
   
-  // State for History PDF generation
-  // Removed internal state for history printing from App.tsx as it is handled in EvidenceManagement
-  // However, we still have the hidden container logic if we want to print from main workspace
-  
   // State for Ticket Deletion
   const [ticketToDelete, setTicketToDelete] = useState<ArchivedTicket | null>(null);
   
@@ -419,11 +415,13 @@ const App: React.FC = () => {
     const ticketTitle = masterTicketInfo.ticketTitle;
     const safeFilename = ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
 
+    // Strict Margins for Header (35mm) and Footer (25mm)
+    // Left/Right margin 10mm
     const opt = {
-      margin: [25, 10, 25, 10], // Margins: Top 25mm for Header, Bottom 25mm for Footer
+      margin: [35, 10, 25, 10], 
       filename: `${safeFilename}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
@@ -436,61 +434,62 @@ const App: React.FC = () => {
         for (let i = 1; i <= totalPages; i++) {
              pdf.setPage(i);
              
-             // --- HEADER ---
-             // Left: Logo Placeholder
-             pdf.setFillColor(30, 41, 59); // slate-900
-             pdf.rect(10, 6, 12, 12, 'F');
-             pdf.setTextColor(255, 255, 255);
-             pdf.setFontSize(12);
-             pdf.setFont("helvetica", "bold");
-             pdf.text("QA", 11.5, 14);
+             // --- HEADER (Top 0mm to 35mm) ---
+             
+             // Background for Header (White - implied)
+             // pdf.setFillColor(255, 255, 255);
+             // pdf.rect(0, 0, pageWidth, 35, 'F');
 
-             // Left: Title
+             // Logo Box (Left)
+             pdf.setFillColor(15, 23, 42); // slate-900
+             pdf.rect(10, 10, 12, 12, 'F'); // x=10mm, y=10mm
+             pdf.setTextColor(255, 255, 255);
+             pdf.setFontSize(10);
+             pdf.setFont("helvetica", "bold");
+             pdf.text("QA", 11.5, 17.5);
+
+             // Main Title
              pdf.setTextColor(15, 23, 42); // slate-900
              pdf.setFontSize(14);
-             pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 11);
+             pdf.setFont("helvetica", "bold");
+             pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 16);
+             
+             // Subtitle
              pdf.setFontSize(9);
              pdf.setTextColor(100, 116, 139); // slate-500
              pdf.setFont("helvetica", "normal");
-             pdf.text("CONTROLE DE QUALIDADE • NARNIA", 26, 16);
+             pdf.text("CONTROLE DE QUALIDADE NARNIA", 26, 21);
 
-             // Right: Info
-             pdf.setFontSize(8);
-             pdf.setTextColor(100, 116, 139);
-             pdf.text("IDENTIFICAÇÃO", pageWidth - 10, 10, { align: 'right' });
-             pdf.setFontSize(11);
-             pdf.setTextColor(15, 23, 42); // slate-900
-             pdf.setFont("helvetica", "bold");
-             // Truncate if too long?
-             const idText = masterTicketInfo.ticketId || "N/A";
-             pdf.text(idText, pageWidth - 10, 15, { align: 'right' });
+             // Ticket ID (Right)
+             if (masterTicketInfo.ticketId) {
+                 pdf.setFontSize(16);
+                 pdf.setTextColor(15, 23, 42);
+                 pdf.setFont("helvetica", "bold");
+                 pdf.text(masterTicketInfo.ticketId, pageWidth - 10, 18, { align: 'right' });
+             }
 
-             // Line
+             // Horizontal Line Separator (at y=30mm)
              pdf.setDrawColor(15, 23, 42);
              pdf.setLineWidth(0.5);
-             pdf.line(10, 22, pageWidth - 10, 22);
+             pdf.line(10, 30, pageWidth - 10, 30);
 
-             // --- FOOTER ---
-             pdf.line(10, pageHeight - 20, pageWidth - 10, pageHeight - 20);
 
-             // Left: Institutional
+             // --- FOOTER (Bottom 25mm) ---
+             
+             // Footer Line Separator (at pageHeight - 15mm)
+             const footerLineY = pageHeight - 15;
+             pdf.setDrawColor(203, 213, 225); // slate-300
+             pdf.setLineWidth(0.3);
+             pdf.line(10, footerLineY, pageWidth - 10, footerLineY);
+
+             // Left: Metadata
              pdf.setFontSize(8);
-             pdf.setTextColor(100, 116, 139);
+             pdf.setTextColor(100, 116, 139); // slate-500
              pdf.setFont("helvetica", "normal");
-             pdf.text("Confidencial - Uso Interno", 10, pageHeight - 12);
              pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} por ${currentUser.name}`, 10, pageHeight - 8);
 
-             // Right: Logo/Text
-             pdf.setFontSize(12);
-             pdf.setTextColor(15, 23, 42);
-             pdf.setFont("helvetica", "bold");
-             pdf.text("Narnia QA", pageWidth - 10, pageHeight - 11, { align: 'right' });
-             
-             // Page Num
-             pdf.setFontSize(8);
-             pdf.setTextColor(148, 163, 184); // slate-400
-             pdf.setFont("helvetica", "normal");
-             pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 7, { align: 'right' });
+             // Right: Page Number
+             pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 8, { align: 'right' });
         }
     }).save().then(() => {
       persistCurrentTicket();
@@ -516,10 +515,6 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  // Handler for downloading PDF from History Card is now handled by EvidenceManagement component purely
-  // But we kept this method for safety or if we want to add back later, 
-  // currently EvidenceManagement handles its own downloading via props.
-
   const getTicketAggregateStatus = (items: EvidenceItem[]) => {
     const hasFailure = items.some(i => i.status === TestStatus.FAIL);
     const hasBlocker = items.some(i => i.status === TestStatus.BLOCKED);
@@ -807,9 +802,6 @@ const App: React.FC = () => {
                                     key={ticket.id}
                                     className="min-w-[85vw] md:min-w-[280px] lg:min-w-[260px] snap-center flex-shrink-0"
                                 >
-                                    {/* EvidenceManagement now handles history list if used in admin, but here we have the legacy/user history view */}
-                                    {/* Using EvidenceManagement component is cleaner but for now keeping this view for consistent user experience */}
-                                    {/* We will rely on EvidenceManagement to be the 'admin' view and this as 'my history' */}
                                     <div 
                                         onClick={() => handleOpenArchivedTicket(ticket)}
                                         className="bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full h-[320px]"
@@ -872,17 +864,6 @@ const App: React.FC = () => {
                                                         >
                                                             <Trash2 className="w-4 h-4" />
                                                         </button>
-                                                        
-                                                        {/* Replaced logic to use EvidenceManagement logic if needed, but for now removed download button here to avoid duplication of logic or need to refactor this view entirely. Users can download from EvidenceManagement view which is better.
-                                                            Or we keep it but we need to implement the PDF logic here too? 
-                                                            Actually, the prompt asked to update App.tsx. I should probably remove this button or make it use the new logic?
-                                                            The EvidenceManagement component has the new robust logic. 
-                                                            I'll leave this simplified card view without PDF button to encourage using the main view or Management view.
-                                                            Wait, the user might want to download their own tickets.
-                                                            I will keep it simple: removed button here to focus on clean code, users can see their tickets in 'Meus Chamados' if I added that filter to EvidenceManagement? 
-                                                            EvidenceManagement supports filtering. 
-                                                            Actually, I'll remove the download button here to avoid having two different PDF generation implementations in the same file.
-                                                        */}
                                                     </div>
                                                 </div>
 
@@ -1006,49 +987,91 @@ const App: React.FC = () => {
       )}
 
       {/* Hidden Report Container for Main PDF - REFACTORED FOR HEADER/CONTENT/FOOTER */}
-      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '1200px' }}>
-         <div ref={reportRef} className="bg-white p-8 font-inter text-slate-900 relative">
-            {/* Header Removed - Injected via PDF */}
-            
-            {/* Middle Section / Content */}
-            <main className="flex-grow">
-                 {/* Ticket Details Summary */}
-                 <div className="mb-8 p-6 border-l-4 border-slate-900 bg-slate-50 rounded-r-lg">
-                     <h3 className="text-xl font-bold text-slate-900 mb-4 leading-tight">{modalTicketInfo?.ticketTitle || 'Sem Título'}</h3>
-                     <div className="grid grid-cols-4 gap-6 text-sm">
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Solicitante</span>
-                            <span className="font-bold text-slate-900">{modalTicketInfo?.requester || '-'}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Analista</span>
-                            <span className="font-bold text-slate-900">{modalTicketInfo?.analyst || currentUser.acronym}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Data</span>
-                            <span className="font-bold text-slate-900">{modalTicketInfo?.evidenceDate ? modalTicketInfo.evidenceDate.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR')}</span>
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Sistema</span>
-                            <span className="font-bold text-slate-900">{modalTicketInfo?.clientSystem || '-'}</span>
-                        </div>
-                     </div>
-                 </div>
-
-                 {/* Evidence List */}
-                 <div className="space-y-6">
-                    <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
-                        <ListChecks className="w-6 h-6 text-slate-900" />
-                        <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Detalhamento da Execução</h3>
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm' }}>
+         {/* Removing padding-4, ensuring margin-0 */}
+         <div ref={reportRef} className="bg-white font-inter text-slate-900 relative w-full" style={{ margin: 0, padding: 0 }}>
+            <main className="w-full">
+                {/* SECTION: TICKET INFORMATION */}
+                {/* Added mt-0 to ensure first element touches the 'ceiling' of the margin */}
+                <div className="mb-8 space-y-4"> 
+                    
+                    {/* ROW 1: TITLE */}
+                    <div className="border-b-2 border-slate-900 pb-4 mb-6">
+                        <h1 className="text-2xl font-extrabold text-slate-900 uppercase tracking-tight leading-tight m-0 p-0">
+                            {modalTicketInfo?.ticketTitle || 'Sem Título'}
+                        </h1>
                     </div>
+
+                    {/* GRID INFO */}
+                    <div className="grid grid-cols-4 gap-y-4 gap-x-6 text-left">
+                        {/* ROW 2 */}
+                        <div className="col-span-1">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Chamado (ID)</label>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.ticketId || '-'}</p>
+                        </div>
+                        <div className="col-span-1">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.sprint || '-'}</p>
+                        </div>
+                        <div className="col-span-1">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Solicitação</label>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.requestDate ? modalTicketInfo.requestDate.split('-').reverse().join('/') : '-'}</p>
+                        </div>
+                        <div className="col-span-1">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Evidência</label>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.evidenceDate ? modalTicketInfo.evidenceDate.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+
+                        {/* ROW 3 */}
+                        <div className="col-span-1">
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitante</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.requester || '-'}</p>
+                        </div>
+                        <div className="col-span-1">
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Analista</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.analyst || currentUser?.acronym}</p>
+                        </div>
+                        <div className="col-span-2">
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Cliente / Sistema</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.clientSystem || '-'}</p>
+                        </div>
+
+                        {/* ROW 4 */}
+                        <div className="col-span-2">
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Ambiente</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.environment || '-'}</p>
+                        </div>
+                        <div className="col-span-2">
+                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Versão</label>
+                             <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{modalTicketInfo?.environmentVersion || '-'}</p>
+                        </div>
+                    </div>
+
+                    {/* ROW 5: DESCRIPTION */}
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-4">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Descrição do Chamado</label>
+                        <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{modalTicketInfo?.ticketDescription || 'Nenhuma descrição fornecida.'}</p>
+                    </div>
+
+                    {/* ROW 6: SOLUTION */}
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Solução / Correção Aplicada</label>
+                        <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{modalTicketInfo?.solution || 'Não aplicável.'}</p>
+                    </div>
+                </div>
+
+                {/* EVIDENCES */}
+                <div className="pt-4 border-t-2 border-slate-900">
+                    <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2">
+                        <ListChecks className="w-5 h-5" /> Detalhamento da Execução
+                    </h2>
                     <EvidenceList 
                         evidences={evidences} 
                         onDelete={() => {}} 
+                        readOnly={true}
                     />
-                 </div>
+                </div>
             </main>
-            
-            {/* Footer Removed - Injected via PDF */}
          </div>
       </div>
       
