@@ -234,16 +234,18 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                 <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100">
                   <FileText className="w-5 h-5 text-indigo-600" />
                 </div>
-                Registro de Evidência
+                {onCancel ? 'Editando Chamado' : 'Registro de Evidência'}
             </h2>
-            <p className="text-sm text-slate-500 mt-1 ml-12">Preencha as informações do chamado e utilize o assistente de cenários.</p>
+            <p className="text-sm text-slate-500 mt-1 ml-12">
+               {onCancel ? 'Altere as informações abaixo e salve.' : 'Preencha as informações do chamado e utilize o assistente de cenários.'}
+            </p>
           </div>
           
           {onCancel && (
               <button 
                   type="button" 
                   onClick={onCancel}
-                  className="flex items-center gap-2 text-slate-500 hover:text-red-600 px-4 py-2 rounded-lg border border-slate-200 hover:border-red-200 hover:bg-red-50 transition-all text-sm font-bold shadow-sm"
+                  className="flex items-center gap-2 text-slate-600 hover:text-red-600 px-4 py-2 rounded-lg border border-slate-200 hover:border-red-200 hover:bg-red-50 transition-all text-sm font-bold shadow-sm"
               >
                   <X className="w-4 h-4" />
                   Fechar
@@ -568,6 +570,20 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             </div>
           )}
           
+          {/* Action Footer for Form - Added "Close" Button specifically here if editing */}
+          {onCancel && (
+            <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
+               <button 
+                  type="button" 
+                  onClick={onCancel}
+                  className="px-6 py-3 rounded-xl border border-slate-300 bg-white text-slate-700 font-bold text-sm hover:bg-slate-100 hover:text-red-600 transition-colors shadow-sm flex items-center gap-2"
+              >
+                  <X className="w-4 h-4" />
+                  Fechar
+              </button>
+            </div>
+          )}
+
         </div>
       </div>
 
