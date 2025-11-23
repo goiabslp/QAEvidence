@@ -285,7 +285,10 @@ const App: React.FC = () => {
 
   const persistCurrentTicket = () => {
       if (!currentUser) return;
-      const masterTicketInfo = formTicketInfoRef.current || evidences[0].ticketInfo;
+      const masterTicketInfo = formTicketInfoRef.current || (evidences.length > 0 ? evidences[0].ticketInfo : null);
+      
+      if (!masterTicketInfo) return;
+
       const consistentEvidences = evidences.map(ev => ({
          ...ev,
          ticketInfo: masterTicketInfo,
@@ -326,7 +329,8 @@ const App: React.FC = () => {
 
   // Button 1: Save & Close (Histórico) - Uses same modal flow as PDF
   const handleSaveAndClose = () => {
-    if (!validateTicketRequirements()) return;
+    // Validation removed as requested to allow saving drafts/incomplete data
+    // if (!validateTicketRequirements()) return; 
     setConfirmationMode('SAVE');
     setShowPdfModal(true);
   };
@@ -578,7 +582,6 @@ const App: React.FC = () => {
                     evidences={evidences}
                     initialTicketInfo={editingTicketInfo}
                     onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
-                    onCancel={editingHistoryId ? handleCancelEdit : undefined}
                 />
                 
                 {/* List Header (Title Only) */}
@@ -616,45 +619,48 @@ const App: React.FC = () => {
                     onEditCase={handleEditCase}
                 />
 
-                {/* FINAL ACTIONS - REDESIGNED */}
-                <div className="mt-12">
-                   <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden text-center">
-                        {/* Decorative gradient line */}
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 via-blue-500 to-indigo-500"></div>
-                        
-                        <div className="relative z-10 max-w-4xl mx-auto">
-                            <h3 className="text-xl font-bold text-slate-900 mb-2">Conclusão do Registro</h3>
-                            <p className="text-slate-500 mb-8 max-w-lg mx-auto">
-                                Confira os dados abaixo e escolha como deseja finalizar o processo.
-                            </p>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                {/* Save Button */}
-                                <button
-                                    onClick={handleSaveAndClose}
-                                    disabled={evidences.length === 0}
-                                    className="group relative flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-emerald-100 bg-emerald-50/30 hover:bg-emerald-50 hover:border-emerald-500 transition-all duration-300 disabled:opacity-50 disabled:grayscale"
-                                >
-                                    <div className="mb-3 p-3 bg-white rounded-full text-emerald-600 shadow-sm border border-emerald-100 group-hover:scale-110 transition-transform">
-                                        <Save className="w-6 h-6" />
-                                    </div>
-                                    <span className="text-base font-bold text-slate-800 group-hover:text-emerald-700">Salvar no Histórico</span>
-                                    <span className="text-xs text-slate-500 mt-1">Apenas armazena os dados</span>
-                                </button>
+                {/* CANCEL BUTTON (Above Final Actions) - Modernized */}
+                {(evidences.length > 0 || editingHistoryId) && (
+                    <div className="flex justify-center mt-12 mb-4 animate-fade-in">
+                        <button
+                            onClick={handleCancelEdit}
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-500 font-bold transition-all border border-slate-200 hover:border-red-200 text-xs uppercase tracking-wide active:scale-95"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                            {editingHistoryId ? 'Cancelar Edição' : 'Cancelar'}
+                        </button>
+                    </div>
+                )}
 
-                                {/* PDF Button */}
-                                <button
-                                    onClick={handlePdfFlow}
-                                    disabled={evidences.length === 0 || isGeneratingPdf}
-                                    className="group relative flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-transparent bg-slate-900 text-white hover:bg-indigo-600 shadow-lg hover:shadow-indigo-200 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none"
-                                >
-                                    <div className="mb-3 p-3 bg-white/10 rounded-full text-white shadow-inner group-hover:bg-white/20 transition-colors">
-                                        {isGeneratingPdf ? <Loader2 className="w-6 h-6 animate-spin" /> : <FileDown className="w-6 h-6" />}
-                                    </div>
-                                    <span className="text-base font-bold">Gerar PDF & Finalizar</span>
-                                    <span className="text-xs text-indigo-200 mt-1">Relatório completo e download</span>
-                                </button>
-                            </div>
+                {/* FINAL ACTIONS - COMPACT & VIVID */}
+                <div className="mt-0 mb-24">
+                   <div className="flex flex-col items-center justify-center">
+                        <div className="flex flex-wrap gap-3 justify-center">
+                            {/* Save Button */}
+                            <button
+                                onClick={handleSaveAndClose}
+                                disabled={false}
+                                className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-white shadow-lg shadow-emerald-200/50 transition-all hover:shadow-emerald-300/50 hover:-translate-y-0.5 active:scale-95 w-full sm:w-auto min-w-[150px]"
+                            >
+                                <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
+                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-wide">
+                                     <Save className="w-4 h-4" />
+                                     Salvar
+                                </div>
+                            </button>
+
+                            {/* PDF Button */}
+                            <button
+                                onClick={handlePdfFlow}
+                                disabled={evidences.length === 0 || isGeneratingPdf}
+                                className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2.5 text-white shadow-lg shadow-indigo-200/50 transition-all hover:shadow-indigo-300/50 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[150px]"
+                            >
+                                <div className="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300"></div>
+                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-wide">
+                                     {isGeneratingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                                     Gerar PDF
+                                </div>
+                            </button>
                         </div>
                    </div>
                 </div>

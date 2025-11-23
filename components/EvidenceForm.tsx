@@ -14,7 +14,6 @@ interface EvidenceFormProps {
   evidences?: EvidenceItem[];
   initialTicketInfo?: TicketInfo | null;
   onTicketInfoChange?: (info: TicketInfo) => void;
-  onCancel?: () => void;
 }
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
@@ -26,8 +25,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   onClearTrigger, 
   evidences = [], 
   initialTicketInfo,
-  onTicketInfoChange,
-  onCancel
+  onTicketInfoChange
 }) => {
   const [sprint, setSprint] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -238,21 +236,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             </h2>
             <p className="text-sm text-slate-500 mt-1 ml-12">Preencha as informações do chamado e utilize o assistente de cenários.</p>
           </div>
-
-          {/* CANCEL BUTTON (Visible only when onCancel is passed) */}
-          {onCancel && (
-              <button
-                  type="button"
-                  onClick={onCancel}
-                  className="group flex items-center gap-3 px-5 py-2.5 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-xl text-red-600 font-bold text-sm transition-all shadow-sm hover:shadow active:scale-95 animate-fade-in"
-                  title="Cancelar edição e limpar formulário"
-              >
-                  <div className="bg-white p-0.5 rounded-full text-red-400 group-hover:text-red-600 transition-colors shadow-sm">
-                      <X className="w-4 h-4" />
-                  </div>
-                  CANCELAR
-              </button>
-          )}
         </div>
         
         <div className="p-8 space-y-10">
