@@ -317,7 +317,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                 <main className="w-full">
                      {/* SECTION: TICKET INFORMATION */}
                     {/* Added mt-0 to ensure first element touches the 'ceiling' of the margin */}
-                    <div className="mb-8 space-y-4">
+                    <div className="mb-0 space-y-4">
                         
                         {/* ROW 1: TITLE */}
                         <div className="border-b-2 border-slate-900 pb-4 mb-6">
@@ -384,9 +384,9 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                         </div>
                     </div>
 
-                     {/* EVIDENCES */}
-                     <div className="pt-4 border-t-2 border-slate-900">
-                        <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2">
+                     {/* EVIDENCES - FORCED PAGE BREAK BEFORE */}
+                     <div className="pt-0 mt-0" style={{ pageBreakBefore: 'always', marginTop: 0 }}>
+                        <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2 border-b border-slate-900 pb-2">
                             <ListChecks className="w-5 h-5" /> Detalhamento da Execução
                         </h2>
                         <EvidenceList 
