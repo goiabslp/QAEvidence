@@ -460,7 +460,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                              onClick={handlePasteImage}
                              className="w-full cursor-pointer bg-white border border-slate-200 hover:border-red-300 hover:text-red-600 text-slate-500 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
                          >
-                             <Clipboard className="w-3.5 h-3.5" /> Inserir Print
+                             <Clipboard className="w-3.5 h-3.5" /> Capturar Print
                          </button>
                      </div>
                  </div>
