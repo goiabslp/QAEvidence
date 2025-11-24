@@ -126,4 +126,5 @@ export interface BugReport {
   description: string; // Error Description
   devFeedback: string;
   createdBy: string;
+  attachments?: string[]; // List of base64 images
 }
