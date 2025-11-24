@@ -23,10 +23,13 @@ export enum TicketPriority {
 
 export enum BugStatus {
   PENDING = 'Pendente',
+  OPEN_BUG = 'Abrir BUG',
+  OPEN_IMPROVEMENT = 'Abrir Melhoria',
   IN_ANALYSIS = 'Em análise pelo DEV',
   AWAITING_FIX = 'Aguardando Correção',
   IN_TEST = 'Em teste',
-  BLOCKED = 'Impedimento'
+  BLOCKED = 'Impedimento',
+  DISCARDED = 'Descartado'
 }
 
 export type UserRole = 'ADMIN' | 'USER';

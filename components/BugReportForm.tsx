@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
-import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload, Sparkles, Ban } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
 import ImageEditor from './ImageEditor';
 
@@ -57,6 +56,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   const [attachments, setAttachments] = useState<string[]>([]);
   const [editorImageSrc, setEditorImageSrc] = useState<string | null>(null);
   const [editingAttachmentIndex, setEditingAttachmentIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [date] = useState(getBrazilDateString()); // Read-only for display logic, actual save uses current date
 
@@ -137,16 +139,42 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setEditorImageSrc(e.target.result as string);
-          setEditingAttachmentIndex(null); // Indicates new image
-        }
-      };
-      reader.readAsDataURL(file);
+      processFile(file);
     }
     e.target.value = '';
+  };
+
+  const processFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setEditorImageSrc(e.target.result as string);
+        setEditingAttachmentIndex(null); // Indicates new image
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Drag and Drop Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFile(e.dataTransfer.files[0]);
+    }
   };
 
   const handlePasteImage = async () => {
@@ -278,8 +306,11 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                   onChange={(e) => setStatus(e.target.value as BugStatus)}
                   className={`${inputClass} appearance-none cursor-pointer font-bold focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                     status === BugStatus.PENDING ? 'text-slate-600' :
-                    status === BugStatus.BLOCKED ? 'text-red-600' :
+                    status === BugStatus.OPEN_BUG ? 'text-red-600' :
+                    status === BugStatus.OPEN_IMPROVEMENT ? 'text-purple-600' :
+                    status === BugStatus.BLOCKED ? 'text-red-700' :
                     status === BugStatus.IN_TEST ? 'text-blue-600' :
+                    status === BugStatus.DISCARDED ? 'text-slate-400' :
                     'text-amber-600'
                   }`}
                 >
@@ -442,32 +473,66 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
              </label>
              
              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                 {/* Upload & Paste Button Area */}
-                 <div className="h-40 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-3 p-2 group hover:border-red-400 transition-colors">
-                     <div className="flex flex-col items-center text-slate-400 group-hover:text-red-500 transition-colors">
-                         <ImageIcon className="w-8 h-8 mb-1" />
-                         <span className="text-[10px] font-bold uppercase tracking-wider">Nova Evidência</span>
+                 {/* Modern Upload Tile - REDESIGNED */}
+                 <div 
+                   onClick={() => fileInputRef.current?.click()}
+                   onDragOver={handleDragOver}
+                   onDragLeave={handleDragLeave}
+                   onDrop={handleDrop}
+                   className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-500 group overflow-hidden
+                     ${isDragging 
+                        ? 'border-indigo-500 bg-indigo-50/50 scale-[1.02] shadow-xl shadow-indigo-100' 
+                        : 'border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-white hover:shadow-2xl hover:shadow-indigo-100/50 hover:-translate-y-1'
+                     }`}
+                 >
+                     {/* Background Gradient Animation */}
+                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/40 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+
+                     {/* Main Icon */}
+                     <div className={`relative z-10 p-4 rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:ring-4 group-hover:ring-indigo-50 group-hover:shadow-md ${isDragging ? 'text-indigo-600 scale-110' : 'text-slate-400 group-hover:text-indigo-600'}`}>
+                         {isDragging ? <Upload className="w-8 h-8 animate-bounce" /> : <ImageIcon className="w-8 h-8" />}
                      </div>
                      
-                     <div className="w-full px-2 space-y-2">
-                         <label className="w-full cursor-pointer bg-white border border-slate-200 hover:border-red-300 hover:text-red-600 text-slate-500 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm">
-                             <Upload className="w-3.5 h-3.5" /> Upload
-                             <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                         </label>
-                         
-                         <button 
+                     {/* Button & Text */}
+                     <div className="relative z-10 flex flex-col items-center gap-3">
+                        <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${isDragging ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-400'}`}>
+                            {isDragging ? 'Solte para anexar' : 'Arraste ou clique'}
+                        </span>
+                        
+                        <div className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg shadow-slate-200 group-hover:bg-indigo-600 group-hover:shadow-indigo-200 transition-all duration-300 flex items-center gap-2 transform group-hover:scale-105">
+                            <Plus className="w-4 h-4" />
+                            Inserir Print
+                        </div>
+                     </div>
+
+                     {/* Hidden Input */}
+                     <input 
+                        ref={fileInputRef}
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        className="hidden" 
+                     />
+                     
+                     {/* Paste Shortcut Hint */}
+                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
+                         <button
                              type="button"
-                             onClick={handlePasteImage}
-                             className="w-full cursor-pointer bg-white border border-slate-200 hover:border-red-300 hover:text-red-600 text-slate-500 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+                             onClick={(e) => {
+                                 e.stopPropagation(); 
+                                 handlePasteImage();
+                             }}
+                             className="p-2 rounded-lg bg-white/80 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 backdrop-blur-sm border border-transparent hover:border-indigo-100 shadow-sm"
+                             title="Colar da Área de Transferência"
                          >
-                             <Clipboard className="w-3.5 h-3.5" /> Capturar Print
+                             <Clipboard className="w-4 h-4" />
                          </button>
                      </div>
                  </div>
 
                  {/* Thumbnails */}
                  {attachments.map((src, index) => (
-                     <div key={index} className="relative h-40 bg-slate-100 rounded-xl border border-slate-200 group overflow-hidden shadow-sm">
+                     <div key={index} className="relative h-48 bg-slate-100 rounded-2xl border border-slate-200 group overflow-hidden shadow-sm hover:shadow-md transition-all">
                          <img src={src} alt={`Evidência ${index + 1}`} className="w-full h-full object-cover" />
                          
                          {/* Overlay Actions */}
@@ -498,7 +563,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                              </button>
                          </div>
                          
-                         <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-md pointer-events-none">
+                         <div className="absolute bottom-3 left-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md pointer-events-none backdrop-blur-sm">
                              #{index + 1}
                          </div>
                      </div>
@@ -576,6 +641,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                                      bug.status === BugStatus.BLOCKED ? 'bg-red-50 text-red-700 border-red-100' :
                                      bug.status === BugStatus.IN_TEST ? 'bg-blue-50 text-blue-700 border-blue-100' :
                                      bug.status === BugStatus.IN_ANALYSIS ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                     bug.status === BugStatus.OPEN_BUG ? 'bg-red-50 text-red-700 border-red-100' :
+                                     bug.status === BugStatus.OPEN_IMPROVEMENT ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                     bug.status === BugStatus.DISCARDED ? 'bg-slate-100 text-slate-400 border-slate-200' :
                                      'bg-slate-100 text-slate-600 border-slate-200'
                                  }`}>
                                      {bug.status}
@@ -672,6 +740,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
 const ActivityIcon = ({status}: {status: BugStatus}) => {
    if (status === BugStatus.BLOCKED) return <AlertCircle className="w-3.5 h-3.5 text-red-500" />;
    if (status === BugStatus.IN_TEST) return <Monitor className="w-3.5 h-3.5 text-blue-500" />;
+   if (status === BugStatus.OPEN_BUG) return <Bug className="w-3.5 h-3.5 text-red-600" />;
+   if (status === BugStatus.OPEN_IMPROVEMENT) return <Sparkles className="w-3.5 h-3.5 text-purple-600" />;
+   if (status === BugStatus.DISCARDED) return <Ban className="w-3.5 h-3.5 text-slate-400" />;
    return <AlertCircle className="w-3.5 h-3.5 text-slate-400" />;
 };
 
