@@ -302,7 +302,14 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <div>
                           <label className={labelClass}>Chamado (ID)</label>
-                          <input type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className={ticketInputClass} placeholder="Ex: 58645" />
+                          <input 
+                            type="text" 
+                            inputMode="numeric"
+                            value={ticketId.replace('#', '')} 
+                            onChange={e => setTicketId(e.target.value.replace(/\D/g, ''))} 
+                            className={ticketInputClass} 
+                            placeholder="Ex: 58645" 
+                          />
                       </div>
                       <div>
                         <label className={labelClass}>Prioridade</label>
@@ -354,15 +361,34 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                           <label className={labelClass}>Sprint</label>
-                          <input type="text" value={sprint} onChange={e => setSprint(e.target.value)} className={ticketInputClass} placeholder="Ex: 24" />
+                          <input 
+                            type="text" 
+                            inputMode="numeric"
+                            value={sprint} 
+                            onChange={e => setSprint(e.target.value.replace(/\D/g, ''))} 
+                            className={ticketInputClass} 
+                            placeholder="Ex: 24" 
+                          />
                       </div>
                       <div>
                           <label className={labelClass}>Solicitante</label>
-                          <input type="text" value={requester} onChange={e => setRequester(e.target.value)} className={ticketInputClass} placeholder="Ex: YEB, LVM, EDV, RSR..." />
+                          <input 
+                            type="text" 
+                            value={requester} 
+                            onChange={e => setRequester(e.target.value.toUpperCase())} 
+                            className={ticketInputClass} 
+                            placeholder="Ex: YEB, LVM, EDV, RSR..." 
+                          />
                       </div>
                       <div>
                           <label className={labelClass}>Analista de Teste</label>
-                          <input type="text" value={analyst} onChange={e => setAnalyst(e.target.value)} className={ticketInputClass} placeholder="Analista que Realizou o Teste" />
+                          <input 
+                            type="text" 
+                            value={analyst} 
+                            onChange={e => setAnalyst(e.target.value.toUpperCase())} 
+                            className={ticketInputClass} 
+                            placeholder="Analista que Realizou o Teste" 
+                          />
                       </div>
                     </div>
 
@@ -373,14 +399,20 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         <input 
                         type="text" 
                         value={ticketSummary} 
-                        onChange={e => setTicketSummary(e.target.value)} 
+                        onChange={e => setTicketSummary(e.target.value.toUpperCase())} 
                         className={ticketInputClass} 
                         placeholder="Ex: Erro de Anexo (Máx. 3 palavras)" 
                         />
                     </div>
                     <div>
                         <label className={labelClass}>Cliente / Sistema</label>
-                        <input type="text" value={clientSystem} onChange={e => setClientSystem(e.target.value)} className={ticketInputClass} placeholder="Ex: Veirano, Kincaid, LegalDesk, Protheus..." />
+                        <input 
+                            type="text" 
+                            value={clientSystem} 
+                            onChange={e => setClientSystem(e.target.value.toUpperCase())} 
+                            className={ticketInputClass} 
+                            placeholder="Ex: Veirano, Kincaid, LegalDesk, Protheus..." 
+                        />
                     </div>
                     </div>
 
@@ -454,7 +486,13 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     </div>
                     <div>
                         <label className={labelClass}>Versão do Ambiente</label>
-                        <input type="text" value={environmentVersion} onChange={e => setEnvironmentVersion(e.target.value)} className={ticketInputClass} placeholder="v1.0.0" />
+                        <input 
+                            type="text" 
+                            value={environmentVersion} 
+                            onChange={e => setEnvironmentVersion(e.target.value.toUpperCase())} 
+                            className={ticketInputClass} 
+                            placeholder="v1.0.0" 
+                        />
                     </div>
                     </div>
 
