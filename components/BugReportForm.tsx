@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, UploadCloud, Sparkles, Ban, List, Check } from 'lucide-react';
+import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, UploadCloud, Sparkles, Ban, List, Check, AlertTriangle } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
 import ImageEditor from './ImageEditor';
 
@@ -80,6 +80,10 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   // Custom Select State
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // DELETE MODAL STATES
+  const [imageToDeleteIndex, setImageToDeleteIndex] = useState<number | null>(null);
+  const [bugToDeleteId, setBugToDeleteId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -186,6 +190,8 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     setAttachments([]);
     setEditingAttachmentIndex(null);
     setEditorImageSrc(null);
+    setImageToDeleteIndex(null);
+    setBugToDeleteId(null);
   };
 
   // Environment Tag Handlers
@@ -319,9 +325,26 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       setEditingAttachmentIndex(index);
   };
 
-  const handleRemoveAttachment = (index: number) => {
-      if (window.confirm('Remover esta imagem?')) {
-          setAttachments(attachments.filter((_, i) => i !== index));
+  const handleRequestRemoveAttachment = (index: number) => {
+      setImageToDeleteIndex(index);
+  };
+
+  const confirmRemoveAttachment = () => {
+      if (imageToDeleteIndex !== null) {
+          setAttachments(attachments.filter((_, i) => i !== imageToDeleteIndex));
+          setImageToDeleteIndex(null);
+      }
+  };
+
+  const handleRequestDeleteBug = (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setBugToDeleteId(id);
+  };
+
+  const confirmDeleteBug = () => {
+      if (bugToDeleteId && onDelete) {
+          onDelete(bugToDeleteId);
+          setBugToDeleteId(null);
       }
   };
 
@@ -345,6 +368,82 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
             onSave={handleEditorSave}
             onCancel={handleEditorCancel}
         />
+    )}
+
+    {/* DELETE IMAGE MODAL */}
+    {imageToDeleteIndex !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
+            <div 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setImageToDeleteIndex(null)}
+            ></div>
+            
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 transform transition-all scale-100 border border-slate-100 animate-slide-down">
+               <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 mb-5 border border-red-200 shadow-sm">
+                   <Trash2 className="h-7 w-7 text-red-600" />
+               </div>
+               
+               <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Excluir Imagem</h3>
+               <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed">
+                   Deseja realmente excluir esta imagem? <br/>Esta ação não pode ser desfeita.
+               </p>
+
+               <div className="flex gap-3 w-full">
+                 <button 
+                   type="button"
+                   onClick={() => setImageToDeleteIndex(null)}
+                   className="flex-1 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+                 >
+                   Cancelar
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={confirmRemoveAttachment}
+                   className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all transform active:scale-95"
+                 >
+                   Excluir
+                 </button>
+               </div>
+            </div>
+        </div>
+    )}
+
+    {/* DELETE BUG MODAL */}
+    {bugToDeleteId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
+            <div 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+              onClick={() => setBugToDeleteId(null)}
+            ></div>
+            
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all scale-100 border border-slate-100 animate-slide-down">
+               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-50 mb-5 border border-red-100 shadow-inner">
+                   <AlertTriangle className="h-8 w-8 text-red-500" />
+               </div>
+               
+               <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Confirmar exclusão</h3>
+               <p className="text-sm text-slate-500 text-center mb-8 leading-relaxed max-w-xs mx-auto">
+                   Esta ação removerá permanentemente o registro do BUG. Deseja continuar?
+               </p>
+
+               <div className="flex gap-3 w-full">
+                 <button 
+                   type="button"
+                   onClick={() => setBugToDeleteId(null)}
+                   className="flex-1 px-4 py-3 bg-white border border-slate-300 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-colors"
+                 >
+                   Cancelar
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={confirmDeleteBug}
+                   className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-all transform active:scale-95"
+                 >
+                   Excluir
+                 </button>
+               </div>
+            </div>
+        </div>
     )}
 
     <div className="space-y-12 animate-fade-in">
@@ -786,16 +885,12 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                              </button>
                              <button 
                                  type="button" 
-                                 onClick={() => handleRemoveAttachment(index)}
+                                 onClick={() => handleRequestRemoveAttachment(index)}
                                  className="p-2 bg-white/20 hover:bg-white text-white hover:text-red-600 rounded-lg transition-colors"
                                  title="Remover"
                              >
                                  <Trash2 className="w-4 h-4" />
                              </button>
-                         </div>
-                         
-                         <div className="absolute bottom-3 left-3 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-md pointer-events-none backdrop-blur-sm">
-                             #{index + 1}
                          </div>
                      </div>
                  ))}
@@ -963,7 +1058,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                                  </button>
                                  {onDelete && (
                                      <button 
-                                         onClick={(e) => { e.stopPropagation(); onDelete(bug.id); }}
+                                         onClick={(e) => handleRequestDeleteBug(bug.id, e)}
                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                          title="Excluir"
                                      >
