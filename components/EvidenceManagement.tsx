@@ -348,16 +348,18 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
 
                                         {/* Actions - Stop Propagation to prevent row click */}
                                         <div className="flex-shrink-0 w-full md:w-auto flex items-center gap-2">
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onDeleteTicket(ticket);
-                                                }}
-                                                className="w-10 h-10 md:w-auto md:h-auto md:px-3 md:py-2.5 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition-all shadow-sm group/btn"
-                                                title="Excluir Chamado"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            {isOwner && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDeleteTicket(ticket);
+                                                    }}
+                                                    className="w-10 h-10 md:w-auto md:h-auto md:px-3 md:py-2.5 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition-all shadow-sm group/btn"
+                                                    title="Excluir Chamado"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
 
                                             <button 
                                                 onClick={(e) => {
