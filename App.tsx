@@ -85,6 +85,7 @@ const App: React.FC = () => {
     } else {
       // Seed default admins requested
       const defaultAdmins: User[] = [
+        { id: 'admin-adm', acronym: 'ADM', name: 'Administrador', password: 'ADM', role: 'ADMIN', isActive: true },
         { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN', isActive: true },
         { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN', isActive: true },
         { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN', isActive: true },
