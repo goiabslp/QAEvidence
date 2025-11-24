@@ -1,1 +1,26 @@
-��
+-- =============================================================================
+-- SCRIPT DE CARGA INICIAL - USUÁRIOS ADMINISTRADORES
+-- DATA: 2024
+-- =============================================================================
+
+DELETE FROM TB_USERS;
+
+INSERT INTO TB_USERS (ID_USER, ACRONYM, NAME, PASSWORD, ROLE, IS_ACTIVE) 
+VALUES (SYS_GUID(), 'VTP', 'Valeria', 'VTP', 'ADMIN', 1);
+
+INSERT INTO TB_USERS (ID_USER, ACRONYM, NAME, PASSWORD, ROLE, IS_ACTIVE) 
+VALUES (SYS_GUID(), 'GAF', 'Guilherme', 'GAF', 'ADMIN', 1);
+
+INSERT INTO TB_USERS (ID_USER, ACRONYM, NAME, PASSWORD, ROLE, IS_ACTIVE) 
+VALUES (SYS_GUID(), 'KPS', 'Karina', 'KPS', 'ADMIN', 1);
+
+INSERT INTO TB_USERS (ID_USER, ACRONYM, NAME, PASSWORD, ROLE, IS_ACTIVE) 
+VALUES (SYS_GUID(), 'RFP', 'Renan', 'RFP', 'ADMIN', 1);
+
+INSERT INTO TB_USERS (ID_USER, ACRONYM, NAME, PASSWORD, ROLE, IS_ACTIVE) 
+VALUES (SYS_GUID(), 'EDS', 'Everton', 'EDS', 'ADMIN', 1);
+
+INSERT INTO TB_USERS (ID_USER, ACRONYM, NAME, PASSWORD, ROLE, IS_ACTIVE) 
+VALUES (SYS_GUID(), 'YEB', 'Ygor', 'YEB', 'ADMIN', 1);
+
+COMMIT;
