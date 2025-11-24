@@ -80,11 +80,24 @@ const App: React.FC = () => {
   useEffect(() => {
     // Load Users
     const storedUsers = localStorage.getItem('narnia_users');
+    
+    // Define the system administrator
+    const sysAdmin: User = { id: 'admin-adm', acronym: 'ADM', name: 'Administrador', password: 'ADM', role: 'ADMIN', isActive: true };
+
     if (storedUsers) {
-      setUsers(JSON.parse(storedUsers));
+      let loadedUsers: User[] = JSON.parse(storedUsers);
+      
+      // Ensure ADM exists in existing data (inject if missing)
+      if (!loadedUsers.some(u => u.acronym === 'ADM')) {
+         loadedUsers = [sysAdmin, ...loadedUsers];
+         localStorage.setItem('narnia_users', JSON.stringify(loadedUsers));
+      }
+      
+      setUsers(loadedUsers);
     } else {
       // Seed default admins requested
       const defaultAdmins: User[] = [
+        sysAdmin,
         { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN', isActive: true },
         { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN', isActive: true },
         { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN', isActive: true },
