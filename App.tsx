@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -7,9 +8,10 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
+import BugReportForm from './components/BugReportForm';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from './constants';
-import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History } from 'lucide-react';
+import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
 
 declare const html2pdf: any;
 
@@ -43,6 +45,9 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminTab, setAdminTab] = useState<'users' | 'evidences' | 'dashboard'>('users');
+
+  // --- MODULE STATE ---
+  const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS'>('TICKET');
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -559,6 +564,7 @@ const App: React.FC = () => {
     setWizardTrigger(null);
     setPdfError(null);
     setShowAdminPanel(false); // Close admin panel if opening a ticket
+    setActiveModule('TICKET'); // Ensure we switch back to Ticket mode
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -650,7 +656,35 @@ const App: React.FC = () => {
         
         {/* User Management Panel Toggle */}
         {currentUser && (
-            <div className="mb-8 flex justify-end">
+            <div className="mb-8 flex justify-between items-center">
+                {/* MODULE SWITCHER - ONLY VISIBLE IF NOT ADMIN PANEL */}
+                {!showAdminPanel ? (
+                   <div className="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 inline-flex">
+                      <button 
+                         onClick={() => setActiveModule('TICKET')}
+                         className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                            activeModule === 'TICKET' 
+                            ? 'bg-indigo-600 text-white shadow-md' 
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                         }`}
+                      >
+                         <FileText className="w-4 h-4" />
+                         Tela de Chamado
+                      </button>
+                      <button 
+                         onClick={() => setActiveModule('BUGS')}
+                         className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                            activeModule === 'BUGS' 
+                            ? 'bg-red-600 text-white shadow-md' 
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                         }`}
+                      >
+                         <Bug className="w-4 h-4" />
+                         Registro de BUGs
+                      </button>
+                   </div>
+                ) : <div></div>}
+
                 <button 
                     onClick={() => {
                         if (!showAdminPanel && currentUser.role === 'ADMIN') {
@@ -747,99 +781,111 @@ const App: React.FC = () => {
         ) : (
             // Main workspace when admin panel is NOT shown
             <>
-                <EvidenceForm
-                    key={formKey}
-                    onSubmit={handleAddEvidence}
-                    onWizardSave={handleWizardSave}
-                    wizardTrigger={wizardTrigger}
-                    onClearTrigger={() => setWizardTrigger(null)}
-                    evidences={evidences}
-                    initialTicketInfo={editingTicketInfo}
-                    onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
-                    onCancel={editingHistoryId ? handleCancelEdit : undefined}
-                />
-                
-                {/* List Header (Title Only) */}
-                <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 mb-6 border-b border-slate-200 pb-4">
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <ListChecks className="w-5 h-5 text-indigo-600" />
-                            Evidências Registradas
-                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">
-                                {evidences.length}
-                            </span>
-                        </h3>
-                        {editingHistoryId && (
-                            <div className="mt-2 inline-flex items-center gap-2 animate-fade-in">
-                               <span className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-lg border border-amber-200 flex items-center gap-1.5 shadow-sm">
-                                  <Archive className="w-3.5 h-3.5" /> 
-                                  MODO DE EDIÇÃO: HISTÓRICO
-                               </span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <EvidenceList 
-                    evidences={evidences}
-                    onDelete={handleDeleteEvidence}
-                    onDeleteScenario={handleDeleteScenario}
-                    onAddCase={handleAddCase}
-                    onEditCase={handleEditCase}
-                />
-
-                {/* FINAL ACTIONS - COMPACT & VIVID */}
-                <div className={`mb-32 ${!(evidences.length > 0 || editingHistoryId) ? 'mt-16' : 'mt-12'}`}>
-                   <div className="flex flex-col items-center justify-center">
-                        <div className="flex flex-wrap gap-4 justify-center">
-                            {/* Save Button */}
-                            <button
-                                onClick={handleSaveAndClose}
-                                disabled={false}
-                                className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-200/40 transition-all hover:shadow-emerald-300/60 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
-                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
-                                     <Save className="w-5 h-5" />
-                                     Salvar
-                                </div>
-                            </button>
-
-                            {/* PDF Button */}
-                            <button
-                                onClick={handlePdfFlow}
-                                disabled={isGeneratingPdf}
-                                className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-200/40 transition-all hover:shadow-blue-300/60 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 ${isPdfLocked ? 'cursor-not-allowed opacity-90' : ''}`}
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
-                                <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
-                                     {isGeneratingPdf ? (
-                                        <Loader2 className="w-5 h-5 animate-spin" /> 
-                                     ) : isPdfLocked ? (
-                                        <div className="relative w-5 h-5 flex items-center justify-center">
-                                            <FileDown className="w-5 h-5 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-75" />
-                                            <Lock className="w-5 h-5 absolute transition-all duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-100" />
-                                        </div>
-                                     ) : (
-                                        <FileDown className="w-5 h-5" />
-                                     )}
-                                     Gerar PDF
-                                </div>
-                            </button>
-                        </div>
+               {activeModule === 'TICKET' ? (
+                   <>
+                        <EvidenceForm
+                            key={formKey}
+                            onSubmit={handleAddEvidence}
+                            onWizardSave={handleWizardSave}
+                            wizardTrigger={wizardTrigger}
+                            onClearTrigger={() => setWizardTrigger(null)}
+                            evidences={evidences}
+                            initialTicketInfo={editingTicketInfo}
+                            onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
+                            onCancel={editingHistoryId ? handleCancelEdit : undefined}
+                        />
                         
-                        {pdfError && (
-                            <div className="mt-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-red-100 animate-pulse max-w-lg text-center shadow-sm">
-                                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                {pdfError}
+                        {/* List Header (Title Only) */}
+                        <div className="flex flex-col sm:flex-row justify-between items-end sm:items-center gap-4 mb-6 border-b border-slate-200 pb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <ListChecks className="w-5 h-5 text-indigo-600" />
+                                    Evidências Registradas
+                                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                                        {evidences.length}
+                                    </span>
+                                </h3>
+                                {editingHistoryId && (
+                                    <div className="mt-2 inline-flex items-center gap-2 animate-fade-in">
+                                    <span className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-lg border border-amber-200 flex items-center gap-1.5 shadow-sm">
+                                        <Archive className="w-3.5 h-3.5" /> 
+                                        MODO DE EDIÇÃO: HISTÓRICO
+                                    </span>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                   </div>
-                </div>
+                        </div>
+
+                        <EvidenceList 
+                            evidences={evidences}
+                            onDelete={handleDeleteEvidence}
+                            onDeleteScenario={handleDeleteScenario}
+                            onAddCase={handleAddCase}
+                            onEditCase={handleEditCase}
+                        />
+
+                        {/* FINAL ACTIONS - COMPACT & VIVID */}
+                        <div className={`mb-32 ${!(evidences.length > 0 || editingHistoryId) ? 'mt-16' : 'mt-12'}`}>
+                            <div className="flex flex-col items-center justify-center">
+                                <div className="flex flex-wrap gap-4 justify-center">
+                                    {/* Save Button */}
+                                    <button
+                                        onClick={handleSaveAndClose}
+                                        disabled={false}
+                                        className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-200/40 transition-all hover:shadow-emerald-300/60 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                                        <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
+                                            <Save className="w-5 h-5" />
+                                            Salvar
+                                        </div>
+                                    </button>
+
+                                    {/* PDF Button */}
+                                    <button
+                                        onClick={handlePdfFlow}
+                                        disabled={isGeneratingPdf}
+                                        className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-200/40 transition-all hover:shadow-blue-300/60 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 ${isPdfLocked ? 'cursor-not-allowed opacity-90' : ''}`}
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                                        <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
+                                            {isGeneratingPdf ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" /> 
+                                            ) : isPdfLocked ? (
+                                                <div className="relative w-5 h-5 flex items-center justify-center">
+                                                    <FileDown className="w-5 h-5 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-75" />
+                                                    <Lock className="w-5 h-5 absolute transition-all duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-100" />
+                                                </div>
+                                            ) : (
+                                                <FileDown className="w-5 h-5" />
+                                            )}
+                                            Gerar PDF
+                                        </div>
+                                    </button>
+                                </div>
+                                
+                                {pdfError && (
+                                    <div className="mt-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-red-100 animate-pulse max-w-lg text-center shadow-sm">
+                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                        {pdfError}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                   </>
+               ) : (
+                   <BugReportForm 
+                       userAcronym={currentUser.acronym} 
+                       onSave={(bug) => {
+                           // Future: Add bug to a list or state
+                           // console.log("Bug saved in parent:", bug);
+                       }}
+                   />
+               )}
              </>
         )}
 
-        {!showAdminPanel && displayedHistory.length > 0 && (
+        {!showAdminPanel && activeModule === 'TICKET' && displayedHistory.length > 0 && (
              <div className="mt-16 pt-10 border-t border-slate-200 animate-fade-in">
                  <div 
                     onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}

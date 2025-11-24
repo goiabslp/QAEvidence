@@ -21,6 +21,14 @@ export enum TicketPriority {
   HIGH = 'HIGH'
 }
 
+export enum BugStatus {
+  PENDING = 'Pendente',
+  IN_ANALYSIS = 'Em análise pelo DEV',
+  AWAITING_FIX = 'Aguardando Correção',
+  IN_TEST = 'Em teste',
+  BLOCKED = 'Impedimento'
+}
+
 export type UserRole = 'ADMIN' | 'USER';
 
 export interface User {
@@ -98,4 +106,17 @@ export interface AIAnalysisResult {
   description: string;
   suggestedSeverity: Severity;
   potentialBugs: string[];
+}
+
+export interface BugReport {
+  id: string;
+  summary: string;
+  status: BugStatus;
+  screen: string;
+  environment: string;
+  date: string; // Local Brazil Date
+  dev: string;
+  description: string;
+  devFeedback: string;
+  createdBy: string;
 }
