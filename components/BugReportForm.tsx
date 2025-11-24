@@ -38,6 +38,8 @@ const STATUS_COLORS = {
   [BugStatus.DISCARDED]: 'bg-gray-100 text-gray-500 border-gray-200'
 };
 
+const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'Sisjuri'];
+
 const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, userName, bugs = [], onDelete }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -47,7 +49,14 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   
   const [screen, setScreen] = useState('');
   const [module, setModule] = useState('');
-  const [environment, setEnvironment] = useState('');
+  
+  // Environment State (Tags)
+  const [selectedEnvs, setSelectedEnvs] = useState<string[]>([]);
+  const [envInputValue, setEnvInputValue] = useState('');
+  const [isEnvListOpen, setIsEnvListOpen] = useState(false);
+  const envDropdownRef = useRef<HTMLDivElement>(null);
+  const envInputRef = useRef<HTMLInputElement>(null);
+
   const [dev, setDev] = useState('');
   
   // Analyst auto-filled
@@ -84,6 +93,14 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
         setIsStatusOpen(false);
       }
+      if (
+        envDropdownRef.current && 
+        !envDropdownRef.current.contains(event.target as Node) &&
+        envInputRef.current &&
+        !envInputRef.current.contains(event.target as Node)
+      ) {
+        setIsEnvListOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -103,7 +120,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       priority,
       screen,
       module,
-      environment,
+      environment: selectedEnvs.join(', '), // Join tags to string for storage
       date: editingId ? date : getBrazilDateString(), // Keep original date on edit, or new date on create
       analyst: analystName,
       dev,
@@ -132,7 +149,14 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       setPriority(bug.priority);
       setScreen(bug.screen);
       setModule(bug.module);
-      setEnvironment(bug.environment);
+      
+      // Parse environment string back to array
+      if (bug.environment) {
+        setSelectedEnvs(bug.environment.split(', ').filter(Boolean));
+      } else {
+        setSelectedEnvs([]);
+      }
+
       setDev(bug.dev);
       setPreRequisites(bug.preRequisites || []);
       setDescription(bug.description);
@@ -150,7 +174,8 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     setPriority('Média');
     setScreen('');
     setModule('');
-    setEnvironment('');
+    setSelectedEnvs([]);
+    setEnvInputValue('');
     setDev('');
     setPreRequisites([]);
     setPreReqInput('');
@@ -161,6 +186,29 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     setAttachments([]);
     setEditingAttachmentIndex(null);
     setEditorImageSrc(null);
+  };
+
+  // Environment Tag Handlers
+  const handleAddEnv = (env: string) => {
+    const trimmedEnv = env.trim();
+    if (trimmedEnv && !selectedEnvs.includes(trimmedEnv)) {
+      setSelectedEnvs([...selectedEnvs, trimmedEnv]);
+    }
+    setEnvInputValue('');
+    setIsEnvListOpen(false);
+  };
+
+  const handleRemoveEnv = (envToRemove: string) => {
+    setSelectedEnvs(selectedEnvs.filter(env => env !== envToRemove));
+  };
+
+  const handleEnvKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddEnv(envInputValue);
+    } else if (e.key === 'Backspace' && !envInputValue && selectedEnvs.length > 0) {
+      handleRemoveEnv(selectedEnvs[selectedEnvs.length - 1]);
+    }
   };
 
   // Pre-requisites Handlers
@@ -338,7 +386,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               className={`${inputClass} font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-              placeholder="Ex: Botão de Salvar não responde na tela de Login"
+              placeholder="Ex: Botão de atualizar a tela não funciona"
               autoFocus={!!editingId}
             />
           </div>
@@ -437,9 +485,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               <input 
                 type="text" 
                 value={screen}
-                onChange={(e) => setScreen(e.target.value)}
+                onChange={(e) => setScreen(e.target.value.toUpperCase())}
                 className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-                placeholder="Ex: Cadastro de Clientes"
+                placeholder="Ex: PRESTAÇÃO DE CONTAS"
               />
            </div>
            <div>
@@ -449,22 +497,80 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               <input 
                 type="text" 
                 value={module}
-                onChange={(e) => setModule(e.target.value)}
+                onChange={(e) => setModule(e.target.value.toUpperCase())}
                 className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-                placeholder="Ex: Financeiro"
+                placeholder="Ex: CONTROLE ORÇAMENTÁRIO"
               />
            </div>
-           <div>
+           
+           {/* ENVIRONMENT (Tags) */}
+           <div className="relative z-20">
               <label className={labelClass}>
                 <Server className="w-3.5 h-3.5 text-slate-400" /> Ambiente
               </label>
-              <input 
-                type="text" 
-                value={environment}
-                onChange={(e) => setEnvironment(e.target.value)}
-                className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-                placeholder="Ex: Homologação v2"
-              />
+              <div 
+                className="w-full min-h-[46px] rounded-lg border border-slate-300 bg-white flex flex-wrap items-center gap-2 px-3 py-2 focus-within:ring-2 focus-within:ring-red-500 focus-within:border-red-500 transition-all shadow-sm hover:border-red-300"
+                onClick={() => {
+                    envInputRef.current?.focus();
+                    setIsEnvListOpen(true);
+                }}
+              >
+                  {selectedEnvs.map(env => (
+                      <span key={env} className="bg-red-50 text-red-700 border border-red-100 text-xs font-medium rounded-md px-2 py-0.5 flex items-center gap-1 animate-fade-in">
+                          {env}
+                          <button 
+                              type="button" 
+                              onClick={(e) => { e.stopPropagation(); handleRemoveEnv(env); }} 
+                              className="hover:bg-red-200 rounded-full p-0.5 transition-colors"
+                          >
+                              <X className="w-3 h-3" />
+                          </button>
+                      </span>
+                  ))}
+                  <div className="flex-1 flex items-center min-w-[100px]">
+                      <input
+                          ref={envInputRef}
+                          type="text"
+                          value={envInputValue}
+                          onChange={(e) => setEnvInputValue(e.target.value)}
+                          onKeyDown={handleEnvKeyDown}
+                          onFocus={() => setIsEnvListOpen(true)}
+                          className="bg-transparent border-none text-slate-700 text-sm placeholder-slate-400 focus:ring-0 w-full p-0.5"
+                          placeholder={selectedEnvs.length === 0 ? "Selecione uma Opção..." : ""}
+                      />
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isEnvListOpen ? 'rotate-180' : ''}`} />
+                  </div>
+              </div>
+
+              {isEnvListOpen && (
+                  <div ref={envDropdownRef} className="absolute top-full left-0 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto z-30">
+                      <div className="p-1">
+                          {PREDEFINED_ENVS.filter(env => !selectedEnvs.includes(env) && env.toLowerCase().includes(envInputValue.toLowerCase())).map(env => (
+                              <button
+                                  key={env}
+                                  type="button"
+                                  onClick={() => handleAddEnv(env)}
+                                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-red-50 hover:text-red-700 rounded-md transition-colors flex items-center justify-between group"
+                              >
+                                  {env}
+                                  <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 text-red-400" />
+                              </button>
+                          ))}
+                          {envInputValue && !selectedEnvs.includes(envInputValue) && !PREDEFINED_ENVS.includes(envInputValue) && (
+                              <button
+                                  type="button"
+                                  onClick={() => handleAddEnv(envInputValue)}
+                                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors border-t border-slate-100 mt-1 font-medium"
+                              >
+                                  Adicionar "{envInputValue}"
+                              </button>
+                          )}
+                          {PREDEFINED_ENVS.filter(env => !selectedEnvs.includes(env)).length === 0 && !envInputValue && (
+                              <div className="px-3 py-2 text-xs text-slate-400 text-center">Todos selecionados</div>
+                          )}
+                      </div>
+                  </div>
+              )}
            </div>
         </div>
         
@@ -488,9 +594,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               <input 
                 type="text" 
                 value={dev}
-                onChange={(e) => setDev(e.target.value)}
+                onChange={(e) => setDev(e.target.value.toUpperCase())}
                 className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-                placeholder="Nome do Desenvolvedor"
+                placeholder="Nome do Desenvolvedor Responsável"
               />
            </div>
         </div>
@@ -536,7 +642,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 onChange={(e) => setPreReqInput(e.target.value)}
                 onKeyDown={handlePreReqKeyDown}
                 className={`${inputClass} py-2.5`}
-                placeholder="Ex: Usuário logado, Perfil Administrador..."
+                placeholder="Ex: Preferência, Dicionários de Dados..."
               />
               <button 
                 type="button" 
@@ -592,7 +698,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                  value={devFeedback}
                  onChange={(e) => setDevFeedback(e.target.value)}
                  className={`${inputClass} resize-none h-full bg-blue-50/30 border-blue-200 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300`}
-                 placeholder="Espaço reservado para o retorno técnico..."
+                 placeholder="Retorno Técnico do DEV"
               />
            </div>
         </div>
