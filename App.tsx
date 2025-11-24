@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -1362,6 +1360,8 @@ const App: React.FC = () => {
          </div>
       </div>
       
+    </main>
+    <Footer />
     </div>
   );
 };
