@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
@@ -25,6 +24,12 @@ const PRIORITY_STYLES = {
   'Alta': 'bg-red-100 text-red-800 border-red-200',
   'Média': 'bg-amber-100 text-amber-800 border-amber-200',
   'Baixa': 'bg-blue-100 text-blue-800 border-blue-200'
+};
+
+const PRIORITY_SELECT_STYLES = {
+    'Alta': 'text-red-700 bg-red-50 border-red-200 focus:ring-red-500 focus:border-red-500',
+    'Média': 'text-amber-700 bg-amber-50 border-amber-200 focus:ring-amber-500 focus:border-amber-500',
+    'Baixa': 'text-blue-700 bg-blue-50 border-blue-200 focus:ring-blue-500 focus:border-blue-500'
 };
 
 const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, userName, bugs = [], onDelete }) => {
@@ -118,7 +123,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   };
 
   // Modern Styling
-  const inputClass = "w-full rounded-lg border border-slate-300 bg-white text-slate-700 px-3 py-3 text-sm placeholder-slate-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none shadow-sm hover:border-red-300";
+  const inputClass = "w-full rounded-lg border border-slate-300 bg-white text-slate-700 px-3 py-3 text-sm placeholder-slate-400 transition-all outline-none shadow-sm";
   const labelClass = "block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider ml-1 flex items-center gap-1.5";
 
   return (
@@ -160,9 +165,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               type="text" 
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              className={`${inputClass} font-medium`}
+              className={`${inputClass} font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
               placeholder="Ex: Botão de Salvar não responde na tela de Login"
-              autoFocus
+              autoFocus={!!editingId}
             />
           </div>
           <div className="md:col-span-3">
@@ -173,7 +178,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as BugStatus)}
-                  className={`${inputClass} appearance-none cursor-pointer font-bold ${
+                  className={`${inputClass} appearance-none cursor-pointer font-bold focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
                     status === BugStatus.PENDING ? 'text-slate-600' :
                     status === BugStatus.BLOCKED ? 'text-red-600' :
                     status === BugStatus.IN_TEST ? 'text-blue-600' :
@@ -195,13 +200,13 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as BugPriority)}
-                  className={`${inputClass} appearance-none cursor-pointer font-bold`}
+                  className={`${inputClass} appearance-none cursor-pointer font-bold border-2 focus:ring-2 ${PRIORITY_SELECT_STYLES[priority]}`}
                 >
                   <option value="Alta">Alta</option>
                   <option value="Média">Média</option>
                   <option value="Baixa">Baixa</option>
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-50`} />
              </div>
           </div>
         </div>
@@ -216,7 +221,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 type="text" 
                 value={screen}
                 onChange={(e) => setScreen(e.target.value)}
-                className={inputClass}
+                className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
                 placeholder="Ex: Cadastro de Clientes"
               />
            </div>
@@ -228,7 +233,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 type="text" 
                 value={module}
                 onChange={(e) => setModule(e.target.value)}
-                className={inputClass}
+                className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
                 placeholder="Ex: Financeiro"
               />
            </div>
@@ -240,7 +245,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 type="text" 
                 value={environment}
                 onChange={(e) => setEnvironment(e.target.value)}
-                className={inputClass}
+                className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
                 placeholder="Ex: Homologação v2"
               />
            </div>
@@ -267,7 +272,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                 type="text" 
                 value={dev}
                 onChange={(e) => setDev(e.target.value)}
-                className={inputClass}
+                className={`${inputClass} focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
                 placeholder="Nome do Desenvolvedor"
               />
            </div>
@@ -283,7 +288,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                    rows={3}
                    value={scenarioDescription}
                    onChange={(e) => setScenarioDescription(e.target.value)}
-                   className={`${inputClass} resize-none`}
+                   className={`${inputClass} resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
                    placeholder="Contexto do teste realizado..."
                 />
              </div>
@@ -295,7 +300,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                    rows={3}
                    value={expectedResult}
                    onChange={(e) => setExpectedResult(e.target.value)}
-                   className={`${inputClass} resize-none`}
+                   className={`${inputClass} resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
                    placeholder="O que deveria ter acontecido..."
                 />
              </div>
@@ -313,7 +318,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                  rows={6}
                  value={description}
                  onChange={(e) => setDescription(e.target.value)}
-                 className={`${inputClass} resize-none h-full bg-red-50/20`}
+                 className={`${inputClass} resize-none h-full bg-red-50/20 focus:ring-2 focus:ring-red-500 focus:border-red-500`}
                  placeholder="Descreva o passo a passo para reproduzir o erro, comportamento atual..."
               />
            </div>
@@ -380,7 +385,11 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
          ) : (
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                  {bugs.map((bug) => (
-                     <div key={bug.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group overflow-hidden">
+                     <div 
+                         key={bug.id} 
+                         onClick={() => handleEdit(bug)}
+                         className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group overflow-hidden cursor-pointer"
+                     >
                          {/* Card Header */}
                          <div className="p-5 border-b border-slate-50 bg-slate-50/30">
                              <div className="flex justify-between items-start mb-3">
@@ -444,7 +453,14 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                              
                              <div className="flex items-center gap-1">
                                  <button 
-                                     onClick={() => handleEdit(bug)}
+                                     onClick={(e) => { e.stopPropagation(); handleEdit(bug); }}
+                                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                     title="Visualizar"
+                                 >
+                                     <Eye className="w-4 h-4" />
+                                 </button>
+                                 <button 
+                                     onClick={(e) => { e.stopPropagation(); handleEdit(bug); }}
                                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                      title="Editar"
                                  >
@@ -452,7 +468,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                                  </button>
                                  {onDelete && (
                                      <button 
-                                         onClick={() => onDelete(bug.id)}
+                                         onClick={(e) => { e.stopPropagation(); onDelete(bug.id); }}
                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                          title="Excluir"
                                      >
