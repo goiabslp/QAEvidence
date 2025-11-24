@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload, UploadCloud, Sparkles, Ban, List } from 'lucide-react';
+import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, UploadCloud, Sparkles, Ban, List, Check } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
 import ImageEditor from './ImageEditor';
 
@@ -27,10 +27,15 @@ const PRIORITY_STYLES = {
   'Baixa': 'bg-blue-100 text-blue-800 border-blue-200'
 };
 
-const PRIORITY_SELECT_STYLES = {
-    'Alta': 'text-red-700 bg-red-50 border-red-200 focus:ring-red-500 focus:border-red-500',
-    'Média': 'text-amber-700 bg-amber-50 border-amber-200 focus:ring-amber-500 focus:border-amber-500',
-    'Baixa': 'text-blue-700 bg-blue-50 border-blue-200 focus:ring-blue-500 focus:border-blue-500'
+const STATUS_COLORS = {
+  [BugStatus.PENDING]: 'bg-slate-100 text-slate-600 border-slate-200',
+  [BugStatus.OPEN_BUG]: 'bg-red-100 text-red-700 border-red-200',
+  [BugStatus.OPEN_IMPROVEMENT]: 'bg-purple-100 text-purple-700 border-purple-200',
+  [BugStatus.IN_ANALYSIS]: 'bg-amber-100 text-amber-700 border-amber-200',
+  [BugStatus.AWAITING_FIX]: 'bg-orange-100 text-orange-700 border-orange-200',
+  [BugStatus.IN_TEST]: 'bg-blue-100 text-blue-700 border-blue-200',
+  [BugStatus.BLOCKED]: 'bg-rose-100 text-rose-800 border-rose-200',
+  [BugStatus.DISCARDED]: 'bg-gray-100 text-gray-500 border-gray-200'
 };
 
 const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, userName, bugs = [], onDelete }) => {
@@ -63,12 +68,26 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   const [editingAttachmentIndex, setEditingAttachmentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   
+  // Custom Select State
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [date] = useState(getBrazilDateString()); // Read-only for display logic, actual save uses current date
 
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -323,46 +342,88 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               autoFocus={!!editingId}
             />
           </div>
+          
+          {/* Custom Status Select */}
           <div className="md:col-span-3">
              <label className={labelClass}>
                <ActivityIcon status={status} /> Status
              </label>
-             <div className="relative">
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as BugStatus)}
-                  className={`${inputClass} appearance-none cursor-pointer font-bold focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300 ${
-                    status === BugStatus.PENDING ? 'text-slate-600' :
-                    status === BugStatus.OPEN_BUG ? 'text-red-600' :
-                    status === BugStatus.OPEN_IMPROVEMENT ? 'text-purple-600' :
-                    status === BugStatus.BLOCKED ? 'text-red-700' :
-                    status === BugStatus.IN_TEST ? 'text-blue-600' :
-                    status === BugStatus.DISCARDED ? 'text-slate-400' :
-                    'text-amber-600'
-                  }`}
+             <div className="relative" ref={statusDropdownRef}>
+                <button
+                   type="button"
+                   onClick={() => setIsStatusOpen(!isStatusOpen)}
+                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border-2 text-sm font-bold transition-all shadow-sm ${STATUS_COLORS[status]} hover:opacity-90 active:scale-[0.99]`}
                 >
-                  {Object.values(BugStatus).map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <span className="flex items-center gap-2 truncate">
+                        <ActivityIcon status={status} />
+                        {status}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isStatusOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isStatusOpen && (
+                   <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden animate-slide-down max-h-72 overflow-y-auto">
+                      <div className="p-1.5 space-y-1">
+                          {Object.values(BugStatus).map((s) => (
+                             <button
+                                key={s}
+                                type="button"
+                                onClick={() => {
+                                   setStatus(s);
+                                   setIsStatusOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+                                    status === s ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                }`}
+                             >
+                                <span className="flex items-center gap-2">
+                                   <ActivityIcon status={s} />
+                                   {s}
+                                </span>
+                                {status === s && <Check className="w-4 h-4 text-indigo-600" />}
+                             </button>
+                          ))}
+                      </div>
+                   </div>
+                )}
              </div>
           </div>
+
+          {/* Custom Priority Select (Segmented Control) */}
           <div className="md:col-span-3">
              <label className={labelClass}>
                Prioridade
              </label>
-             <div className="relative">
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value as BugPriority)}
-                  className={`${inputClass} appearance-none cursor-pointer font-bold border-2 focus:ring-2 ${PRIORITY_SELECT_STYLES[priority]}`}
-                >
-                  <option value="Alta">Alta</option>
-                  <option value="Média">Média</option>
-                  <option value="Baixa">Baixa</option>
-                </select>
-                <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none opacity-50`} />
+             <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                {(['Baixa', 'Média', 'Alta'] as BugPriority[]).map((p) => {
+                    const isActive = priority === p;
+                    let activeClass = '';
+                    let icon = <ArrowRight className="w-3 h-3" />;
+                    
+                    if (p === 'Alta') {
+                        activeClass = 'bg-white text-red-600 shadow-sm ring-1 ring-red-100';
+                        icon = <ArrowUp className="w-3 h-3" />;
+                    } else if (p === 'Média') {
+                        activeClass = 'bg-white text-amber-600 shadow-sm ring-1 ring-amber-100';
+                        icon = <ArrowRight className="w-3 h-3" />;
+                    } else {
+                        activeClass = 'bg-white text-blue-600 shadow-sm ring-1 ring-blue-100';
+                        icon = <ArrowDown className="w-3 h-3" />;
+                    }
+
+                    return (
+                        <button
+                           key={p}
+                           type="button"
+                           onClick={() => setPriority(p)}
+                           className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${
+                               isActive ? activeClass : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'
+                           }`}
+                        >
+                            {icon} {p}
+                        </button>
+                    );
+                })}
              </div>
           </div>
         </div>
