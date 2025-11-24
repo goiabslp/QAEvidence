@@ -335,9 +335,8 @@ const App: React.FC = () => {
   };
 
   const handleDeleteBug = (id: string) => {
-      if (window.confirm("Deseja realmente excluir este BUG?")) {
-          setBugReports(prev => prev.filter(b => b.id !== id));
-      }
+      // Confirmation is handled by the UI component (BugReportForm)
+      setBugReports(prev => prev.filter(b => b.id !== id));
   };
 
   // --- VALIDATION & SAVING LOGIC ---

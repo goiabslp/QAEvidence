@@ -129,6 +129,7 @@ export interface BugReport {
   expectedResult: string;
   description: string; // Error Description
   devFeedback: string;
+  observation?: string; // Novo campo: Observação
   createdBy: string;
   attachments?: string[]; // List of base64 images
 }

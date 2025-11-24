@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, UploadCloud, Sparkles, Ban, List, Check, AlertTriangle } from 'lucide-react';
+import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, UploadCloud, Sparkles, Ban, List, Check, AlertTriangle, StickyNote, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
 import ImageEditor from './ImageEditor';
 
@@ -70,6 +70,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   const [scenarioDescription, setScenarioDescription] = useState('');
   const [expectedResult, setExpectedResult] = useState('');
   const [devFeedback, setDevFeedback] = useState('');
+  const [observation, setObservation] = useState(''); // New State
   
   // Attachments State
   const [attachments, setAttachments] = useState<string[]>([]);
@@ -86,6 +87,9 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   const [bugToDeleteId, setBugToDeleteId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Carousel Ref
+  const bugsCarouselRef = useRef<HTMLDivElement>(null);
 
   const [date] = useState(getBrazilDateString()); // Read-only for display logic, actual save uses current date
 
@@ -133,6 +137,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       expectedResult,
       description,
       devFeedback,
+      observation,
       attachments,
       createdBy: userAcronym
     };
@@ -167,6 +172,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       setScenarioDescription(bug.scenarioDescription);
       setExpectedResult(bug.expectedResult);
       setDevFeedback(bug.devFeedback);
+      setObservation(bug.observation || '');
       setAttachments(bug.attachments || []);
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -187,6 +193,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     setScenarioDescription('');
     setExpectedResult('');
     setDevFeedback('');
+    setObservation('');
     setAttachments([]);
     setEditingAttachmentIndex(null);
     setEditorImageSrc(null);
@@ -353,6 +360,14 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     const target = e.target as HTMLElement;
     if (target.closest('button')) return;
     handleEdit(bug);
+  };
+
+  // Carousel Logic
+  const scrollBugs = (direction: 'left' | 'right') => {
+    if (bugsCarouselRef.current) {
+        const scrollAmount = direction === 'left' ? -350 : 350;
+        bugsCarouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
   };
 
   // Modern Styling
@@ -773,14 +788,14 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
 
         <div className="border-t border-slate-100 my-4"></div>
 
-        {/* ROW 6: Error Details */}
+        {/* ROW 6: Error Details & Feedback */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="flex flex-col h-full">
               <label className={labelClass}>
                  <AlertCircle className="w-3.5 h-3.5 text-red-500" /> Descrição do Erro
               </label>
               <textarea 
-                 rows={6}
+                 rows={10}
                  value={description}
                  onChange={(e) => setDescription(e.target.value)}
                  className={`${inputClass} resize-none h-full bg-red-50/20 focus:ring-2 focus:ring-red-500 focus:border-red-500`}
@@ -788,17 +803,32 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
               />
            </div>
 
-           <div className="flex flex-col h-full">
-              <label className={labelClass}>
-                 <MessageSquare className="w-3.5 h-3.5 text-blue-500" /> Devolutiva do DEV
-              </label>
-              <textarea 
-                 rows={6}
-                 value={devFeedback}
-                 onChange={(e) => setDevFeedback(e.target.value)}
-                 className={`${inputClass} resize-none h-full bg-blue-50/30 border-blue-200 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300`}
-                 placeholder="Retorno Técnico do DEV"
-              />
+           <div className="flex flex-col gap-6">
+              <div className="flex flex-col flex-1">
+                 <label className={labelClass}>
+                    <MessageSquare className="w-3.5 h-3.5 text-blue-500" /> Devolutiva do DEV
+                 </label>
+                 <textarea 
+                    rows={4}
+                    value={devFeedback}
+                    onChange={(e) => setDevFeedback(e.target.value)}
+                    className={`${inputClass} resize-none h-full bg-blue-50/30 border-blue-200 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300`}
+                    placeholder="Retorno Técnico do DEV"
+                 />
+              </div>
+
+              <div className="flex flex-col flex-1">
+                 <label className={labelClass}>
+                    <StickyNote className="w-3.5 h-3.5 text-amber-500" /> Observação
+                 </label>
+                 <textarea 
+                    rows={4}
+                    value={observation}
+                    onChange={(e) => setObservation(e.target.value)}
+                    className={`${inputClass} resize-none h-full bg-amber-50/30 border-amber-200 focus:ring-amber-500 focus:border-amber-500 hover:border-amber-300`}
+                    placeholder="Informações adicionais, lembretes..."
+                 />
+              </div>
            </div>
         </div>
 
@@ -929,14 +959,34 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       </form>
     </div>
 
-    {/* LIST SECTION */}
+    {/* LIST SECTION - HORIZONTAL CAROUSEL */}
     <div className="space-y-6">
-         <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-             <div className="p-2 bg-slate-100 rounded-lg">
-                 <ClipboardList className="w-5 h-5 text-slate-600" />
+         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+             <div className="flex items-center gap-3">
+                 <div className="p-2 bg-slate-100 rounded-lg">
+                     <ClipboardList className="w-5 h-5 text-slate-600" />
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-800">Bugs Registrados</h3>
+                 <span className="bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-bold">{bugs.length}</span>
              </div>
-             <h3 className="text-xl font-bold text-slate-800">Bugs Registrados</h3>
-             <span className="bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-bold">{bugs.length}</span>
+             
+             {/* Carousel Navigation */}
+             {bugs.length > 0 && (
+                 <div className="flex gap-2">
+                     <button 
+                        onClick={() => scrollBugs('left')}
+                        className="p-2 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 transition-all"
+                     >
+                        <ChevronLeft className="w-5 h-5" />
+                     </button>
+                     <button 
+                        onClick={() => scrollBugs('right')}
+                        className="p-2 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 transition-all"
+                     >
+                        <ChevronRight className="w-5 h-5" />
+                     </button>
+                 </div>
+             )}
          </div>
 
          {bugs.length === 0 ? (
@@ -948,127 +998,133 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                  <p className="text-slate-500">Nenhum bug registrado até o momento.</p>
              </div>
          ) : (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {bugs.map((bug) => (
-                     <div 
-                         key={bug.id} 
-                         onClick={(e) => handleCardClick(e, bug)}
-                         className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col group overflow-hidden cursor-pointer"
-                     >
-                         {/* Card Header */}
-                         <div className="p-5 border-b border-slate-50 bg-slate-50/30">
-                             <div className="flex justify-between items-start mb-3">
-                                 <div className="flex-1 mr-2">
-                                     <h4 className="font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-red-600 transition-colors" title={bug.summary}>
-                                         {bug.summary}
-                                     </h4>
+             <div className="relative group/carousel">
+                 {/* Scrollable Container */}
+                 <div 
+                    ref={bugsCarouselRef}
+                    className="flex overflow-x-auto gap-6 pb-6 px-1 scroll-smooth snap-x snap-mandatory scrollbar-hide"
+                 >
+                     {bugs.map((bug) => (
+                         <div 
+                             key={bug.id} 
+                             onClick={(e) => handleCardClick(e, bug)}
+                             className="w-[350px] flex-shrink-0 snap-center bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group overflow-hidden cursor-pointer"
+                         >
+                             {/* Card Header */}
+                             <div className="p-5 border-b border-slate-50 bg-slate-50/30">
+                                 <div className="flex justify-between items-start mb-3">
+                                     <div className="flex-1 mr-2">
+                                         <h4 className="font-bold text-slate-800 line-clamp-2 leading-tight group-hover:text-red-600 transition-colors" title={bug.summary}>
+                                             {bug.summary}
+                                         </h4>
+                                     </div>
+                                     <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${
+                                         bug.status === BugStatus.BLOCKED ? 'bg-red-50 text-red-700 border-red-100' :
+                                         bug.status === BugStatus.IN_TEST ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                         bug.status === BugStatus.IN_ANALYSIS ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                         bug.status === BugStatus.OPEN_BUG ? 'bg-red-50 text-red-700 border-red-100' :
+                                         bug.status === BugStatus.OPEN_IMPROVEMENT ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                                         bug.status === BugStatus.DISCARDED ? 'bg-slate-100 text-slate-400 border-slate-200' :
+                                         'bg-slate-100 text-slate-600 border-slate-200'
+                                     }`}>
+                                         {bug.status}
+                                     </span>
                                  </div>
-                                 <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${
-                                     bug.status === BugStatus.BLOCKED ? 'bg-red-50 text-red-700 border-red-100' :
-                                     bug.status === BugStatus.IN_TEST ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                     bug.status === BugStatus.IN_ANALYSIS ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                     bug.status === BugStatus.OPEN_BUG ? 'bg-red-50 text-red-700 border-red-100' :
-                                     bug.status === BugStatus.OPEN_IMPROVEMENT ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                                     bug.status === BugStatus.DISCARDED ? 'bg-slate-100 text-slate-400 border-slate-200' :
-                                     'bg-slate-100 text-slate-600 border-slate-200'
-                                 }`}>
-                                     {bug.status}
-                                 </span>
+                                 
+                                 <div className="flex items-center gap-2">
+                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wide flex items-center gap-1 ${PRIORITY_STYLES[bug.priority]}`}>
+                                         {bug.priority === 'Alta' && <ArrowUp className="w-3 h-3" />}
+                                         {bug.priority === 'Média' && <ArrowRight className="w-3 h-3" />}
+                                         {bug.priority === 'Baixa' && <ArrowDown className="w-3 h-3" />}
+                                         {bug.priority}
+                                     </span>
+                                     <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                                         <Calendar className="w-3 h-3" />
+                                         {bug.date.split('-').reverse().join('/')}
+                                     </span>
+                                 </div>
                              </div>
                              
-                             <div className="flex items-center gap-2">
-                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wide flex items-center gap-1 ${PRIORITY_STYLES[bug.priority]}`}>
-                                     {bug.priority === 'Alta' && <ArrowUp className="w-3 h-3" />}
-                                     {bug.priority === 'Média' && <ArrowRight className="w-3 h-3" />}
-                                     {bug.priority === 'Baixa' && <ArrowDown className="w-3 h-3" />}
-                                     {bug.priority}
-                                 </span>
-                                 <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-                                     <Calendar className="w-3 h-3" />
-                                     {bug.date.split('-').reverse().join('/')}
-                                 </span>
-                             </div>
-                         </div>
-                         
-                         {/* Card Body */}
-                         <div className="p-5 space-y-3 flex-1">
-                             <div className="grid grid-cols-2 gap-2 text-xs">
-                                 <div>
-                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Tela</span>
-                                     <span className="font-semibold text-slate-700 line-clamp-1" title={bug.screen}>{bug.screen || '-'}</span>
-                                 </div>
-                                 <div>
-                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Módulo</span>
-                                     <span className="font-semibold text-slate-700 line-clamp-1" title={bug.module}>{bug.module || '-'}</span>
-                                 </div>
-                                 <div className="col-span-2">
-                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Ambiente</span>
-                                     <span className="font-semibold text-slate-700 line-clamp-1" title={bug.environment}>{bug.environment || '-'}</span>
-                                 </div>
-                                 {/* Pre-requisites summary in Card */}
-                                 {bug.preRequisites && bug.preRequisites.length > 0 && (
-                                    <div className="col-span-2 mt-2">
-                                        <div className="flex flex-wrap gap-1">
-                                            {bug.preRequisites.slice(0, 3).map((req, i) => (
-                                                <span key={i} className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-bold truncate max-w-[100px]">
-                                                    {req}
-                                                </span>
-                                            ))}
-                                            {bug.preRequisites.length > 3 && (
-                                                <span className="text-[9px] text-slate-400 px-1 py-0.5">+{bug.preRequisites.length - 3}</span>
-                                            )}
+                             {/* Card Body */}
+                             <div className="p-5 space-y-3 flex-1">
+                                 <div className="grid grid-cols-2 gap-2 text-xs">
+                                     <div>
+                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Tela</span>
+                                         <span className="font-semibold text-slate-700 line-clamp-1" title={bug.screen}>{bug.screen || '-'}</span>
+                                     </div>
+                                     <div>
+                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Módulo</span>
+                                         <span className="font-semibold text-slate-700 line-clamp-1" title={bug.module}>{bug.module || '-'}</span>
+                                     </div>
+                                     <div className="col-span-2">
+                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Ambiente</span>
+                                         <span className="font-semibold text-slate-700 line-clamp-1" title={bug.environment}>{bug.environment || '-'}</span>
+                                     </div>
+                                     {/* Pre-requisites summary in Card */}
+                                     {bug.preRequisites && bug.preRequisites.length > 0 && (
+                                        <div className="col-span-2 mt-2">
+                                            <div className="flex flex-wrap gap-1">
+                                                {bug.preRequisites.slice(0, 3).map((req, i) => (
+                                                    <span key={i} className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-bold truncate max-w-[100px]">
+                                                        {req}
+                                                    </span>
+                                                ))}
+                                                {bug.preRequisites.length > 3 && (
+                                                    <span className="text-[9px] text-slate-400 px-1 py-0.5">+{bug.preRequisites.length - 3}</span>
+                                                )}
+                                            </div>
                                         </div>
+                                     )}
+                                 </div>
+
+                                 {bug.attachments && bug.attachments.length > 0 && (
+                                    <div className="pt-2 mt-1 border-t border-slate-50 flex items-center gap-2">
+                                        <ImageIcon className="w-3 h-3 text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-500">{bug.attachments.length} Anexos</span>
                                     </div>
                                  )}
                              </div>
-
-                             {bug.attachments && bug.attachments.length > 0 && (
-                                <div className="pt-2 mt-1 border-t border-slate-50 flex items-center gap-2">
-                                    <ImageIcon className="w-3 h-3 text-slate-400" />
-                                    <span className="text-xs font-bold text-slate-500">{bug.attachments.length} Anexos</span>
-                                </div>
-                             )}
-                         </div>
-                         
-                         {/* Card Footer */}
-                         <div className="px-5 py-4 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
-                             <div className="flex items-center gap-1.5">
-                                 <div className="bg-white p-1 rounded-full shadow-sm border border-slate-200">
-                                     <User className="w-3 h-3 text-slate-400" />
-                                 </div>
-                                 <span className="text-xs font-bold text-slate-600 truncate max-w-[100px]" title={bug.analyst}>
-                                     {bug.analyst.split(' - ')[0]}
-                                 </span>
-                             </div>
                              
-                             <div className="flex items-center gap-1">
-                                 <button 
-                                     onClick={(e) => { e.stopPropagation(); handleEdit(bug); }}
-                                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                     title="Visualizar"
-                                 >
-                                     <Eye className="w-4 h-4" />
-                                 </button>
-                                 <button 
-                                     onClick={(e) => { e.stopPropagation(); handleEdit(bug); }}
-                                     className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                     title="Editar"
-                                 >
-                                     <Pencil className="w-4 h-4" />
-                                 </button>
-                                 {onDelete && (
+                             {/* Card Footer */}
+                             <div className="px-5 py-4 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                 <div className="flex items-center gap-1.5">
+                                     <div className="bg-white p-1 rounded-full shadow-sm border border-slate-200">
+                                         <User className="w-3 h-3 text-slate-400" />
+                                     </div>
+                                     <span className="text-xs font-bold text-slate-600 truncate max-w-[100px]" title={bug.analyst}>
+                                         {bug.analyst.split(' - ')[0]}
+                                     </span>
+                                 </div>
+                                 
+                                 <div className="flex items-center gap-1">
                                      <button 
-                                         onClick={(e) => handleRequestDeleteBug(bug.id, e)}
-                                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                         title="Excluir"
+                                         onClick={(e) => { e.stopPropagation(); handleEdit(bug); }}
+                                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                         title="Visualizar"
                                      >
-                                         <Trash2 className="w-4 h-4" />
+                                         <Eye className="w-4 h-4" />
                                      </button>
-                                 )}
+                                     <button 
+                                         onClick={(e) => { e.stopPropagation(); handleEdit(bug); }}
+                                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                         title="Editar"
+                                     >
+                                         <Pencil className="w-4 h-4" />
+                                     </button>
+                                     {onDelete && (
+                                         <button 
+                                             onClick={(e) => handleRequestDeleteBug(bug.id, e)}
+                                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                             title="Excluir"
+                                         >
+                                             <Trash2 className="w-4 h-4" />
+                                         </button>
+                                     )}
+                                 </div>
                              </div>
                          </div>
-                     </div>
-                 ))}
+                     ))}
+                 </div>
              </div>
          )}
     </div>
