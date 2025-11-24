@@ -22,6 +22,20 @@ export interface WizardTriggerContext {
   existingDetails?: TestCaseDetails;
 }
 
+// Helper to get Brazil Date (GMT-3)
+const getBrazilCurrentDate = () => {
+  const date = new Date();
+  return new Date(date.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+};
+
+const getBrazilDateString = () => {
+  const d = getBrazilCurrentDate();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const App: React.FC = () => {
   // --- AUTHENTICATION & USER STATE ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -327,9 +341,13 @@ const App: React.FC = () => {
       
       if (!masterTicketInfo) return;
 
+      // UPDATE EVIDENCE DATE TO TODAY (Requirement: Save/Update always captures latest date in Brazil Time)
+      const today = getBrazilDateString();
+      const finalTicketInfo = { ...masterTicketInfo, evidenceDate: today };
+
       const consistentEvidences = evidences.map(ev => ({
          ...ev,
-         ticketInfo: masterTicketInfo,
+         ticketInfo: finalTicketInfo,
          createdBy: currentUser.acronym
       }));
 
@@ -338,7 +356,7 @@ const App: React.FC = () => {
             if (t.id === editingHistoryId) {
                 return {
                     ...t,
-                    ticketInfo: masterTicketInfo,
+                    ticketInfo: finalTicketInfo,
                     items: consistentEvidences,
                     archivedAt: Date.now(),
                     createdBy: currentUser.acronym
@@ -349,7 +367,7 @@ const App: React.FC = () => {
       } else {
          const archivedTicket: ArchivedTicket = {
             id: crypto.randomUUID(),
-            ticketInfo: masterTicketInfo,
+            ticketInfo: finalTicketInfo,
             items: consistentEvidences,
             archivedAt: Date.now(),
             createdBy: currentUser.acronym
@@ -1134,7 +1152,12 @@ const App: React.FC = () => {
                         </div>
                         <div className="col-span-1">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Evidência</label>
-                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{(printingTicket ? printingTicket.ticketInfo.evidenceDate?.split('-').reverse().join('/') : (modalTicketInfo?.evidenceDate ? modalTicketInfo.evidenceDate.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR'))) || '-'}</p>
+                            <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">
+                                {printingTicket 
+                                    ? (printingTicket.ticketInfo.evidenceDate?.split('-').reverse().join('/') || '-') 
+                                    : getBrazilCurrentDate().toLocaleDateString('pt-BR')
+                                }
+                            </p>
                         </div>
 
                         {/* ROW 3 */}

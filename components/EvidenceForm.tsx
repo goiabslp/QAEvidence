@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority } from '../types';
 import { PRIORITY_CONFIG } from '../constants';
@@ -21,6 +19,15 @@ interface EvidenceFormProps {
 }
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
+
+const getBrazilDateString = () => {
+  const date = new Date();
+  const brazilDate = new Date(date.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  const y = brazilDate.getFullYear();
+  const m = String(brazilDate.getMonth() + 1).padStart(2, '0');
+  const d = String(brazilDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 const EvidenceForm: React.FC<EvidenceFormProps> = ({ 
   onSubmit, 
@@ -46,7 +53,10 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const [isEnvListOpen, setIsEnvListOpen] = useState(false);
 
   const [environmentVersion, setEnvironmentVersion] = useState('');
-  const [evidenceDate, setEvidenceDate] = useState('');
+  
+  // INITIALIZE WITH TODAY (Requirement: Automate Evidence Date with Brazil Time)
+  const [evidenceDate, setEvidenceDate] = useState(initialTicketInfo?.evidenceDate || getBrazilDateString());
+  
   const [ticketDescription, setTicketDescription] = useState('');
   const [solution, setSolution] = useState('');
   const [priority, setPriority] = useState<TicketPriority>(TicketPriority.MEDIUM);
@@ -75,7 +85,8 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       setAnalyst(initialTicketInfo.analyst || '');
       setRequestDate(initialTicketInfo.requestDate || '');
       setEnvironmentVersion(initialTicketInfo.environmentVersion || '');
-      setEvidenceDate(initialTicketInfo.evidenceDate || '');
+      // If editing, load original date, but App.tsx will overwrite on save with current date as per requirement
+      setEvidenceDate(initialTicketInfo.evidenceDate || ''); 
       setTicketDescription(initialTicketInfo.ticketDescription || '');
       setSolution(initialTicketInfo.solution || '');
       setPriority(initialTicketInfo.priority || TicketPriority.MEDIUM);
@@ -102,7 +113,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     priority,
     environment: selectedEnvs.join(', '),
     environmentVersion,
-    evidenceDate: evidenceDate || new Date().toISOString().split('T')[0],
+    evidenceDate: evidenceDate || getBrazilDateString(),
     ticketDescription,
     solution
   };
@@ -196,8 +207,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       return;
     }
     if (!evidenceDate) {
-      const today = new Date().toISOString().split('T')[0];
-      setEvidenceDate(today);
+      setEvidenceDate(getBrazilDateString());
     }
     setShowConfirmationModal(true);
   };
