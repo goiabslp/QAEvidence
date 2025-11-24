@@ -1,9 +1,7 @@
-
-
 import React, { useState, useMemo, useRef } from 'react';
 import { ArchivedTicket, User, EvidenceItem, TestStatus, TicketPriority } from '../types';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '../constants';
-import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen, Trash2, ListChecks, ClipboardCheck, ShieldCheck, Edit, Lock, Ban } from 'lucide-react';
+import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen, Trash2, ListChecks, ClipboardCheck, ShieldCheck, Edit, Lock, Ban, History } from 'lucide-react';
 import EvidenceForm from './EvidenceForm';
 import EvidenceList from './EvidenceList';
 
@@ -193,6 +191,17 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
   };
 
   const ticketToPrint = tickets.find(t => t.id === printingTicketId);
+
+  // Sort items for PDF History Table
+  const pdfItems = useMemo(() => {
+    if (!ticketToPrint) return [];
+    return [...ticketToPrint.items].sort((a, b) => {
+      const da = a.testCaseDetails || { scenarioNumber: 999, caseNumber: 999 };
+      const db = b.testCaseDetails || { scenarioNumber: 999, caseNumber: 999 };
+      if (da.scenarioNumber !== db.scenarioNumber) return da.scenarioNumber - db.scenarioNumber;
+      return da.caseNumber - db.caseNumber;
+    });
+  }, [ticketToPrint]);
 
   return (
     <div className="space-y-6 animate-fade-in relative">
@@ -472,6 +481,73 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Solução / Correção Aplicada</label>
                             <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{ticketToPrint.ticketInfo.solution || 'Não aplicável.'}</p>
                         </div>
+                    </div>
+
+                    {/* PAGE 2: HISTÓRICO DE TESTES (SUMMARY TABLE) */}
+                    <div className="pt-8" style={{ pageBreakBefore: 'always' }}>
+                        <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2 border-b border-slate-900 pb-2">
+                            <History className="w-5 h-5" /> Histórico de Testes
+                        </h2>
+                        <table className="w-full text-left text-xs border border-slate-200 rounded-lg overflow-hidden">
+                            <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th className="px-3 py-2 border-b border-slate-200 w-16">#</th>
+                                    <th className="px-3 py-2 border-b border-slate-200 w-24">ID</th>
+                                    <th className="px-3 py-2 border-b border-slate-200 w-32">Tela</th>
+                                    <th className="px-3 py-2 border-b border-slate-200">Funcionalidade / Objetivo</th>
+                                    <th className="px-3 py-2 border-b border-slate-200 w-24 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {pdfItems.filter(i => i.testCaseDetails).length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-3 py-4 text-center text-slate-400">Nenhum caso de teste registrado.</td>
+                                    </tr>
+                                ) : (
+                                    pdfItems.filter(i => i.testCaseDetails).map((item) => {
+                                        const details = item.testCaseDetails!;
+                                        return (
+                                            <React.Fragment key={item.id}>
+                                                <tr className="bg-slate-50/50">
+                                                    <td className="px-3 py-2 border-b border-slate-100 font-mono text-slate-500 align-top">{details.scenarioNumber}.{details.caseNumber}</td>
+                                                    <td className="px-3 py-2 border-b border-slate-100 font-mono font-bold text-slate-600 align-top">{details.caseId}</td>
+                                                    <td className="px-3 py-2 border-b border-slate-100 font-medium text-slate-700 align-top">{details.screen}</td>
+                                                    <td className="px-3 py-2 border-b border-slate-100 text-slate-600 align-top">{details.objective}</td>
+                                                    <td className="px-3 py-2 border-b border-slate-100 text-center align-top">
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                            item.status === TestStatus.PASS ? 'bg-emerald-100 text-emerald-800' :
+                                                            item.status === TestStatus.FAIL ? 'bg-red-100 text-red-800' :
+                                                            item.status === TestStatus.BLOCKED ? 'bg-amber-100 text-amber-800' :
+                                                            'bg-slate-100 text-slate-600'
+                                                        }`}>
+                                                            {STATUS_CONFIG[item.status].label}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td colSpan={5} className="px-4 py-3 border-b border-slate-200 bg-white">
+                                                         <div className="grid grid-cols-3 gap-4 text-[10px]">
+                                                            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                                                                <span className="font-bold text-indigo-900 block mb-1 uppercase">Pré-Requisito</span>
+                                                                <p className="text-slate-700 whitespace-pre-line leading-relaxed">{details.preRequisite || '-'}</p>
+                                                            </div>
+                                                            <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                                                                <span className="font-bold text-indigo-900 block mb-1 uppercase">Descrição do Teste</span>
+                                                                <p className="text-slate-700 whitespace-pre-line leading-relaxed">{details.condition || '-'}</p>
+                                                            </div>
+                                                            <div className="bg-indigo-50 p-2 rounded border border-indigo-100">
+                                                                <span className="font-bold text-indigo-900 block mb-1 uppercase">Resultado Esperado</span>
+                                                                <p className="text-indigo-800 whitespace-pre-line leading-relaxed">{details.expectedResult || '-'}</p>
+                                                            </div>
+                                                         </div>
+                                                    </td>
+                                                </tr>
+                                            </React.Fragment>
+                                        );
+                                    })
+                                )}
+                            </tbody>
+                        </table>
                     </div>
 
                      {/* EVIDENCES - FORCED PAGE BREAK BEFORE */}
