@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload, Sparkles, Ban, List } from 'lucide-react';
+import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload, UploadCloud, Sparkles, Ban, List } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
 import ImageEditor from './ImageEditor';
 
@@ -433,7 +434,35 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
            </div>
         </div>
 
-        {/* ROW 4: Pré-requisitos (NEW) */}
+        {/* ROW 4: Scenario Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div>
+                <label className={labelClass}>
+                   Descrição do Cenário
+                </label>
+                <textarea 
+                   rows={3}
+                   value={scenarioDescription}
+                   onChange={(e) => setScenarioDescription(e.target.value)}
+                   className={`${inputClass} resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
+                   placeholder="Contexto do teste realizado..."
+                />
+             </div>
+             <div>
+                <label className={labelClass}>
+                   Resultado Esperado
+                </label>
+                <textarea 
+                   rows={3}
+                   value={expectedResult}
+                   onChange={(e) => setExpectedResult(e.target.value)}
+                   className={`${inputClass} resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
+                   placeholder="O que deveria ter acontecido..."
+                />
+             </div>
+        </div>
+
+        {/* ROW 5: Pré-requisitos (REORDERED) */}
         <div>
            <label className={labelClass}>
               <List className="w-3.5 h-3.5 text-slate-400" /> Pré-requisitos
@@ -476,34 +505,6 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
            )}
         </div>
 
-        {/* ROW 5: Scenario Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div>
-                <label className={labelClass}>
-                   Descrição do Cenário
-                </label>
-                <textarea 
-                   rows={3}
-                   value={scenarioDescription}
-                   onChange={(e) => setScenarioDescription(e.target.value)}
-                   className={`${inputClass} resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-                   placeholder="Contexto do teste realizado..."
-                />
-             </div>
-             <div>
-                <label className={labelClass}>
-                   Resultado Esperado
-                </label>
-                <textarea 
-                   rows={3}
-                   value={expectedResult}
-                   onChange={(e) => setExpectedResult(e.target.value)}
-                   className={`${inputClass} resize-none focus:ring-2 focus:ring-red-500 focus:border-red-500 hover:border-red-300`}
-                   placeholder="O que deveria ter acontecido..."
-                />
-             </div>
-        </div>
-
         <div className="border-t border-slate-100 my-4"></div>
 
         {/* ROW 6: Error Details */}
@@ -544,64 +545,66 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                  {/* Modern Upload Tile - REDESIGNED */}
                  <div 
-                   onClick={() => fileInputRef.current?.click()}
-                   onDragOver={handleDragOver}
-                   onDragLeave={handleDragLeave}
-                   onDrop={handleDrop}
-                   className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-500 group overflow-hidden
-                     ${isDragging 
-                        ? 'border-indigo-500 bg-indigo-50/50 scale-[1.02] shadow-xl shadow-indigo-100' 
-                        : 'border-slate-300 bg-slate-50 hover:border-indigo-400 hover:bg-white hover:shadow-2xl hover:shadow-indigo-100/50 hover:-translate-y-1'
-                     }`}
-                 >
-                     {/* Background Gradient Animation */}
-                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/40 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`relative h-64 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center gap-6 transition-all duration-500 group overflow-hidden cursor-default
+                    ${isDragging 
+                    ? 'border-indigo-500 bg-indigo-50/50 scale-[1.02] shadow-xl shadow-indigo-100' 
+                    : 'border-slate-300 bg-slate-50/50 hover:bg-white hover:border-indigo-400 hover:shadow-xl hover:shadow-indigo-100/30'
+                    }`}
+                >
+                    {/* Background Pattern/Gradient */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-50/50 via-transparent to-transparent"></div>
 
-                     {/* Main Icon */}
-                     <div className={`relative z-10 p-4 rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:ring-4 group-hover:ring-indigo-50 group-hover:shadow-md ${isDragging ? 'text-indigo-600 scale-110' : 'text-slate-400 group-hover:text-indigo-600'}`}>
-                         {isDragging ? <Upload className="w-8 h-8 animate-bounce" /> : <ImageIcon className="w-8 h-8" />}
-                     </div>
-                     
-                     {/* Button & Text */}
-                     <div className="relative z-10 flex flex-col items-center gap-3">
-                        <span className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${isDragging ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-400'}`}>
-                            {isDragging ? 'Solte para anexar' : 'Arraste ou clique'}
-                        </span>
-                        
-                        <div className="bg-slate-900 text-white px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg shadow-slate-200 group-hover:bg-indigo-600 group-hover:shadow-indigo-200 transition-all duration-300 flex items-center gap-2 transform group-hover:scale-105">
-                            <Plus className="w-4 h-4" />
-                            Inserir Print
-                        </div>
-                     </div>
+                    {/* Main Icon with Animation */}
+                    <div className={`relative z-10 p-5 rounded-full bg-white shadow-lg ring-1 ring-slate-100 transition-all duration-500 group-hover:scale-110 group-hover:shadow-indigo-200 group-hover:ring-4 group-hover:ring-indigo-50 ${isDragging ? 'scale-110 ring-4 ring-indigo-100' : ''}`}>
+                        <UploadCloud className={`w-10 h-10 transition-colors duration-300 ${isDragging ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'}`} />
+                    </div>
+                    
+                    {/* Action Area */}
+                    <div className="relative z-10 flex flex-col items-center gap-3 w-full px-6">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handlePasteImage();
+                            }}
+                            className="w-full max-w-[240px] py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transition-all transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2.5 group/btn"
+                        >
+                            <Clipboard className="w-5 h-5" />
+                            <span>Inserir Print</span>
+                            <span className="bg-white/20 text-indigo-50 text-[10px] px-1.5 py-0.5 rounded ml-1 hidden sm:inline-block font-mono">CTRL+V</span>
+                        </button>
 
-                     {/* Hidden Input */}
-                     <input 
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                            }}
+                             className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-wide flex items-center gap-2 py-2 px-4 rounded-lg hover:bg-white/80"
+                        >
+                            <ImageIcon className="w-4 h-4" />
+                            Ou selecione um arquivo
+                        </button>
+                    </div>
+
+                    {/* Hidden Input */}
+                    <input 
                         ref={fileInputRef}
                         type="file" 
                         accept="image/*" 
                         onChange={handleImageUpload} 
                         className="hidden" 
-                     />
-                     
-                     {/* Paste Shortcut Hint */}
-                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
-                         <button
-                             type="button"
-                             onClick={(e) => {
-                                 e.stopPropagation(); 
-                                 handlePasteImage();
-                             }}
-                             className="p-2 rounded-lg bg-white/80 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 backdrop-blur-sm border border-transparent hover:border-indigo-100 shadow-sm"
-                             title="Colar da Área de Transferência"
-                         >
-                             <Clipboard className="w-4 h-4" />
-                         </button>
-                     </div>
-                 </div>
+                    />
+                </div>
 
                  {/* Thumbnails */}
                  {attachments.map((src, index) => (
-                     <div key={index} className="relative h-48 bg-slate-100 rounded-2xl border border-slate-200 group overflow-hidden shadow-sm hover:shadow-md transition-all">
+                     <div key={index} className="relative h-64 bg-slate-100 rounded-2xl border border-slate-200 group overflow-hidden shadow-sm hover:shadow-md transition-all">
                          <img src={src} alt={`Evidência ${index + 1}`} className="w-full h-full object-cover" />
                          
                          {/* Overlay Actions */}
