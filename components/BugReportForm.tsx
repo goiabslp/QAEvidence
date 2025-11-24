@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload, Sparkles, Ban } from 'lucide-react';
+import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, Upload, Sparkles, Ban, List } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
 import ImageEditor from './ImageEditor';
 
@@ -47,6 +47,10 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
   // Analyst auto-filled
   const analystName = userName ? `${userAcronym} - ${userName}` : userAcronym;
 
+  // Prerequisites State
+  const [preRequisites, setPreRequisites] = useState<string[]>([]);
+  const [preReqInput, setPreReqInput] = useState('');
+
   const [description, setDescription] = useState('');
   const [scenarioDescription, setScenarioDescription] = useState('');
   const [expectedResult, setExpectedResult] = useState('');
@@ -83,6 +87,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       date: editingId ? date : getBrazilDateString(), // Keep original date on edit, or new date on create
       analyst: analystName,
       dev,
+      preRequisites,
       scenarioDescription,
       expectedResult,
       description,
@@ -109,6 +114,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
       setModule(bug.module);
       setEnvironment(bug.environment);
       setDev(bug.dev);
+      setPreRequisites(bug.preRequisites || []);
       setDescription(bug.description);
       setScenarioDescription(bug.scenarioDescription);
       setExpectedResult(bug.expectedResult);
@@ -126,6 +132,8 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     setModule('');
     setEnvironment('');
     setDev('');
+    setPreRequisites([]);
+    setPreReqInput('');
     setDescription('');
     setScenarioDescription('');
     setExpectedResult('');
@@ -133,6 +141,24 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
     setAttachments([]);
     setEditingAttachmentIndex(null);
     setEditorImageSrc(null);
+  };
+
+  // Pre-requisites Handlers
+  const handleAddPreReq = () => {
+    if (!preReqInput.trim()) return;
+    setPreRequisites([...preRequisites, preReqInput.trim()]);
+    setPreReqInput('');
+  };
+
+  const handleRemovePreReq = (index: number) => {
+    setPreRequisites(preRequisites.filter((_, i) => i !== index));
+  };
+
+  const handlePreReqKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddPreReq();
+    }
   };
 
   // Image Handling
@@ -407,7 +433,50 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
            </div>
         </div>
 
-        {/* ROW 4: Scenario Details */}
+        {/* ROW 4: Pré-requisitos (NEW) */}
+        <div>
+           <label className={labelClass}>
+              <List className="w-3.5 h-3.5 text-slate-400" /> Pré-requisitos
+           </label>
+           
+           <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={preReqInput}
+                onChange={(e) => setPreReqInput(e.target.value)}
+                onKeyDown={handlePreReqKeyDown}
+                className={`${inputClass} py-2.5`}
+                placeholder="Ex: Usuário logado, Perfil Administrador..."
+              />
+              <button 
+                type="button" 
+                onClick={handleAddPreReq}
+                className="bg-indigo-50 text-indigo-600 px-4 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors shadow-sm"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+           </div>
+
+           {preRequisites.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  {preRequisites.map((req, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm animate-fade-in group">
+                          <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full flex-shrink-0"></span>
+                          <span>{req}</span>
+                          <button 
+                              type="button" 
+                              onClick={() => handleRemovePreReq(idx)}
+                              className="text-slate-400 hover:text-red-500 transition-colors ml-1"
+                          >
+                              <X className="w-3 h-3" />
+                          </button>
+                      </div>
+                  ))}
+              </div>
+           )}
+        </div>
+
+        {/* ROW 5: Scenario Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              <div>
                 <label className={labelClass}>
@@ -437,7 +506,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
 
         <div className="border-t border-slate-100 my-4"></div>
 
-        {/* ROW 5: Error Details */}
+        {/* ROW 6: Error Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="flex flex-col h-full">
               <label className={labelClass}>
@@ -679,6 +748,21 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mb-0.5">Ambiente</span>
                                      <span className="font-semibold text-slate-700 line-clamp-1" title={bug.environment}>{bug.environment || '-'}</span>
                                  </div>
+                                 {/* Pre-requisites summary in Card */}
+                                 {bug.preRequisites && bug.preRequisites.length > 0 && (
+                                    <div className="col-span-2 mt-2">
+                                        <div className="flex flex-wrap gap-1">
+                                            {bug.preRequisites.slice(0, 3).map((req, i) => (
+                                                <span key={i} className="text-[9px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100 font-bold truncate max-w-[100px]">
+                                                    {req}
+                                                </span>
+                                            ))}
+                                            {bug.preRequisites.length > 3 && (
+                                                <span className="text-[9px] text-slate-400 px-1 py-0.5">+{bug.preRequisites.length - 3}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                 )}
                              </div>
 
                              {bug.attachments && bug.attachments.length > 0 && (

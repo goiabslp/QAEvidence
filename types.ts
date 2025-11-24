@@ -124,6 +124,7 @@ export interface BugReport {
   date: string; // Local Brazil Date
   analyst: string; // "SIGLA - Nome"
   dev: string;
+  preRequisites?: string[]; // Novo campo: Lista de pré-requisitos
   scenarioDescription: string;
   expectedResult: string;
   description: string; // Error Description
