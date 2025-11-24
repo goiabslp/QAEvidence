@@ -108,15 +108,22 @@ export interface AIAnalysisResult {
   potentialBugs: string[];
 }
 
+export type BugPriority = 'Alta' | 'Média' | 'Baixa';
+
 export interface BugReport {
   id: string;
   summary: string;
   status: BugStatus;
+  priority: BugPriority;
   screen: string;
+  module: string;
   environment: string;
   date: string; // Local Brazil Date
+  analyst: string; // "SIGLA - Nome"
   dev: string;
-  description: string;
+  scenarioDescription: string;
+  expectedResult: string;
+  description: string; // Error Description
   devFeedback: string;
   createdBy: string;
 }

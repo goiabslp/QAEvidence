@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -9,7 +10,7 @@ import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import BugReportForm from './components/BugReportForm';
-import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority } from './types';
+import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority, BugReport } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
 
@@ -53,6 +54,9 @@ const App: React.FC = () => {
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [ticketHistory, setTicketHistory] = useState<ArchivedTicket[]>([]);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
+  
+  // Bug Report State
+  const [bugReports, setBugReports] = useState<BugReport[]>([]);
   
   const [formKey, setFormKey] = useState(0);
   const [editingTicketInfo, setEditingTicketInfo] = useState<TicketInfo | null>(null);
@@ -99,6 +103,12 @@ const App: React.FC = () => {
     if (storedTickets) {
       setTicketHistory(JSON.parse(storedTickets));
     }
+
+    // Load Bugs
+    const storedBugs = localStorage.getItem('narnia_bugs');
+    if (storedBugs) {
+        setBugReports(JSON.parse(storedBugs));
+    }
   }, []);
 
   // Save Users when changed
@@ -114,6 +124,11 @@ const App: React.FC = () => {
       localStorage.setItem('narnia_tickets', JSON.stringify(ticketHistory));
     }
   }, [ticketHistory]);
+
+  // Save Bugs when changed
+  useEffect(() => {
+     localStorage.setItem('narnia_bugs', JSON.stringify(bugReports));
+  }, [bugReports]);
 
   // Helper to generate default ticket info with analyst pre-filled
   const getDefaultTicketInfo = (userAcronym: string): TicketInfo => ({
@@ -309,6 +324,22 @@ const App: React.FC = () => {
     setFormKey(prev => prev + 1); // Force remount of form
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // --- BUG REPORT HANDLERS ---
+  const handleSaveBug = (bug: BugReport) => {
+     // Check if updating
+     if (bugReports.some(b => b.id === bug.id)) {
+        setBugReports(prev => prev.map(b => b.id === bug.id ? bug : b));
+     } else {
+        setBugReports([bug, ...bugReports]);
+     }
+  };
+
+  const handleDeleteBug = (id: string) => {
+      if (window.confirm("Deseja realmente excluir este BUG?")) {
+          setBugReports(prev => prev.filter(b => b.id !== id));
+      }
   };
 
   // --- VALIDATION & SAVING LOGIC ---
@@ -876,10 +907,10 @@ const App: React.FC = () => {
                ) : (
                    <BugReportForm 
                        userAcronym={currentUser.acronym} 
-                       onSave={(bug) => {
-                           // Future: Add bug to a list or state
-                           // console.log("Bug saved in parent:", bug);
-                       }}
+                       userName={currentUser.name}
+                       onSave={handleSaveBug}
+                       bugs={bugReports}
+                       onDelete={handleDeleteBug}
                    />
                )}
              </>
