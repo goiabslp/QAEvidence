@@ -335,7 +335,6 @@ const App: React.FC = () => {
   };
 
   const handleDeleteBug = (id: string) => {
-      // Confirmation is handled by the UI component (BugReportForm)
       setBugReports(prev => prev.filter(b => b.id !== id));
   };
 

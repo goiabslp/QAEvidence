@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Bug, Save, AlertCircle, CheckCircle2, ChevronDown, Calendar, User, Monitor, Server, FileText, MessageSquare, Box, ClipboardList, Eye, Pencil, Trash2, ArrowUp, ArrowRight, ArrowDown, Image as ImageIcon, Plus, X, Crop, Clipboard, UploadCloud, Sparkles, Ban, List, Check, AlertTriangle, StickyNote, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BugReport, BugStatus, BugPriority } from '../types';
@@ -817,6 +816,7 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                  />
               </div>
 
+              {/* OBSERVATION FIELD */}
               <div className="flex flex-col flex-1">
                  <label className={labelClass}>
                     <StickyNote className="w-3.5 h-3.5 text-amber-500" /> Observação
@@ -969,24 +969,6 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                  <h3 className="text-xl font-bold text-slate-800">Bugs Registrados</h3>
                  <span className="bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full text-xs font-bold">{bugs.length}</span>
              </div>
-             
-             {/* Carousel Navigation */}
-             {bugs.length > 0 && (
-                 <div className="flex gap-2">
-                     <button 
-                        onClick={() => scrollBugs('left')}
-                        className="p-2 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 transition-all"
-                     >
-                        <ChevronLeft className="w-5 h-5" />
-                     </button>
-                     <button 
-                        onClick={() => scrollBugs('right')}
-                        className="p-2 rounded-full border border-slate-200 hover:bg-slate-100 text-slate-500 transition-all"
-                     >
-                        <ChevronRight className="w-5 h-5" />
-                     </button>
-                 </div>
-             )}
          </div>
 
          {bugs.length === 0 ? (
@@ -999,6 +981,23 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
              </div>
          ) : (
              <div className="relative group/carousel">
+                 
+                 {/* LEFT NAV BUTTON */}
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); scrollBugs('left'); }}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
+                 >
+                     <ChevronLeft className="w-6 h-6" />
+                 </button>
+
+                 {/* RIGHT NAV BUTTON */}
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); scrollBugs('right'); }}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-20 p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-lg border border-slate-200 text-slate-600 hover:text-indigo-600 hover:scale-110 transition-all hidden md:flex items-center justify-center"
+                 >
+                     <ChevronRight className="w-6 h-6" />
+                 </button>
+
                  {/* Scrollable Container */}
                  <div 
                     ref={bugsCarouselRef}
