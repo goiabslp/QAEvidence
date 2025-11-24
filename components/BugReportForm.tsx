@@ -672,14 +672,6 @@ const BugReportForm: React.FC<BugReportFormProps> = ({ onSave, userAcronym, user
                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
                              <button 
                                  type="button" 
-                                 onClick={() => window.open(src, '_blank')}
-                                 className="p-2 bg-white/20 hover:bg-white text-white hover:text-slate-900 rounded-lg transition-colors"
-                                 title="Visualizar Original"
-                             >
-                                 <Eye className="w-4 h-4" />
-                             </button>
-                             <button 
-                                 type="button" 
                                  onClick={() => handleEditAttachment(index)}
                                  className="p-2 bg-white/20 hover:bg-white text-white hover:text-indigo-600 rounded-lg transition-colors"
                                  title="Editar (Cortar/Destaque)"
