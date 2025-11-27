@@ -8,8 +8,8 @@ import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import BugReportForm from './components/BugReportForm';
-import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority, BugReport } from './types';
-import { STATUS_CONFIG, PRIORITY_CONFIG } from './constants';
+import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority, BugReport, TicketStatus } from './types';
+import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
 
 declare const html2pdf: any;
@@ -150,6 +150,7 @@ const App: React.FC = () => {
     clientSystem: '',
     requester: '',
     priority: TicketPriority.MEDIUM,
+    ticketStatus: TicketStatus.PENDING,
     analyst: userAcronym,
     requestDate: '',
     environment: '',
@@ -974,6 +975,9 @@ const App: React.FC = () => {
                                 const caseIds = [...new Set(ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean))].sort(); 
                                 const priority = ticket.ticketInfo.priority || TicketPriority.MEDIUM;
                                 const PriorityConfig = PRIORITY_CONFIG[priority];
+                                const ticketStatus = ticket.ticketInfo.ticketStatus || TicketStatus.PENDING;
+                                const TicketStatusConfig = TICKET_STATUS_CONFIG[ticketStatus];
+                                const TicketStatusIcon = TicketStatusConfig.icon;
 
                                 return (
                                     <div key={ticket.id} className="w-[350px] h-[550px] snap-center flex-shrink-0 pb-4">
@@ -1014,7 +1018,14 @@ const App: React.FC = () => {
                                                 </div>
 
                                                 {/* Status Badges */}
-                                                <div className="flex flex-wrap gap-2 justify-start min-h-[28px]">
+                                                <div className="flex flex-wrap gap-2 justify-start min-h-[28px] mb-2">
+                                                    {/* TICKET STATUS BADGE */}
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold border uppercase tracking-wider shadow-sm ${TicketStatusConfig.color}`}>
+                                                       <TicketStatusIcon className="w-3 h-3 mr-1.5" />
+                                                       {TicketStatusConfig.label}
+                                                    </span>
+
+                                                    {/* TEST STATUSES */}
                                                     {statusBadges.map((conf, idx) => {
                                                         const Icon = conf.icon;
                                                         return (

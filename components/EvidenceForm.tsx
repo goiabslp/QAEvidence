@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority } from '../types';
-import { PRIORITY_CONFIG } from '../constants';
+import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority, TicketStatus } from '../types';
+import { PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '../constants';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -60,7 +60,18 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const [ticketDescription, setTicketDescription] = useState('');
   const [solution, setSolution] = useState('');
   const [priority, setPriority] = useState<TicketPriority>(TicketPriority.MEDIUM);
+  const [ticketStatus, setTicketStatus] = useState<TicketStatus>(TicketStatus.PENDING);
   
+  // BLOCKAGE STATE
+  const [blockageReason, setBlockageReason] = useState('');
+  const [blockageImages, setBlockageImages] = useState<string[]>([]);
+
+  // IMAGE EDITOR & UPLOAD STATE FOR BLOCKAGE
+  const [editorImageSrc, setEditorImageSrc] = useState<string | null>(null);
+  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isTitleManuallyEdited, setIsTitleManuallyEdited] = useState(false);
   const [isTicketInfoExpanded, setIsTicketInfoExpanded] = useState(true);
 
@@ -90,6 +101,9 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       setTicketDescription(initialTicketInfo.ticketDescription || '');
       setSolution(initialTicketInfo.solution || '');
       setPriority(initialTicketInfo.priority || TicketPriority.MEDIUM);
+      setTicketStatus(initialTicketInfo.ticketStatus || TicketStatus.PENDING);
+      setBlockageReason(initialTicketInfo.blockageReason || '');
+      setBlockageImages(initialTicketInfo.blockageImageUrls || []);
       
       if (initialTicketInfo.environment) {
         const envs = initialTicketInfo.environment.split(',').map(e => e.trim()).filter(Boolean);
@@ -101,6 +115,14 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     }
   }, [initialTicketInfo]);
 
+  // Clear Blockage Data if Status is not BLOCKED
+  useEffect(() => {
+    if (ticketStatus !== TicketStatus.BLOCKED) {
+        if (blockageReason !== '') setBlockageReason('');
+        if (blockageImages.length > 0) setBlockageImages([]);
+    }
+  }, [ticketStatus]);
+
   const currentTicketInfo: TicketInfo = {
     sprint,
     ticketId: ticketId.startsWith('#') ? ticketId : (ticketId ? `#${ticketId}` : ''),
@@ -111,11 +133,14 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     analyst,
     requestDate,
     priority,
+    ticketStatus,
     environment: selectedEnvs.join(', '),
     environmentVersion,
     evidenceDate: evidenceDate || getBrazilDateString(),
     ticketDescription,
-    solution
+    solution,
+    blockageReason: ticketStatus === TicketStatus.BLOCKED ? blockageReason : undefined,
+    blockageImageUrls: ticketStatus === TicketStatus.BLOCKED ? blockageImages : undefined
   };
 
   useEffect(() => {
@@ -125,7 +150,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   }, [
     sprint, ticketId, ticketTitle, ticketSummary, clientSystem, 
     requester, analyst, requestDate, selectedEnvs, environmentVersion, 
-    evidenceDate, ticketDescription, solution, priority, onTicketInfoChange
+    evidenceDate, ticketDescription, solution, priority, ticketStatus, blockageReason, blockageImages, onTicketInfoChange
   ]);
 
   useEffect(() => {
@@ -190,6 +215,84 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     }
   };
 
+  // --- IMAGE HANDLING FOR BLOCKAGE ---
+  const processFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setEditorImageSrc(e.target.result as string);
+        setEditingImageIndex(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
+  };
+
+  const handlePasteImage = async () => {
+      try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+              if (item.types.some(type => type.startsWith('image/'))) {
+                  const blob = await item.getType(item.types.find(type => type.startsWith('image/'))!);
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                      if (e.target?.result) {
+                          setEditorImageSrc(e.target.result as string);
+                          setEditingImageIndex(null);
+                      }
+                  };
+                  reader.readAsDataURL(blob);
+                  return;
+              }
+          }
+          alert("Nenhuma imagem encontrada na área de transferência.");
+      } catch (error) {
+          console.error("Erro ao colar:", error);
+          alert("Erro ao acessar a área de transferência. Verifique as permissões.");
+      }
+  };
+
+  const handleEditorSave = (editedSrc: string) => {
+    if (editingImageIndex !== null) {
+        const newImages = [...blockageImages];
+        newImages[editingImageIndex] = editedSrc;
+        setBlockageImages(newImages);
+    } else {
+        setBlockageImages([...blockageImages, editedSrc]);
+    }
+    setEditorImageSrc(null);
+    setEditingImageIndex(null);
+  };
+
+  const handleEditorCancel = () => {
+    setEditorImageSrc(null);
+    setEditingImageIndex(null);
+  };
+
+  const handleEditImage = (index: number) => {
+      setEditorImageSrc(blockageImages[index]);
+      setEditingImageIndex(index);
+  };
+
+  const handleRemoveImage = (index: number) => {
+      setBlockageImages(blockageImages.filter((_, i) => i !== index));
+  };
+  // ------------------------------------
+
   const toggleHistoryRow = (id: string) => {
     const newSet = new Set(expandedHistoryRows);
     if (newSet.has(id)) {
@@ -241,6 +344,16 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const labelClass = "block text-xs font-bold text-indigo-900 mb-1.5 uppercase tracking-wider ml-1";
 
   return (
+    <>
+    {/* Editor Modal outside form structure */}
+    {editorImageSrc && (
+        <ImageEditor 
+            imageSrc={editorImageSrc}
+            onSave={handleEditorSave}
+            onCancel={handleEditorCancel}
+        />
+    )}
+
     <form id="evidence-form" onSubmit={handlePreSubmit}>
       <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative">
         
@@ -295,91 +408,126 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                 <div className="space-y-6 animate-slide-down">
                     {/* LINHA 1: TÍTULO DO CHAMADO */}
                     <div className="w-full">
-                    <label className={labelClass}>Título do Chamado</label>
-                    <input 
-                        type="text" 
-                        value={ticketTitle} 
-                        onChange={e => {
-                        setTicketTitle(e.target.value);
-                        setIsTitleManuallyEdited(true);
-                        }} 
-                        className={`${ticketInputClass} font-medium text-slate-900`} 
-                        placeholder="Gerado automaticamente..." 
-                    />
+                        <label className={labelClass}>Título do Chamado</label>
+                        <input 
+                            type="text" 
+                            value={ticketTitle} 
+                            onChange={e => {
+                            setTicketTitle(e.target.value);
+                            setIsTitleManuallyEdited(true);
+                            }} 
+                            className={`${ticketInputClass} font-medium text-slate-900`} 
+                            placeholder="Gerado automaticamente..." 
+                        />
                     </div>
 
-                    {/* LINHA 2: ID, PRIORIDADE, DATAS */}
+                    {/* LINHA 2: ID, SPRINT, DATAS (Reorganized for width) */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div>
-                          <label className={labelClass}>Chamado (ID)</label>
-                          <input 
-                            type="text" 
-                            inputMode="numeric"
-                            value={ticketId.replace('#', '')} 
-                            onChange={e => setTicketId(e.target.value.replace(/\D/g, ''))} 
-                            className={ticketInputClass} 
-                            placeholder="Ex: 58645" 
-                          />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Prioridade</label>
-                        <div className="flex gap-2">
-                           {[
-                              { value: TicketPriority.LOW, label: 'Baixa', icon: ArrowDown, colorClass: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200', activeClass: 'bg-blue-100 text-blue-700 border-blue-200 ring-1 ring-blue-300' },
-                              { value: TicketPriority.MEDIUM, label: 'Média', icon: ArrowRight, colorClass: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200', activeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 ring-1 ring-emerald-300' },
-                              { value: TicketPriority.HIGH, label: 'Alta', icon: ArrowUp, colorClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-200', activeClass: 'bg-red-100 text-red-700 border-red-200 ring-1 ring-red-300' }
-                           ].map((option) => {
-                               const Icon = option.icon;
-                               const isActive = priority === option.value;
-                               return (
-                                   <button
-                                      key={option.value}
-                                      type="button"
-                                      onClick={() => setPriority(option.value)}
-                                      className={`flex-1 py-2.5 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-                                          isActive 
-                                          ? option.activeClass 
-                                          : `bg-white text-slate-400 border-slate-200 ${option.colorClass}`
-                                      }`}
-                                   >
-                                      <Icon className="w-3.5 h-3.5" />
-                                      {option.label}
-                                   </button>
-                               );
-                           })}
+                        <div>
+                            <label className={labelClass}>Chamado (ID)</label>
+                            <input 
+                                type="text" 
+                                inputMode="numeric"
+                                value={ticketId.replace('#', '')} 
+                                onChange={e => setTicketId(e.target.value.replace(/\D/g, ''))} 
+                                className={ticketInputClass} 
+                                placeholder="Ex: 58645" 
+                            />
                         </div>
-                      </div>
-                      <div>
-                          <label className={labelClass}>Data da Solicitação</label>
-                          <CustomDatePicker 
-                            value={requestDate}
-                            onChange={setRequestDate}
-                            placeholder="Selecione a data"
-                          />
-                      </div>
-                      <div>
-                          <label className={labelClass}>Data da Evidência</label>
-                          <CustomDatePicker 
-                            value={evidenceDate}
-                            onChange={setEvidenceDate}
-                            placeholder="Selecione a data"
-                          />
-                      </div>
+                        <div>
+                            <label className={labelClass}>Data Solicitação</label>
+                            <CustomDatePicker 
+                                value={requestDate}
+                                onChange={setRequestDate}
+                                placeholder="Selecione"
+                            />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Data da Evidência</label>
+                            <CustomDatePicker 
+                                value={evidenceDate}
+                                onChange={setEvidenceDate}
+                                placeholder="Selecione"
+                            />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Sprint</label>
+                            <input 
+                                type="text" 
+                                inputMode="numeric"
+                                value={sprint} 
+                                onChange={e => setTicketStatus === undefined ? null : setSprint(e.target.value.replace(/\D/g, ''))} 
+                                className={ticketInputClass} 
+                                placeholder="Ex: 24" 
+                            />
+                        </div>
                     </div>
 
-                    {/* LINHA 3 */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                          <label className={labelClass}>Sprint</label>
-                          <input 
-                            type="text" 
-                            inputMode="numeric"
-                            value={sprint} 
-                            onChange={e => setSprint(e.target.value.replace(/\D/g, ''))} 
-                            className={ticketInputClass} 
-                            placeholder="Ex: 24" 
-                          />
-                      </div>
+                    {/* LINHA 3: STATUS & PRIORIDADE (Chips Row) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start py-2">
+                        {/* TICKET STATUS CHIPS */}
+                        <div>
+                            <label className={labelClass}>Status do Chamado</label>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {Object.values(TicketStatus).map((status) => {
+                                    const config = TICKET_STATUS_CONFIG[status];
+                                    const Icon = config.icon;
+                                    const isSelected = ticketStatus === status;
+                                    
+                                    return (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            onClick={() => setTicketStatus(status)}
+                                            className={`
+                                                group flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-bold uppercase tracking-wide transition-all duration-200 shadow-sm
+                                                ${isSelected 
+                                                    ? `${config.color} ring-2 ring-offset-1 ring-white scale-105 z-10` 
+                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700'
+                                                }
+                                            `}
+                                        >
+                                            <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-current' : 'text-slate-400 group-hover:text-slate-500'}`} />
+                                            {config.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* PRIORITY BUTTONS */}
+                        <div>
+                            <label className={labelClass}>Prioridade</label>
+                            <div className="flex gap-2 mt-2">
+                                {[
+                                    { value: TicketPriority.LOW, label: 'Baixa', icon: ArrowDown, colorClass: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200', activeClass: 'bg-blue-100 text-blue-700 border-blue-200 ring-2 ring-blue-50' },
+                                    { value: TicketPriority.MEDIUM, label: 'Média', icon: ArrowRight, colorClass: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200', activeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 ring-2 ring-emerald-50' },
+                                    { value: TicketPriority.HIGH, label: 'Alta', icon: ArrowUp, colorClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-200', activeClass: 'bg-red-100 text-red-700 border-red-200 ring-2 ring-red-50' }
+                                ].map((option) => {
+                                    const Icon = option.icon;
+                                    const isActive = priority === option.value;
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => setPriority(option.value)}
+                                            className={`flex-1 py-2 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm ${
+                                                isActive 
+                                                ? option.activeClass 
+                                                : `bg-white text-slate-400 border-slate-200 ${option.colorClass}`
+                                            }`}
+                                        >
+                                            <Icon className="w-3.5 h-3.5" />
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* LINHA 4: PESSOAS */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <label className={labelClass}>Solicitante</label>
                           <input 
@@ -387,7 +535,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                             value={requester} 
                             onChange={e => setRequester(e.target.value.toUpperCase())} 
                             className={ticketInputClass} 
-                            placeholder="Ex: YEB, LVM, EDV, RSR..." 
+                            placeholder="Ex: YEB, LVM..." 
                           />
                       </div>
                       <div>
@@ -397,36 +545,36 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                             value={analyst} 
                             onChange={e => setAnalyst(e.target.value.toUpperCase())} 
                             className={ticketInputClass} 
-                            placeholder="Analista que Realizou o Teste" 
+                            placeholder="Analista" 
                           />
                       </div>
                     </div>
 
-                    {/* LINHA 4 */}
+                    {/* LINHA 5: CONTEXTO */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className={labelClass}>Resumo do Chamado</label>
-                        <input 
-                        type="text" 
-                        value={ticketSummary} 
-                        onChange={e => setTicketSummary(e.target.value.toUpperCase())} 
-                        className={ticketInputClass} 
-                        placeholder="Ex: Erro de Anexo (Máx. 3 palavras)" 
-                        />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Cliente / Sistema</label>
-                        <input 
+                        <div>
+                            <label className={labelClass}>Resumo do Chamado</label>
+                            <input 
                             type="text" 
-                            value={clientSystem} 
-                            onChange={e => setClientSystem(e.target.value.toUpperCase())} 
+                            value={ticketSummary} 
+                            onChange={e => setTicketSummary(e.target.value.toUpperCase())} 
                             className={ticketInputClass} 
-                            placeholder="Ex: Veirano, Kincaid, LegalDesk, Protheus..." 
-                        />
-                    </div>
+                            placeholder="Ex: Erro de Anexo (Máx. 3 palavras)" 
+                            />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Cliente / Sistema</label>
+                            <input 
+                                type="text" 
+                                value={clientSystem} 
+                                onChange={e => setClientSystem(e.target.value.toUpperCase())} 
+                                className={ticketInputClass} 
+                                placeholder="Ex: Veirano, Kincaid, LegalDesk, Protheus..." 
+                            />
+                        </div>
                     </div>
 
-                    {/* LINHA 5 */}
+                    {/* LINHA 6: AMBIENTE */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="relative z-20 md:col-span-2">
                         <label className={labelClass}>Ambiente do Commit / Teste</label>
@@ -506,7 +654,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     </div>
                     </div>
 
-                    {/* LINHA 6 */}
+                    {/* LINHA 7: DESCRITIVO */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                         <label className={labelClass}>Descrição do Chamado</label>
@@ -517,6 +665,85 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         <textarea rows={2} value={solution} onChange={e => setSolution(e.target.value)} className={ticketInputClass} placeholder="O que foi feito..." />
                         </div>
                     </div>
+
+                    {/* BLOCKAGE SUBSECTION - Conditional Rendering */}
+                    {ticketStatus === TicketStatus.BLOCKED && (
+                        <div className="md:col-span-2 space-y-4 animate-fade-in border-t border-rose-100 pt-6 mt-2">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="p-1.5 bg-rose-100 rounded-lg">
+                                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                                </div>
+                                <h4 className="text-sm font-bold text-rose-800 uppercase tracking-wider">
+                                    Motivo do Impedimento
+                                </h4>
+                            </div>
+                            
+                            {/* Reason Text Area */}
+                            <div>
+                                <textarea
+                                    rows={3}
+                                    value={blockageReason}
+                                    onChange={(e) => setBlockageReason(e.target.value)}
+                                    className={`${ticketInputClass} border-rose-200 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/30`}
+                                    placeholder="Descreva o motivo do impedimento..."
+                                />
+                            </div>
+
+                            {/* Image Upload Section */}
+                            <div>
+                                <label className={labelClass}>
+                                    <ImageIcon className="w-3.5 h-3.5 text-slate-400" /> Evidências do Impedimento
+                                </label>
+                                {/* Grid of images */}
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                     {/* Modern Upload Tile */}
+                                     <div 
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                        className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-4 transition-all duration-300 group overflow-hidden cursor-default
+                                        ${isDragging 
+                                        ? 'border-rose-500 bg-rose-50/50 scale-[1.02] shadow-xl shadow-rose-100' 
+                                        : 'border-slate-300 bg-slate-50/50 hover:bg-white hover:border-rose-400 hover:shadow-lg hover:shadow-rose-100/30'
+                                        }`}
+                                    >
+                                        <div className={`relative z-10 p-3 rounded-full bg-white shadow-lg ring-1 ring-slate-100 transition-all duration-500 group-hover:scale-110 group-hover:shadow-rose-200 group-hover:ring-4 group-hover:ring-rose-50 ${isDragging ? 'scale-110 ring-4 ring-rose-100' : ''}`}>
+                                            <UploadCloud className={`w-8 h-8 transition-colors duration-300 ${isDragging ? 'text-rose-600' : 'text-slate-400 group-hover:text-rose-500'}`} />
+                                        </div>
+                                        
+                                        <div className="relative z-10 flex flex-col items-center gap-2 w-full px-4">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handlePasteImage(); }}
+                                                className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <Clipboard className="w-4 h-4" /> Colar Print
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); fileInputRef.current?.click(); }}
+                                                 className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition-colors uppercase tracking-wide flex items-center gap-1"
+                                            >
+                                                <ImageIcon className="w-3 h-3" /> Arquivo
+                                            </button>
+                                        </div>
+                                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                    </div>
+                                    
+                                    {/* Thumbnails */}
+                                    {blockageImages.map((src, index) => (
+                                        <div key={index} className="relative h-48 bg-slate-100 rounded-2xl border border-slate-200 group overflow-hidden shadow-sm hover:shadow-md transition-all">
+                                            <img src={src} alt={`Impedimento ${index + 1}`} className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                                <button type="button" onClick={() => handleEditImage(index)} className="p-2 bg-white/20 hover:bg-white text-white hover:text-indigo-600 rounded-lg transition-colors"><Crop className="w-4 h-4" /></button>
+                                                <button type="button" onClick={() => handleRemoveImage(index)} className="p-2 bg-white/20 hover:bg-white text-white hover:text-rose-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
           </div>
@@ -696,6 +923,10 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                <div className="w-full bg-slate-50 rounded-lg p-4 mb-6 text-left text-sm border border-slate-200">
                   <p className="mb-2 border-b border-slate-200 pb-2"><span className="font-bold text-slate-700 block text-xs uppercase">Chamado</span> {ticketId}</p>
                   <p><span className="font-bold text-slate-700 block text-xs uppercase">Título</span> {ticketTitle}</p>
+                  <p className="mt-2 pt-2 border-t border-slate-200">
+                    <span className="font-bold text-slate-700 block text-xs uppercase">Status</span> 
+                    {TICKET_STATUS_CONFIG[ticketStatus].label}
+                  </p>
                </div>
 
                <div className="flex gap-3 w-full">
@@ -719,6 +950,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         </div>
       )}
     </form>
+    </>
   );
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { ArchivedTicket, User, EvidenceItem, TestStatus, TicketPriority } from '../types';
-import { STATUS_CONFIG, PRIORITY_CONFIG } from '../constants';
+import { ArchivedTicket, User, EvidenceItem, TestStatus, TicketPriority, TicketStatus } from '../types';
+import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '../constants';
 import { Search, FileDown, ChevronDown, ChevronRight, Calendar, Hash, FileText, Loader2, FolderOpen, Trash2, ListChecks, ClipboardCheck, ShieldCheck, Edit, Lock, Ban, History } from 'lucide-react';
 import EvidenceForm from './EvidenceForm';
 import EvidenceList from './EvidenceList';
@@ -284,6 +284,9 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 const isOwner = currentUser.acronym === ticket.createdBy;
                                 const priority = ticket.ticketInfo.priority || TicketPriority.MEDIUM;
                                 const PriorityConfig = PRIORITY_CONFIG[priority];
+                                const ticketStatus = ticket.ticketInfo.ticketStatus || TicketStatus.PENDING;
+                                const TicketStatusConfig = TICKET_STATUS_CONFIG[ticketStatus];
+                                const TicketStatusIcon = TicketStatusConfig.icon;
 
                                 return (
                                     <div 
@@ -307,6 +310,11 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${PriorityConfig.color}`}>
                                                             {PriorityConfig.label}
+                                                        </span>
+                                                        {/* TICKET STATUS BADGE */}
+                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider shadow-sm ${TicketStatusConfig.color}`}>
+                                                            <TicketStatusIcon className="w-3 h-3 mr-1" />
+                                                            {TicketStatusConfig.label}
                                                         </span>
                                                     </div>
                                                     <h4 className={`font-bold text-base leading-snug transition-colors flex-1 min-w-0 break-words pr-4 ${isOwner ? 'text-slate-800 group-hover:text-indigo-700' : 'text-slate-600'}`}>

@@ -21,6 +21,14 @@ export enum TicketPriority {
   HIGH = 'HIGH'
 }
 
+export enum TicketStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  BLOCKED = 'BLOCKED',
+  CANCELLED = 'CANCELLED',
+  FINISHED = 'FINISHED'
+}
+
 export enum BugStatus {
   PENDING = 'Pendente',
   OPEN_BUG = 'Abrir BUG',
@@ -46,7 +54,8 @@ export interface User {
 export interface TicketInfo {
   sprint: string;
   ticketId: string;
-  priority: TicketPriority; // Novo campo
+  priority: TicketPriority;
+  ticketStatus?: TicketStatus; // Novo campo
   ticketTitle: string;
   ticketSummary: string;
   clientSystem: string;
@@ -58,6 +67,9 @@ export interface TicketInfo {
   evidenceDate: string;
   ticketDescription: string;
   solution: string;
+  // Campos de Impedimento
+  blockageReason?: string;
+  blockageImageUrls?: string[];
 }
 
 export interface TestStep {

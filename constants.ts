@@ -1,7 +1,7 @@
 
 
-import { TestStatus, Severity, TicketPriority } from './types';
-import { CheckCircle2, XCircle, AlertCircle, MinusCircle, Clock, ArrowDown, ArrowRight, ArrowUp } from 'lucide-react';
+import { TestStatus, Severity, TicketPriority, TicketStatus } from './types';
+import { CheckCircle2, XCircle, AlertCircle, MinusCircle, Clock, ArrowDown, ArrowRight, ArrowUp, Play, Ban, CheckCheck } from 'lucide-react';
 
 export const STATUS_CONFIG = {
   [TestStatus.PASS]: {
@@ -53,5 +53,33 @@ export const PRIORITY_CONFIG = {
     label: 'Alta',
     color: 'bg-red-100 text-red-800 border-red-200',
     icon: ArrowUp
+  }
+};
+
+export const TICKET_STATUS_CONFIG = {
+  [TicketStatus.PENDING]: {
+    label: 'Pendente',
+    color: 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200', // Azul
+    icon: Clock
+  },
+  [TicketStatus.IN_PROGRESS]: {
+    label: 'Em andamento',
+    color: 'bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-200', // Amarelo
+    icon: Play
+  },
+  [TicketStatus.BLOCKED]: {
+    label: 'Impedimento',
+    color: 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200', // Laranja
+    icon: AlertCircle
+  },
+  [TicketStatus.CANCELLED]: {
+    label: 'Cancelado',
+    color: 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200', // Cinza
+    icon: Ban
+  },
+  [TicketStatus.FINISHED]: {
+    label: 'Finalizado',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200', // Verde
+    icon: CheckCheck
   }
 };
