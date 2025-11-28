@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ArchivedTicket, User, TestStatus, EvidenceItem } from '../types';
-import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock, Timer, Check } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock, Timer } from 'lucide-react';
 
 interface DashboardMetricsProps {
   tickets: ArchivedTicket[];
@@ -11,21 +11,8 @@ interface DashboardMetricsProps {
 const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, currentUser }) => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'MINE'>('ALL');
   const [selectedSprint, setSelectedSprint] = useState<string>('ALL');
-  
-  const [isSprintOpen, setIsSprintOpen] = useState(false);
-  const sprintDropdownRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = currentUser.role === 'ADMIN';
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sprintDropdownRef.current && !sprintDropdownRef.current.contains(event.target as Node)) {
-        setIsSprintOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Extract Unique Sprints
   const availableSprints = useMemo(() => {
@@ -224,63 +211,22 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-             {/* SPRINT SELECTOR - Modern UI */}
-             <div className="relative group min-w-[200px]" ref={sprintDropdownRef}>
-                <button
-                    onClick={() => setIsSprintOpen(!isSprintOpen)}
-                    className={`w-full flex items-center justify-between bg-white border px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 group-hover:border-indigo-300 ${isSprintOpen ? 'border-indigo-500 ring-4 ring-indigo-500/10' : 'border-slate-200'}`}
+             {/* SPRINT SELECTOR */}
+             <div className="relative group min-w-[160px]">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Timer className="w-4 h-4" />
+                </div>
+                <select
+                    value={selectedSprint}
+                    onChange={(e) => setSelectedSprint(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none text-sm font-bold text-slate-700 hover:bg-slate-200 transition-all"
                 >
-                    <div className="flex items-center gap-3">
-                            <div className={`p-1.5 rounded-lg transition-colors ${selectedSprint !== 'ALL' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
-                                <Timer className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col items-start">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Filtrar por</span>
-                                <span className={`text-sm font-bold leading-none ${selectedSprint !== 'ALL' ? 'text-indigo-700' : 'text-slate-700'}`}>
-                                    {selectedSprint === 'ALL' ? 'Todas Sprints' : `Sprint ${selectedSprint}`}
-                                </span>
-                            </div>
-                    </div>
-                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isSprintOpen ? 'rotate-180 text-indigo-500' : ''}`} />
-                </button>
-
-                {isSprintOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-down">
-                        <div className="p-2 border-b border-slate-100 bg-slate-50/50">
-                            <span className="text-xs font-bold text-slate-500 px-2">Selecione a Sprint</span>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar">
-                            <button
-                                onClick={() => { setSelectedSprint('ALL'); setIsSprintOpen(false); }}
-                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${selectedSprint === 'ALL' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
-                            >
-                                <span className="flex items-center gap-2">
-                                    <Timer className="w-3.5 h-3.5 opacity-50" />
-                                    Todas as Sprints
-                                </span>
-                                {selectedSprint === 'ALL' && <Check className="w-4 h-4 text-indigo-600" />}
-                            </button>
-                            
-                            {availableSprints.length > 0 && <div className="my-1 border-t border-slate-100"></div>}
-
-                            {availableSprints.map(sprint => (
-                                <button
-                                    key={sprint}
-                                    onClick={() => { setSelectedSprint(sprint); setIsSprintOpen(false); }}
-                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${selectedSprint === sprint ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
-                                >
-                                    <span>Sprint {sprint}</span>
-                                    {selectedSprint === sprint && <Check className="w-4 h-4 text-indigo-600" />}
-                                </button>
-                            ))}
-                            {availableSprints.length === 0 && (
-                                <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
-                                    Nenhuma sprint encontrada
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                    <option value="ALL">Todas Sprints</option>
+                    {availableSprints.map(sprint => (
+                        <option key={sprint} value={sprint}>Sprint {sprint}</option>
+                    ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
 
             {isAdmin && (
