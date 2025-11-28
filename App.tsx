@@ -9,7 +9,7 @@ import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import BugReportForm from './components/BugReportForm';
-import EasterEggBug from './components/EasterEggBug';
+import EasterEggBug from './components/EasterEggBug'; // Import Easter Egg
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority, BugReport, TicketStatus } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
@@ -716,8 +716,10 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
       <Header user={currentUser} onLogout={handleLogout} />
-      <EasterEggBug />
       
+      {/* EASTER EGG BUG - Renders globally when app is active */}
+      <EasterEggBug />
+
       <main className="relative flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-28">
         
         {/* User Management Panel Toggle */}

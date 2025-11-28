@@ -29,63 +29,71 @@
 
       .animate-fade-in { animation: fadeIn 0.5s ease-out; }
       .animate-slide-down { animation: slideDown 0.3s ease-out; }
-      .animate-slide-up { animation: slideUp 0.3s ease-out; }
-      .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-      .animate-shimmer { animation: shimmer 2s infinite; }
       
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-      @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      @keyframes bounceIn { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
-      @keyframes shimmer { 100% { transform: translateX(100%); } }
 
-      /* Mask for fading linear content */
-      .mask-linear-fade {
-        mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+      /* Animation for Floating Buttons Shimmer */
+      @keyframes shimmer {
+        100% {
+          transform: translateX(100%);
+        }
+      }
+      .animate-shimmer {
+        animation: shimmer 2s infinite;
       }
 
-      /* Custom Scrollbar for Dropdowns */
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-      .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-      
-      /* BUG ANIMATIONS */
+      /* BUG EASTER EGG ANIMATIONS */
       @keyframes leg-wiggle {
-        0% { transform: rotate(0deg) translate(0,0); }
-        25% { transform: rotate(15deg) translate(2px, 2px); }
-        50% { transform: rotate(0deg) translate(0,0); }
-        75% { transform: rotate(-15deg) translate(-2px, 2px); }
-        100% { transform: rotate(0deg) translate(0,0); }
+        0%, 100% { transform: rotate(-10deg); }
+        50% { transform: rotate(10deg); }
       }
-
+      @keyframes leg-wiggle-fast {
+        0%, 100% { transform: rotate(-20deg); }
+        50% { transform: rotate(20deg); }
+      }
       @keyframes bug-bounce {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
       }
-
-      @keyframes bug-laugh {
-        0% { transform: rotate(0deg) translateY(0); }
-        25% { transform: rotate(-5deg) translateY(-2px); }
-        75% { transform: rotate(5deg) translateY(-2px); }
-        100% { transform: rotate(0deg) translateY(0); }
+      @keyframes particle-1 {
+        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(-20px, -20px) scale(0); opacity: 0; }
       }
-
-      @keyframes fade-out {
-        to { opacity: 0; transform: scale(2); }
+      @keyframes particle-2 {
+        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(20px, 20px) scale(0); opacity: 0; }
+      }
+      @keyframes particle-3 {
+        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(-10px, 30px) scale(0); opacity: 0; }
+      }
+      @keyframes blink {
+        0%, 90%, 100% { transform: scaleY(1); }
+        95% { transform: scaleY(0.1); }
+      }
+      @keyframes shake {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-5deg); }
+        75% { transform: rotate(5deg); }
       }
       
-      .animate-leg-wiggle path:nth-child(odd) { animation: leg-wiggle 0.2s infinite linear; transform-origin: center; }
-      .animate-leg-wiggle path:nth-child(even) { animation: leg-wiggle 0.2s infinite linear reverse; transform-origin: center; }
-      
+      .animate-leg-wiggle path { transform-origin: center; animation: leg-wiggle 0.3s infinite ease-in-out; }
+      .animate-leg-wiggle-fast path { transform-origin: center; animation: leg-wiggle-fast 0.1s infinite linear; }
       .animate-bug-bounce { animation: bug-bounce 0.4s infinite ease-in-out; }
-      .animate-bug-laugh { animation: bug-laugh 0.1s infinite linear; }
-      .animate-fade-out { animation: fade-out 0.5s forwards; }
+      .animate-particle-1 { animation: particle-1 0.6s forwards ease-out; }
+      .animate-particle-2 { animation: particle-2 0.6s forwards ease-out; }
+      .animate-particle-3 { animation: particle-3 0.6s forwards ease-out; }
+      .animate-bounce-in { animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+      .animate-blink circle { transform-origin: center; animation: blink 4s infinite; }
       
-      .particle-explosion {
-         position: absolute;
-         width: 100%; height: 100%;
-         pointer-events: none;
+      @keyframes bounceIn {
+        0% { opacity: 0; transform: scale(0.3) rotate(-10deg); }
+        50% { opacity: 1; transform: scale(1.05) rotate(5deg); }
+        70% { transform: scale(0.9) rotate(-2deg); }
+        100% { transform: scale(1) rotate(0); }
       }
+
     </style>
   <script type="importmap">
 {
