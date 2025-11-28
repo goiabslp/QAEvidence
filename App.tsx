@@ -830,6 +830,7 @@ const App: React.FC = () => {
                             initialTicketInfo={editingTicketInfo}
                             onTicketInfoChange={(info) => { formTicketInfoRef.current = info; }}
                             onCancel={editingHistoryId ? handleCancelEdit : undefined}
+                            onEditCase={handleEditCase}
                         />
                         
                         {/* List Header (Title Only) */}

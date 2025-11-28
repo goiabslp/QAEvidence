@@ -3,7 +3,7 @@ import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority, TicketS
 import { PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '../constants';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -16,6 +16,7 @@ interface EvidenceFormProps {
   initialTicketInfo?: TicketInfo | null;
   onTicketInfoChange?: (info: TicketInfo) => void;
   onCancel?: () => void;
+  onEditCase?: (id: string) => void;
 }
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
@@ -37,7 +38,8 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   evidences = [], 
   initialTicketInfo,
   onTicketInfoChange,
-  onCancel
+  onCancel,
+  onEditCase
 }) => {
   const [sprint, setSprint] = useState('');
   const [ticketId, setTicketId] = useState('');
@@ -792,7 +794,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                            <th className="px-4 py-3">Tela</th>
                            <th className="px-4 py-3 w-1/3">Funcionalidade</th>
                            <th className="px-4 py-3 text-center">Status</th>
-                           <th className="px-4 py-3 text-right w-16"></th>
+                           <th className="px-4 py-3 text-right w-24"></th>
                          </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100">
@@ -835,7 +837,17 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                            'Pendente'} 
                                        </span>
                                     </td>
-                                    <td className="px-4 py-3 text-right">
+                                    <td className="px-4 py-3 text-right flex justify-end gap-2">
+                                       {onEditCase && (
+                                           <button 
+                                              type="button" 
+                                              onClick={(e) => { e.stopPropagation(); onEditCase(item.id); }}
+                                              className="text-slate-400 hover:text-indigo-600 p-1 hover:bg-slate-100 rounded transition-colors"
+                                              title="Editar Caso"
+                                           >
+                                              <Pencil className="w-4 h-4" />
+                                           </button>
+                                       )}
                                        <button type="button" className="text-slate-400 hover:text-indigo-600">
                                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                        </button>
