@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -75,6 +76,33 @@ const App: React.FC = () => {
   
   const formTicketInfoRef = useRef<TicketInfo | null>(null);
   const historyCarouselRef = useRef<HTMLDivElement>(null);
+
+  // Footer Intersection Observer
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsFooterVisible(entry.isIntersecting);
+      },
+      {
+        root: null,
+        threshold: 0, // Trigger as soon as even 1px is visible
+        rootMargin: "0px" 
+      }
+    );
+
+    if (footerRef.current) {
+      observer.observe(footerRef.current);
+    }
+
+    return () => {
+      if (footerRef.current) {
+        observer.unobserve(footerRef.current);
+      }
+    };
+  }, []);
 
   // --- PERSISTENCE & INITIALIZATION ---
   useEffect(() => {
@@ -689,7 +717,13 @@ const App: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-slate-50">
       <Header user={currentUser} onLogout={handleLogout} />
       
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
+      {/* 
+         MAIN CONTAINER
+         relative: To contain absolute elements
+         pb-48: LARGE padding bottom to ensure content ends way before the footer 
+                and provides a safe "docking area" for the floating buttons.
+      */}
+      <main className="relative flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-48">
         
         {/* User Management Panel Toggle */}
         {currentUser && (
@@ -863,7 +897,13 @@ const App: React.FC = () => {
                         />
 
                         {/* FINAL ACTIONS - FLOATING BUTTONS */}
-                        <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
+                        {/* 
+                            Logic: 
+                            1. z-40: Lower than Footer (z-50) so if they overlap, footer wins (prevents rolling over).
+                            2. if Footer Visible: 'absolute bottom-8' relative to the PADDED main container. This docks them.
+                            3. if Footer Hidden: 'fixed bottom-6' relative to window (floating).
+                        */}
+                        <div className={`left-0 right-0 z-40 px-4 pointer-events-none transition-all duration-300 ${isFooterVisible ? 'absolute bottom-8' : 'fixed bottom-6'}`}>
                             <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
                                 {pdfError && (
                                     <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
@@ -1380,6 +1420,7 @@ const App: React.FC = () => {
       </div>
       
     </main>
+    {/* Footer outside main to ensure it stacks correctly at bottom */}
     <Footer />
     </div>
   );
