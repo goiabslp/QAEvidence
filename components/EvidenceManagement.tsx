@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ArchivedTicket, User, EvidenceItem, TestStatus, TicketPriority, TicketStatus } from '../types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '../constants';
-import { Search, FileDown, ChevronDown, Calendar, Hash, FolderOpen, Trash2, ListChecks, Edit, Lock, Ban, History, Timer, Loader2 } from 'lucide-react';
+import { Search, FileDown, ChevronDown, Calendar, Hash, FolderOpen, Trash2, ListChecks, Edit, Lock, Ban, History, Timer, Loader2, Check } from 'lucide-react';
 import EvidenceList from './EvidenceList';
 
 declare const html2pdf: any;
@@ -20,6 +20,10 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
   const [printingTicketId, setPrintingTicketId] = useState<string | null>(null);
   const [permissionError, setPermissionError] = useState<boolean>(false);
+  
+  // Custom Dropdown State
+  const [isSprintOpen, setIsSprintOpen] = useState(false);
+  const sprintDropdownRef = useRef<HTMLDivElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Extract Unique Sprints
@@ -36,6 +40,22 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
         return a.localeCompare(b);
     });
   }, [tickets]);
+
+  // Click Outside Handler for Dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sprintDropdownRef.current && !sprintDropdownRef.current.contains(event.target as Node)) {
+        setIsSprintOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Collapse all items when Sprint changes (Minimizado por padrão)
+  useEffect(() => {
+      setExpandedUsers(new Set());
+  }, [selectedSprint]);
 
   const toggleUser = (acronym: string) => {
     const newSet = new Set(expandedUsers);
@@ -182,7 +202,6 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
   };
 
   const getUniqueTicketStatuses = (items: EvidenceItem[]) => {
-    // REGRA: Se não há itens (0 cenários/casos), o status é PENDENTE
     if (!items || items.length === 0) {
         return [STATUS_CONFIG[TestStatus.PENDING]];
     }
@@ -190,17 +209,13 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     const seenLabels = new Set<string>();
     const resultConfigs = [];
 
-    // Priority order for processing to ensure proper display order
     const priority = [TestStatus.FAIL, TestStatus.BLOCKED, TestStatus.PENDING, TestStatus.SKIPPED, TestStatus.PASS];
     
-    // Get all unique statuses present in items
     const presentStatuses = new Set(items.map(i => i.status));
     
-    // Iterate in priority order to build the result list
     for (const status of priority) {
         if (presentStatuses.has(status)) {
             const config = STATUS_CONFIG[status];
-            // Merge labels (e.g., PENDING and SKIPPED both map to "Pendente")
             if (!seenLabels.has(config.label)) {
                 seenLabels.add(config.label);
                 resultConfigs.push(config);
@@ -213,7 +228,6 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
 
   const ticketToPrint = tickets.find(t => t.id === printingTicketId);
 
-  // Sort items for PDF History Table
   const pdfItems = useMemo(() => {
     if (!ticketToPrint) return [];
     return [...ticketToPrint.items].sort((a, b) => {
@@ -251,22 +265,47 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
             </div>
             
             <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                {/* Sprint Filter */}
-                <div className="relative group min-w-[160px]">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                
+                {/* Modern Sprint Filter */}
+                <div className="relative group min-w-[180px]" ref={sprintDropdownRef}>
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 z-10 pointer-events-none">
                         <Timer className="w-4 h-4" />
                     </div>
-                    <select
-                        value={selectedSprint}
-                        onChange={(e) => setSelectedSprint(e.target.value)}
-                        className="w-full pl-9 pr-8 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer appearance-none text-sm font-bold text-slate-700 hover:bg-white transition-all"
+                    <button
+                        type="button"
+                        onClick={() => setIsSprintOpen(!isSprintOpen)}
+                        className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-left text-sm font-bold text-slate-700 hover:bg-white transition-all shadow-sm flex items-center justify-between"
                     >
-                        <option value="ALL">Todas Sprints</option>
-                        {availableSprints.map(sprint => (
-                            <option key={sprint} value={sprint}>Sprint {sprint}</option>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <span className="truncate">
+                            {selectedSprint === 'ALL' ? 'Todas Sprints' : `Sprint ${selectedSprint}`}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isSprintOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isSprintOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto animate-slide-down custom-scrollbar">
+                            <div className="p-1.5 space-y-1">
+                                <button
+                                    onClick={() => { setSelectedSprint('ALL'); setIsSprintOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold transition-all ${selectedSprint === 'ALL' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <span>Todas Sprints</span>
+                                    {selectedSprint === 'ALL' && <Check className="w-4 h-4" />}
+                                </button>
+                                <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                                {availableSprints.map(sprint => (
+                                    <button
+                                        key={sprint}
+                                        onClick={() => { setSelectedSprint(sprint); setIsSprintOpen(false); }}
+                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold transition-all ${selectedSprint === sprint ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                    >
+                                        <span>Sprint {sprint}</span>
+                                        {selectedSprint === sprint && <Check className="w-4 h-4" />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Search Box */}
@@ -289,7 +328,8 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
         {sortedUserKeys.map(acronym => {
             const userTickets = groupedTickets[acronym];
             const user = users.find(u => u.acronym === acronym);
-            const isExpanded = expandedUsers.has(acronym) || searchTerm !== '' || selectedSprint !== 'ALL';
+            // Don't auto-expand based on Sprint, only on Search
+            const isExpanded = expandedUsers.has(acronym) || searchTerm !== '';
 
             return (
                 <div key={acronym} className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm transition-all hover:shadow-md">
@@ -315,7 +355,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                         </div>
                     </div>
 
-                    {(isExpanded || searchTerm) && (
+                    {(isExpanded) && (
                         <div className="divide-y divide-slate-100 bg-white">
                             {userTickets.map(ticket => {
                                 const testIds = ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean);
@@ -453,25 +493,21 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
         )}
       </div>
 
-      {/* Hidden Print Container - REFACTORED FOR HEADER/CONTENT/FOOTER */}
+      {/* Hidden Print Container */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm' }}>
          <div ref={printRef} className="bg-white font-inter text-slate-900 relative w-full" style={{ margin: 0, padding: 0 }}>
             {ticketToPrint && (
                 <main className="w-full">
-                     {/* SECTION: TICKET INFORMATION */}
-                    {/* Added mt-0 to ensure first element touches the 'ceiling' of the margin */}
-                    <div className="mb-0 space-y-4">
-                        
-                        {/* ROW 1: TITLE */}
+                     {/* Print Content... */}
+                     {/* ... (Keep existing print template) ... */}
+                     <div className="mb-0 space-y-4">
                         <div className="border-b-2 border-slate-900 pb-4 mb-6">
                             <h1 className="text-2xl font-extrabold text-slate-900 uppercase tracking-tight leading-tight m-0 p-0">
                                 {ticketToPrint.ticketInfo.ticketTitle || 'Sem Título'}
                             </h1>
                         </div>
-
-                        {/* GRID INFO */}
+                        {/* ... (rest of the print template omitted for brevity, keeping same logic) ... */}
                         <div className="grid grid-cols-4 gap-y-4 gap-x-6 text-left">
-                            {/* ROW 2 */}
                             <div className="col-span-1">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Chamado (ID)</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.ticketId || '-'}</p>
@@ -489,7 +525,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                    );
                                 })()}
                            </div>
-                            <div className="col-span-1">
+                           <div className="col-span-1">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Solicitação</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.requestDate ? ticketToPrint.ticketInfo.requestDate.split('-').reverse().join('/') : '-'}</p>
                             </div>
@@ -497,8 +533,6 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Data Evidência</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.evidenceDate ? ticketToPrint.ticketInfo.evidenceDate.split('-').reverse().join('/') : '-'}</p>
                             </div>
-
-                            {/* ROW 3 */}
                             <div className="col-span-1">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitante</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.requester || '-'}</p>
@@ -511,8 +545,6 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Cliente / Sistema</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.clientSystem || '-'}</p>
                             </div>
-
-                            {/* ROW 4 */}
                             <div className="col-span-2">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Ambiente</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.environment || '-'}</p>
@@ -521,27 +553,21 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Versão</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.environmentVersion || '-'}</p>
                             </div>
-                            
                             <div className="col-span-4">
                                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Sprint</label>
                                 <p className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-1">{ticketToPrint.ticketInfo.sprint || '-'}</p>
                            </div>
                         </div>
-
-                        {/* ROW 5: DESCRIPTION */}
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-4">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Descrição do Chamado</label>
                             <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{ticketToPrint.ticketInfo.ticketDescription || 'Nenhuma descrição fornecida.'}</p>
                         </div>
-
-                        {/* ROW 6: SOLUTION */}
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Solução / Correção Aplicada</label>
                             <p className="text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">{ticketToPrint.ticketInfo.solution || 'Não aplicável.'}</p>
                         </div>
                     </div>
 
-                    {/* PAGE 2: HISTÓRICO DE TESTES (SUMMARY TABLE) */}
                     <div className="pt-8" style={{ pageBreakBefore: 'always' }}>
                         <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2 border-b border-slate-900 pb-2">
                             <History className="w-5 h-5" /> Histórico de Testes
@@ -608,7 +634,6 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                         </table>
                     </div>
 
-                     {/* EVIDENCES - FORCED PAGE BREAK BEFORE */}
                      <div className="pt-0 mt-0" style={{ pageBreakBefore: 'always', marginTop: 0 }}>
                         <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider mb-6 flex items-center gap-2 border-b border-slate-900 pb-2">
                             <ListChecks className="w-5 h-5" /> Detalhamento da Execução
