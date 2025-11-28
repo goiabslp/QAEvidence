@@ -8,6 +8,7 @@ import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import BugReportForm from './components/BugReportForm';
+import EasterEggBug from './components/EasterEggBug';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority, BugReport, TicketStatus } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
@@ -68,6 +69,10 @@ const App: React.FC = () => {
   
   // State for Ticket Deletion
   const [ticketToDelete, setTicketToDelete] = useState<ArchivedTicket | null>(null);
+
+  // Footer Detection
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
+  const footerRef = useRef<HTMLDivElement>(null);
   
   const reportRef = useRef<HTMLDivElement>(null);
   
@@ -120,6 +125,26 @@ const App: React.FC = () => {
     if (storedBugs) {
         setBugReports(JSON.parse(storedBugs));
     }
+  }, []);
+
+  // Intersection Observer for Footer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+        ([entry]) => {
+            setIsFooterVisible(entry.isIntersecting);
+        },
+        { threshold: 0 }
+    );
+
+    if (footerRef.current) {
+        observer.observe(footerRef.current);
+    }
+
+    return () => {
+        if (footerRef.current) {
+            observer.unobserve(footerRef.current);
+        }
+    };
   }, []);
 
   // Save Users when changed
@@ -686,10 +711,11 @@ const App: React.FC = () => {
   const isPdfLocked = evidences.length === 0;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-slate-50 relative">
+      <EasterEggBug />
       <Header user={currentUser} onLogout={handleLogout} />
       
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-28 relative">
         
         {/* User Management Panel Toggle */}
         {currentUser && (
@@ -863,7 +889,7 @@ const App: React.FC = () => {
                         />
 
                         {/* FINAL ACTIONS - FLOATING BUTTONS */}
-                        <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
+                        <div className={`left-0 right-0 z-[60] px-4 pointer-events-none transition-all duration-300 ${isFooterVisible ? 'absolute bottom-10' : 'fixed bottom-6'}`}>
                             <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
                                 {pdfError && (
                                     <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
@@ -1379,8 +1405,7 @@ const App: React.FC = () => {
          </div>
       </div>
       
-    </main>
-    <Footer />
+      <Footer />
     </div>
   );
 };
