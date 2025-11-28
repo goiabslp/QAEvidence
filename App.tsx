@@ -292,8 +292,6 @@ const App: React.FC = () => {
       nextCaseNumber: nextCaseNum,
       ticketInfo: origin.ticketInfo
     });
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleEditCase = (id: string) => {
@@ -308,8 +306,6 @@ const App: React.FC = () => {
       evidenceId: item.id,
       existingDetails: item.testCaseDetails
     });
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancelEdit = () => {

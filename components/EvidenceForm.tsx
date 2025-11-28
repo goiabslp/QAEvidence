@@ -84,6 +84,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
 
   const envInputRef = useRef<HTMLInputElement>(null);
   const envDropdownRef = useRef<HTMLDivElement>(null);
+  const wizardSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialTicketInfo) {
@@ -114,6 +115,27 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       setIsTitleManuallyEdited(false);
     }
   }, [initialTicketInfo]);
+
+  // Collapse Ticket Info automatically when Wizard is triggered and Scroll to Wizard
+  useEffect(() => {
+    if (wizardTrigger) {
+      setIsTicketInfoExpanded(false);
+      
+      // Wait for collapse animation then scroll
+      setTimeout(() => {
+        if (wizardSectionRef.current) {
+             const headerOffset = 100; // Adjust for sticky header
+             const elementPosition = wizardSectionRef.current.getBoundingClientRect().top;
+             const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+             
+             window.scrollTo({
+                 top: offsetPosition,
+                 behavior: "smooth"
+             });
+        }
+      }, 300);
+    }
+  }, [wizardTrigger]);
 
   // Clear Blockage Data if Status is not BLOCKED
   useEffect(() => {
@@ -456,7 +478,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                 type="text" 
                                 inputMode="numeric"
                                 value={sprint} 
-                                onChange={e => setTicketStatus === undefined ? null : setSprint(e.target.value.replace(/\D/g, ''))} 
+                                onChange={e => setSprint(e.target.value.replace(/\D/g, ''))} 
                                 className={ticketInputClass} 
                                 placeholder="Ex: 24" 
                             />
@@ -850,7 +872,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
           )}
 
           {/* SEÇÃO 3: WIZARD */}
-          <div className="space-y-4 pt-4 border-t border-dashed border-slate-200">
+          <div ref={wizardSectionRef} className="space-y-4 pt-4 border-t border-dashed border-slate-200">
             <div className="flex justify-between items-center pb-2">
                 <div className="flex items-center gap-3">
                     <div className="p-1.5 bg-indigo-50 rounded-md">
