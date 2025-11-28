@@ -35,6 +35,11 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Reset expansion when sprint changes to ensure items start minimized
+  useEffect(() => {
+    setExpandedUsers(new Set());
+  }, [selectedSprint]);
+
   // Extract Unique Sprints
   const availableSprints = useMemo(() => {
     const sprints = new Set<string>();
@@ -343,7 +348,8 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
         {sortedUserKeys.map(acronym => {
             const userTickets = groupedTickets[acronym];
             const user = users.find(u => u.acronym === acronym);
-            const isExpanded = expandedUsers.has(acronym) || searchTerm !== '' || selectedSprint !== 'ALL';
+            // Only auto-expand on search, otherwise default to minimized for sprint filtering
+            const isExpanded = expandedUsers.has(acronym) || searchTerm !== '';
 
             return (
                 <div key={acronym} className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm transition-all hover:shadow-md">
@@ -369,8 +375,8 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
                         </div>
                     </div>
 
-                    {(isExpanded || searchTerm) && (
-                        <div className="divide-y divide-slate-100 bg-white">
+                    {(isExpanded) && (
+                        <div className="divide-y divide-slate-100 bg-white animate-slide-down">
                             {userTickets.map(ticket => {
                                 const testIds = ticket.items.map(i => i.testCaseDetails?.caseId).filter(Boolean);
                                 const date = ticket.ticketInfo.evidenceDate 
