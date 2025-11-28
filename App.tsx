@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -720,10 +719,9 @@ const App: React.FC = () => {
       {/* 
          MAIN CONTAINER
          relative: To contain absolute elements
-         pb-48: LARGE padding bottom to ensure content ends way before the footer 
-                and provides a safe "docking area" for the floating buttons.
+         pb-28: Adjusted padding to fit floating buttons without creating a huge white gap above footer.
       */}
-      <main className="relative flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-48">
+      <main className="relative flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-28">
         
         {/* User Management Panel Toggle */}
         {currentUser && (
