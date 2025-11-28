@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep, TicketPriority } from '../types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard, ArrowUp, ArrowDown } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -253,6 +253,25 @@ const TestScenarioWizard: React.FC<TestScenarioWizardProps> = ({ onSave, baseTic
      }));
      setSteps(newSteps);
      if (newSteps.length === 0) setIsTestStarted(false);
+  };
+
+  const handleMoveStep = (index: number, direction: 'up' | 'down') => {
+      if (direction === 'up' && index === 0) return;
+      if (direction === 'down' && index === steps.length - 1) return;
+
+      const newSteps = [...steps];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      
+      // Swap elements
+      [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
+
+      // Re-index step numbers to keep them sequential
+      const reindexedSteps = newSteps.map((s, i) => ({
+          ...s,
+          stepNumber: i + 1
+      }));
+
+      setSteps(reindexedSteps);
   };
 
   const handleClose = () => {
@@ -567,9 +586,12 @@ E seleciono a opção Aprovar;`}
                             {steps.map((step, index) => (
                                 <div key={index} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group transition-all hover:shadow-md hover:border-slate-300">
                                     <div className="flex items-start gap-4">
+                                        {/* Step Indicator */}
                                         <div className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded mt-1 flex-shrink-0 shadow-sm">
                                             STEP {step.stepNumber}
                                         </div>
+                                        
+                                        {/* Content */}
                                         <div className="flex-1 space-y-3">
                                             <textarea
                                                 value={step.description}
@@ -626,14 +648,41 @@ E seleciono a opção Aprovar;`}
                                                 </div>
                                             )}
                                         </div>
-                                        <button 
-                                            type="button"
-                                            onClick={() => handleRemoveStep(index)}
-                                            className="text-slate-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-all"
-                                            title="Remover passo"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+
+                                        {/* Action Buttons (Right Side) */}
+                                        <div className="flex flex-col gap-1">
+                                            {/* Move Up */}
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleMoveStep(index, 'up')}
+                                                disabled={index === 0}
+                                                className={`p-1.5 rounded-md transition-colors ${index === 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'}`}
+                                                title="Mover para cima"
+                                            >
+                                                <ArrowUp className="w-4 h-4" />
+                                            </button>
+
+                                            {/* Move Down */}
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleMoveStep(index, 'down')}
+                                                disabled={index === steps.length - 1}
+                                                className={`p-1.5 rounded-md transition-colors ${index === steps.length - 1 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'}`}
+                                                title="Mover para baixo"
+                                            >
+                                                <ArrowDown className="w-4 h-4" />
+                                            </button>
+
+                                            {/* Delete */}
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleRemoveStep(index)}
+                                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all mt-1"
+                                                title="Remover passo"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
