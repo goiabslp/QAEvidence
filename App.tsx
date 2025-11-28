@@ -689,7 +689,7 @@ const App: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-slate-50">
       <Header user={currentUser} onLogout={handleLogout} />
       
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
         
         {/* User Management Panel Toggle */}
         {currentUser && (
@@ -862,15 +862,22 @@ const App: React.FC = () => {
                             onEditCase={handleEditCase}
                         />
 
-                        {/* FINAL ACTIONS - COMPACT & VIVID */}
-                        <div className={`mb-32 ${!(evidences.length > 0 || editingHistoryId) ? 'mt-16' : 'mt-12'}`}>
-                            <div className="flex flex-col items-center justify-center">
-                                <div className="flex flex-wrap gap-4 justify-center">
+                        {/* FINAL ACTIONS - FLOATING BUTTONS */}
+                        <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
+                            <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
+                                {pdfError && (
+                                    <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        {pdfError}
+                                    </div>
+                                )}
+                                
+                                <div className="flex flex-wrap gap-4 justify-center w-full sm:w-auto pointer-events-auto">
                                     {/* Save Button */}
                                     <button
                                         onClick={handleSaveAndClose}
                                         disabled={false}
-                                        className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-200/40 transition-all hover:shadow-emerald-300/60 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20"
+                                        className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-900/20 transition-all duration-300 hover:shadow-emerald-900/40 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 backdrop-blur-sm opacity-75 hover:opacity-100"
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
                                         <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
@@ -883,7 +890,7 @@ const App: React.FC = () => {
                                     <button
                                         onClick={handlePdfFlow}
                                         disabled={isGeneratingPdf}
-                                        className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-200/40 transition-all hover:shadow-blue-300/60 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 ${isPdfLocked ? 'cursor-not-allowed opacity-90' : ''}`}
+                                        className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-900/20 transition-all duration-300 hover:shadow-blue-900/40 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 backdrop-blur-sm opacity-75 hover:opacity-100 ${isPdfLocked ? 'cursor-not-allowed !opacity-90' : ''}`}
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
                                         <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
@@ -901,13 +908,6 @@ const App: React.FC = () => {
                                         </div>
                                     </button>
                                 </div>
-                                
-                                {pdfError && (
-                                    <div className="mt-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-red-100 animate-pulse max-w-lg text-center shadow-sm">
-                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                        {pdfError}
-                                    </div>
-                                )}
                             </div>
                         </div>
                    </>

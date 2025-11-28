@@ -1,7 +1,6 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ArchivedTicket, User, TestStatus, EvidenceItem } from '../types';
-import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock, Timer, Check } from 'lucide-react';
 
 interface DashboardMetricsProps {
   tickets: ArchivedTicket[];
@@ -11,8 +10,37 @@ interface DashboardMetricsProps {
 
 const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, currentUser }) => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'MINE'>('ALL');
+  const [selectedSprint, setSelectedSprint] = useState<string>('ALL');
+  
+  const [isSprintOpen, setIsSprintOpen] = useState(false);
+  const sprintDropdownRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = currentUser.role === 'ADMIN';
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sprintDropdownRef.current && !sprintDropdownRef.current.contains(event.target as Node)) {
+        setIsSprintOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Extract Unique Sprints
+  const availableSprints = useMemo(() => {
+    const sprints = new Set<string>();
+    tickets.forEach(t => {
+        if (t.ticketInfo.sprint) sprints.add(t.ticketInfo.sprint);
+    });
+    return Array.from(sprints).sort((a, b) => {
+        // Try numeric sort
+        const numA = parseInt(a.replace(/\D/g, ''));
+        const numB = parseInt(b.replace(/\D/g, ''));
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.localeCompare(b);
+    });
+  }, [tickets]);
 
   // --- LOGIC HELPERS ---
 
@@ -33,19 +61,25 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     if (allPending) return 'PENDING';
 
     // Check for Fail or Blocked (At least 1) or Mixed states
-    // "Chamado com pelo menos 1 Cenário = Falha -> Em andamento"
-    // "Chamado com pelo menos 1 Cenário = Impedimento -> Em andamento"
     return 'IN_PROGRESS';
   };
 
   // Filter tickets based on selection
-  // Strict filter for non-admins to ensure they only see their own metrics
   const filteredTickets = useMemo(() => {
+    let result = tickets;
+
+    // Filter by Owner
     if (!isAdmin || filterMode === 'MINE') {
-      return tickets.filter(t => t.createdBy === currentUser.acronym);
+      result = result.filter(t => t.createdBy === currentUser.acronym);
     }
-    return tickets;
-  }, [tickets, filterMode, isAdmin, currentUser]);
+
+    // Filter by Sprint
+    if (selectedSprint !== 'ALL') {
+      result = result.filter(t => t.ticketInfo.sprint === selectedSprint);
+    }
+
+    return result;
+  }, [tickets, filterMode, isAdmin, currentUser, selectedSprint]);
 
   // --- METRICS CALCULATION ---
   const metrics = useMemo(() => {
@@ -53,8 +87,8 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
       tickets: {
         total: 0,
         finished: 0,    // SUCCESS
-        pending: 0,     // PENDING (New bucket)
-        inProgress: 0,  // IN_PROGRESS (Fail/Blocked/Mixed)
+        pending: 0,     // PENDING
+        inProgress: 0,  // IN_PROGRESS
       },
       scenarios: {
         total: 0,
@@ -128,7 +162,6 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     }>();
 
     // Initialize with all relevant users
-    // Strict filtering for non-admins: only show themselves
     const usersToProcess = (!isAdmin || filterMode === 'MINE') 
         ? users.filter(u => u.acronym === currentUser.acronym)
         : users;
@@ -145,10 +178,7 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
     // Populate data
     filteredTickets.forEach(t => {
         if (!map.has(t.createdBy)) {
-             // Handle case where ticket exists but user is not in current list (e.g. deleted user)
-             // For non-admin view, filteredTickets only has currentUser tickets, so this shouldn't happen if currentUser exists.
              if (!isAdmin) return; 
-
              const unknownUser = { acronym: t.createdBy, name: 'Desconhecido', role: 'USER' } as User;
              map.set(t.createdBy, { user: unknownUser, ticketsCount: 0, totalCases: 0, cases: { success: 0, pending: 0, blocked: 0, fail: 0 } });
         }
@@ -193,34 +223,95 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
            </p>
         </div>
 
-        {isAdmin && (
-            <div className="relative">
-                <div className="flex bg-slate-100 p-1 rounded-xl">
-                    <button
-                        onClick={() => setFilterMode('MINE')}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
-                            filterMode === 'MINE' 
-                            ? 'bg-white text-indigo-600 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                        <UserIcon className="w-4 h-4" />
-                        Minhas Métricas
-                    </button>
-                    <button
-                        onClick={() => setFilterMode('ALL')}
-                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
-                            filterMode === 'ALL' 
-                            ? 'bg-white text-indigo-600 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                        <Layers className="w-4 h-4" />
-                        Visão Geral
-                    </button>
-                </div>
+        <div className="flex flex-col md:flex-row gap-4">
+             {/* SPRINT SELECTOR - Modern UI */}
+             <div className="relative group min-w-[200px]" ref={sprintDropdownRef}>
+                <button
+                    onClick={() => setIsSprintOpen(!isSprintOpen)}
+                    className={`w-full flex items-center justify-between bg-white border px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-200 group-hover:border-indigo-300 ${isSprintOpen ? 'border-indigo-500 ring-4 ring-indigo-500/10' : 'border-slate-200'}`}
+                >
+                    <div className="flex items-center gap-3">
+                            <div className={`p-1.5 rounded-lg transition-colors ${selectedSprint !== 'ALL' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                                <Timer className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col items-start">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-0.5">Filtrar por</span>
+                                <span className={`text-sm font-bold leading-none ${selectedSprint !== 'ALL' ? 'text-indigo-700' : 'text-slate-700'}`}>
+                                    {selectedSprint === 'ALL' ? 'Todas Sprints' : `Sprint ${selectedSprint}`}
+                                </span>
+                            </div>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isSprintOpen ? 'rotate-180 text-indigo-500' : ''}`} />
+                </button>
+
+                {isSprintOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-slide-down">
+                        <div className="p-2 border-b border-slate-100 bg-slate-50/50">
+                            <span className="text-xs font-bold text-slate-500 px-2">Selecione a Sprint</span>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar">
+                            <button
+                                onClick={() => { setSelectedSprint('ALL'); setIsSprintOpen(false); }}
+                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${selectedSprint === 'ALL' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Timer className="w-3.5 h-3.5 opacity-50" />
+                                    Todas as Sprints
+                                </span>
+                                {selectedSprint === 'ALL' && <Check className="w-4 h-4 text-indigo-600" />}
+                            </button>
+                            
+                            {availableSprints.length > 0 && <div className="my-1 border-t border-slate-100"></div>}
+
+                            {availableSprints.map(sprint => (
+                                <button
+                                    key={sprint}
+                                    onClick={() => { setSelectedSprint(sprint); setIsSprintOpen(false); }}
+                                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${selectedSprint === sprint ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                >
+                                    <span>Sprint {sprint}</span>
+                                    {selectedSprint === sprint && <Check className="w-4 h-4 text-indigo-600" />}
+                                </button>
+                            ))}
+                            {availableSprints.length === 0 && (
+                                <div className="px-3 py-4 text-center text-xs text-slate-400 italic">
+                                    Nenhuma sprint encontrada
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
-        )}
+
+            {isAdmin && (
+                <div className="relative">
+                    <div className="flex bg-slate-100 p-1 rounded-xl">
+                        <button
+                            onClick={() => setFilterMode('MINE')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                                filterMode === 'MINE' 
+                                ? 'bg-white text-indigo-600 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <UserIcon className="w-4 h-4" />
+                            Minhas Métricas
+                        </button>
+                        <button
+                            onClick={() => setFilterMode('ALL')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                                filterMode === 'ALL' 
+                                ? 'bg-white text-indigo-600 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <Layers className="w-4 h-4" />
+                            Visão Geral
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
       </div>
 
       {/* 1. VISÃO GERAL DE DESEMPENHO (3 Blocks) */}
