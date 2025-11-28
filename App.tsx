@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -8,6 +9,7 @@ import UserManagement from './components/UserManagement';
 import EvidenceManagement from './components/EvidenceManagement';
 import DashboardMetrics from './components/DashboardMetrics';
 import BugReportForm from './components/BugReportForm';
+import EasterEggBug from './components/EasterEggBug';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, TicketPriority, BugReport, TicketStatus } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
@@ -44,6 +46,9 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminTab, setAdminTab] = useState<'users' | 'evidences' | 'dashboard'>('users');
+
+  // --- LAYOUT STATE ---
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
 
   // --- MODULE STATE ---
   const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS'>('TICKET');
@@ -295,7 +300,7 @@ const App: React.FC = () => {
   };
 
   const handleEditCase = (id: string) => {
-    const item = evidences.find(e => e.id === id);
+    const item = evidences.find(e.id === id);
     if (!item || !item.testCaseDetails) return;
 
     setWizardTrigger({
@@ -687,9 +692,10 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <EasterEggBug />
       <Header user={currentUser} onLogout={handleLogout} />
       
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-28 relative">
         
         {/* User Management Panel Toggle */}
         {currentUser && (
@@ -863,7 +869,10 @@ const App: React.FC = () => {
                         />
 
                         {/* FINAL ACTIONS - FLOATING BUTTONS */}
-                        <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
+                        <div className={`
+                            ${isFooterVisible ? 'absolute bottom-10' : 'fixed bottom-6'} 
+                            left-0 right-0 z-[60] px-4 pointer-events-none transition-all duration-300
+                        `}>
                             <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
                                 {pdfError && (
                                     <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
@@ -1381,6 +1390,23 @@ const App: React.FC = () => {
       
     </main>
     <Footer />
+    
+    {/* FOOTER REF OVERLAY FOR FLOATING ELEMENTS TO STOP AT */}
+    <div 
+        ref={(el) => {
+            if (el) {
+                // We use an intersection observer to detect when this element (just above footer)
+                // comes into view, to toggle the floating button state
+                const observer = new IntersectionObserver(
+                    ([entry]) => setIsFooterVisible(entry.isIntersecting),
+                    { threshold: 0 }
+                );
+                observer.observe(el);
+                return () => observer.disconnect();
+            }
+        }} 
+        className="absolute bottom-28 w-full h-1 pointer-events-none" 
+    />
     </div>
   );
 };
