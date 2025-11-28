@@ -893,7 +893,7 @@ const App: React.FC = () => {
 
                         {/* FINAL ACTIONS - FLOATING BUTTONS */}
                         <div 
-                           className={`left-0 right-0 z-40 px-4 pointer-events-none transition-all duration-300 ${!isFooterVisible ? 'fixed bottom-6' : 'absolute bottom-8'}`}
+                           className={`left-0 right-0 z-[60] px-4 pointer-events-none transition-all duration-300 ${!isFooterVisible ? 'fixed bottom-6' : 'absolute bottom-6'}`}
                         >
                             <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
                                 {pdfError && (
