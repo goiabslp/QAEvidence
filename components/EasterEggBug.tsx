@@ -147,12 +147,12 @@ const EasterEggBug: React.FC = () => {
 
   const triggerExplosion = () => {
     setIsExploding(true);
-    setMessage("BUG !!!");
+    setMessage(null); // Clear text so explosion graphic shows
     
-    // Remove after animation
+    // Remove after animation (1 second)
     setTimeout(() => {
       scheduleSpawn();
-    }, 800);
+    }, 1000);
   };
 
   const flee = (scared: boolean) => {
@@ -238,61 +238,82 @@ const EasterEggBug: React.FC = () => {
                 </div>
             )}
 
-            {/* THE BUG SVG - OUTLINE STYLE - REDESIGNED: Eyes at front, smaller */}
+            {/* THE BUG SVG - OUTLINE STYLE */}
+            {/* viewBox extended to -20 -20 80 85 to prevent clipping of enlarged eyes */}
             <div 
                 style={{ width: BUG_SIZE, height: BUG_SIZE * 1.2 }}
-                className={`relative transition-all duration-300 
-                  ${isExploding ? 'scale-150 opacity-0 filter blur-sm' : 'scale-100'} 
+                className={`relative transition-all duration-300
                   ${isTrembling ? 'animate-tremble' : (stateRef.current === 'MOVING' ? 'animate-body-wobble' : '')}
                 `}
             >
-                {/* EXPLOSION EFFECT */}
-                {isExploding && (
-                    <div className="absolute inset-0 flex items-center justify-center -z-10">
-                        <Zap className="w-16 h-16 text-red-500 fill-red-500 animate-pulse" />
-                    </div>
-                )}
-
-                <svg viewBox="0 0 40 45" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-sm">
-                    {/* LEGS (Strokes only - Bottom Layer) */}
-                    <path d="M5 20L-4 15" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-left-1" />
-                    <path d="M35 20L44 15" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-right-1" />
+                <svg viewBox="-20 -20 80 85" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-sm overflow-visible">
                     
-                    <path d="M5 30L-6 30" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-left-2" />
-                    <path d="M35 30L46 30" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-right-2" />
-                    
-                    <path d="M8 38L-2 44" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-left-3" />
-                    <path d="M32 38L42 44" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-right-3" />
+                    {/* EXPLOSION GRAPHIC - Only visible when exploding */}
+                    {isExploding && (
+                        <g className="animate-blast">
+                            <path 
+                                d="M20 -15 L25 0 L35 -10 L30 5 L45 5 L30 15 L45 25 L30 25 L40 40 L25 30 L20 45 L15 30 L0 40 L10 25 L-5 25 L10 15 L-5 5 L10 5 L5 -10 L15 0 Z" 
+                                fill="#ffe100" 
+                                stroke="black" 
+                                strokeWidth="2" 
+                            />
+                            <text x="20" y="20" fontSize="12" fontWeight="bold" textAnchor="middle" fill="black" style={{fontFamily: 'sans-serif'}}>POW!</text>
+                        </g>
+                    )}
 
-                    {/* BODY (Small oval behind eyes - Middle Layer) */}
-                    <ellipse 
-                        cx="20" 
-                        cy="28" 
-                        rx="10" 
-                        ry="14" 
-                        fill="white" 
-                        stroke="black" 
-                        strokeWidth="2.5" 
-                    />
-                    
-                    {/* EYES (Head - Front Layer) */}
-                    {/* Scale logic: Scared > Looking > Normal */}
-                    <g 
-                        className={`transition-transform duration-150 origin-center ${isScared ? 'scale-150' : (isLooking ? 'scale-125' : 'scale-100')}`}
-                        style={{ transformOrigin: '20px 14px' }}
-                    >
-                        {/* Antennas (Coming out of eyes/head) */}
-                        <path d="M14 8L8 -2" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-antenna" />
-                        <path d="M26 8L32 -2" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-antenna-alt" />
-
-                        {/* Left Eye */}
-                        <circle cx="12" cy="14" r="7.5" fill="white" stroke="black" strokeWidth="2.5" />
-                        {/* Right Eye */}
-                        <circle cx="28" cy="14" r="7.5" fill="white" stroke="black" strokeWidth="2.5" />
+                    {/* BUG BODY - Applies Explode Animation Class */}
+                    <g className={isExploding ? 'animate-bug-explode' : ''}>
+                        {/* LEGS (Strokes only - Bottom Layer) */}
+                        <path d="M5 20L-4 15" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-left-1" />
+                        <path d="M35 20L44 15" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-right-1" />
                         
-                        {/* Pupils */}
-                        <circle cx={isLooking && !isScared ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
-                        <circle cx={isLooking && !isScared ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
+                        <path d="M5 30L-6 30" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-left-2" />
+                        <path d="M35 30L46 30" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-right-2" />
+                        
+                        <path d="M8 38L-2 44" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-left-3" />
+                        <path d="M32 38L42 44" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-right-3" />
+
+                        {/* BODY (Small oval behind eyes - Middle Layer) */}
+                        <ellipse 
+                            cx="20" 
+                            cy="28" 
+                            rx="10" 
+                            ry="14" 
+                            fill={isExploding ? "#ffcccc" : "white"} 
+                            stroke={isExploding ? "red" : "black"} 
+                            strokeWidth="2.5" 
+                        />
+                        
+                        {/* EYES (Head - Front Layer) */}
+                        {/* Scale logic: Scared > Looking > Normal */}
+                        <g 
+                            className={`transition-transform duration-150 origin-center ${isScared ? 'scale-150' : (isLooking ? 'scale-125' : 'scale-100')}`}
+                            style={{ transformOrigin: '20px 14px' }}
+                        >
+                            {/* Antennas (Coming out of eyes/head) */}
+                            <path d="M14 8L8 -2" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-antenna" />
+                            <path d="M26 8L32 -2" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-antenna-alt" />
+
+                            {/* Left Eye */}
+                            <circle cx="12" cy="14" r="7.5" fill="white" stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
+                            {/* Right Eye */}
+                            <circle cx="28" cy="14" r="7.5" fill="white" stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
+                            
+                            {/* Pupils */}
+                            {/* Hide pupils when exploding to look 'dead' or shocked */}
+                            {!isExploding && (
+                                <>
+                                <circle cx={isLooking && !isScared ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
+                                <circle cx={isLooking && !isScared ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
+                                </>
+                            )}
+                             {isExploding && (
+                                <>
+                                <path d="M9 11 L15 17 M15 11 L9 17" stroke="red" strokeWidth="2" />
+                                <path d="M25 11 L31 17 M31 11 L25 17" stroke="red" strokeWidth="2" />
+                                </>
+                            )}
+                        </g>
                     </g>
                 </svg>
             </div>
@@ -323,6 +344,24 @@ const EasterEggBug: React.FC = () => {
                 100% { transform: translate(1px, -1px) rotate(-1deg); }
             }
             .animate-tremble { animation: tremble 0.1s infinite linear; }
+
+            /* Explosion Animation */
+            @keyframes bug-explode {
+                0% { transform: scale(1) rotate(0deg); opacity: 1; }
+                10% { transform: scale(1.1) rotate(5deg); opacity: 1; }
+                20% { transform: scale(1.1) rotate(-5deg); opacity: 1; }
+                50% { transform: scale(1.2) rotate(0deg); opacity: 0.8; }
+                100% { transform: scale(1.5) rotate(10deg); opacity: 0; }
+            }
+            .animate-bug-explode { animation: bug-explode 0.8s forwards ease-out; }
+            
+            @keyframes blast-pop {
+                0% { transform: scale(0); opacity: 0; }
+                50% { transform: scale(1.5); opacity: 1; }
+                80% { transform: scale(1.3); opacity: 1; }
+                100% { transform: scale(2); opacity: 0; }
+            }
+            .animate-blast { animation: blast-pop 0.6s forwards ease-out; transform-origin: 20px 20px; }
 
             /* Legs Movement - Alternating tripod gait */
             @keyframes leg-wiggle {
