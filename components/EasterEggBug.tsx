@@ -1,20 +1,22 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Zap } from 'lucide-react';
 
-const PHRASES = [
-  "É feature...",
-  "Na minha máquina funciona!",
-  "Culpem o estagiário",
-  "Já limpou o cache?",
-  "NullPointer?!",
-  "Café?",
-  "Commitando...",
-  "404",
-  "Deploy sexta-feira?",
-  "To invisível...",
-  "Cadê os logs?",
-  "Compilando..."
+const BUG_DIALECT = [
+  "hsufojfn",
+  "englodug",
+  "koriugnd",
+  "fwpkztr",
+  "zrnolq",
+  "Sigla do usuário #$%@!",
+  "Console Erro",
+  "Erro 500",
+  "Erro 404",
+  "Erro 400",
+  "Erro 409",
+  "Erro 502",
+  "hahaha",
+  "undefined",
+  "NaN"
 ];
 
 const EasterEggBug: React.FC = () => {
@@ -23,23 +25,30 @@ const EasterEggBug: React.FC = () => {
   const [rotation, setRotation] = useState(0);
   const [isLooking, setIsLooking] = useState(false);
   const [isExploding, setIsExploding] = useState(false);
-  const [isScared, setIsScared] = useState(false); // New state for Fear
+  const [isScared, setIsScared] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [moveDuration, setMoveDuration] = useState(0);
+  
+  // Smoke Effect State
+  const [showSmoke, setShowSmoke] = useState(false);
+  const [smokePos, setSmokePos] = useState({ x: 0, y: 0 });
   
   // Refs to manage timeouts and loops without causing re-renders
   const stateRef = useRef<'HIDDEN' | 'MOVING' | 'IDLE' | 'FLEEING'>('HIDDEN');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fleeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Constants - Reduced size as requested
+  // Constants
   const BUG_SIZE = 30; 
   
   useEffect(() => {
-    // Initial spawn timer (Rare: 20s to 60s)
     scheduleSpawn();
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (fleeTimeoutRef.current) clearTimeout(fleeTimeoutRef.current);
+      if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
     };
   }, []);
 
@@ -48,12 +57,16 @@ const EasterEggBug: React.FC = () => {
     setIsVisible(false);
     setIsExploding(false);
     setIsScared(false);
+    setShowSmoke(false);
     setMessage(null);
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
     
     // Spawn between 20 and 60 seconds (Rare appearance)
     const timeToSpawn = Math.random() * 40000 + 20000;
     
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (fleeTimeoutRef.current) clearTimeout(fleeTimeoutRef.current);
+    
     timeoutRef.current = setTimeout(spawnBug, timeToSpawn);
   };
 
@@ -78,23 +91,21 @@ const EasterEggBug: React.FC = () => {
   };
 
   const moveLoop = () => {
-    if (stateRef.current === 'HIDDEN' || stateRef.current === 'FLEEING') return;
+    if (stateRef.current === 'HIDDEN' || stateRef.current === 'FLEEING' || isExploding) return;
 
-    // Decide next action: Move or Idle (Look at user)
-    // 70% chance to move, 30% chance to stop and look
+    // Decide next action: Move or Idle
     const action = Math.random() > 0.3 ? 'MOVE' : 'IDLE';
 
     if (action === 'MOVE') {
       stateRef.current = 'MOVING';
       setIsLooking(false);
       setMessage(null);
+      if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
 
-      // Pick random spot on screen, avoiding edges to keep it visible
       const padding = 100;
       const nextX = Math.random() * (window.innerWidth - padding * 2) + padding;
       const nextY = Math.random() * (window.innerHeight - padding * 2) + padding;
 
-      // Calculate angle
       const dx = nextX - pos.x;
       const dy = nextY - pos.y;
       const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
@@ -102,7 +113,7 @@ const EasterEggBug: React.FC = () => {
       setRotation(angle);
       setPos({ x: nextX, y: nextY });
 
-      // Slow Movement: 4s to 8s duration (Walking pace - very slow as requested)
+      // Slow Movement: 4s to 8s duration
       const duration = Math.random() * 4000 + 4000;
       setMoveDuration(duration);
       
@@ -110,22 +121,26 @@ const EasterEggBug: React.FC = () => {
       timeoutRef.current = setTimeout(moveLoop, duration);
 
     } else {
-      // IDLE / LOOK
       stateRef.current = 'IDLE';
       setIsLooking(true);
       
-      // Chance to speak
-      if (Math.random() > 0.6) {
-        setMessage(PHRASES[Math.floor(Math.random() * PHRASES.length)]);
+      // Occasional Speech (30% chance when idle)
+      if (Math.random() > 0.7) {
+        setMessage(BUG_DIALECT[Math.floor(Math.random() * BUG_DIALECT.length)]);
+        
+        // Auto hide message after 2-3 seconds
+        if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+        messageTimeoutRef.current = setTimeout(() => {
+            setMessage(null);
+        }, 2500);
       }
 
       const idleDuration = Math.random() * 2000 + 1500;
       
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
-         // Despawn check (chance to leave screen naturally)
          if (Math.random() > 0.85) {
-            flee(false); // Flee without fear (just exiting)
+            flee(false); // Flee naturally
          } else {
             moveLoop();
          }
@@ -137,6 +152,9 @@ const EasterEggBug: React.FC = () => {
     e.stopPropagation();
     if (isExploding) return;
 
+    // Cancel fleeing if clicked during tremble
+    if (fleeTimeoutRef.current) clearTimeout(fleeTimeoutRef.current);
+
     // 50% Explode, 50% Flee
     if (Math.random() > 0.5) {
       triggerExplosion();
@@ -146,30 +164,46 @@ const EasterEggBug: React.FC = () => {
   };
 
   const triggerExplosion = () => {
+    // 1. Set State to Hurt/Exploding
     setIsExploding(true);
-    setMessage(null); // Clear text so explosion graphic shows
+    setIsScared(false);
+    setMessage(null);
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
     
-    // Remove after animation (1 second)
+    setMoveDuration(0); // Stop movement immediately
+    
+    // 2. Stay on screen "paralyzed/hurt" for 1 second
     setTimeout(() => {
-      scheduleSpawn();
+      scheduleSpawn(); // Disappear and reset logic
     }, 1000);
   };
 
   const flee = (scared: boolean) => {
+    if (isExploding) return;
+
+    // Trigger Smoke Effect at current position before moving
+    if (scared) {
+        setSmokePos({ ...pos });
+        setShowSmoke(true);
+        setTimeout(() => setShowSmoke(false), 800); // Cleanup smoke
+    }
+
     stateRef.current = 'FLEEING';
     setIsLooking(false);
-    setIsScared(false); // Can't tremble while running at mach speed
-    if (scared) setMessage("Aaaah!");
+    setIsScared(false); // Stop trembling immediately when running starts
+    
+    if (scared) setMessage("hsufojfn!"); // Scared noise
     else setMessage(null);
+    
+    if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
 
-    // Pick a point WAY off screen based on current position relative to center
+    // Run far away logic
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     
     const dirX = pos.x > centerX ? 1 : -1;
     const dirY = pos.y > centerY ? 1 : -1;
 
-    // Run far away
     const endX = pos.x + (dirX * 1000);
     const endY = pos.y + (dirY * 1000);
 
@@ -180,218 +214,258 @@ const EasterEggBug: React.FC = () => {
     setRotation(angle);
     setPos({ x: endX, y: endY });
     
-    // Flee is fast!
-    setMoveDuration(800);
+    // Fast flee speed!
+    setMoveDuration(600);
 
     setTimeout(() => {
       scheduleSpawn();
-    }, 1000);
+    }, 800);
   };
 
   const handleMouseEnter = () => {
-    if (!isExploding && stateRef.current !== 'FLEEING') {
-        setIsScared(true);
-    }
+    if (isExploding || stateRef.current === 'FLEEING' || isScared) return;
+    
+    // Stop current wandering movement immediately
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    // Phase 1: Tremble in fear
+    setIsScared(true);
+    stateRef.current = 'IDLE'; // Stop updating position logic
+    setMoveDuration(0); // Stop CSS transition
+
+    // Phase 2: Flee after 1 second (1000ms)
+    if (fleeTimeoutRef.current) clearTimeout(fleeTimeoutRef.current);
+    fleeTimeoutRef.current = setTimeout(() => {
+        if (!isExploding) flee(true);
+    }, 1000);
   };
 
   const handleMouseLeave = () => {
-    setIsScared(false);
+    // We do NOT reset isScared here. 
+    // Once triggered, the bug is committed to the "Tremble -> Flee" sequence.
   };
 
   if (!isVisible) return null;
 
-  // Determine if showing fear (Trembling override)
+  // Only tremble if scared AND not yet fleeing/exploding
   const isTrembling = isScared && !isExploding && stateRef.current !== 'FLEEING';
 
+  // Apply leg animation only if moving AND not hurt
+  const legAnim = (animName: string) => {
+      if (isExploding) return ''; // Paralyzed
+      if (stateRef.current === 'MOVING' || stateRef.current === 'FLEEING') return animName;
+      return '';
+  };
+
   return (
-    <div 
-      className="fixed z-[9999] pointer-events-none ease-in-out"
-      style={{
-        top: pos.y,
-        left: pos.x,
-        transitionProperty: 'top, left',
-        transitionDuration: `${moveDuration}ms`,
-        transitionTimingFunction: stateRef.current === 'FLEEING' ? 'ease-in' : 'linear',
-      }}
-    >
-        {/* Container for Rotation & Interaction */}
-        {/* Added Padding to Create Hitbox for "Proximity" */}
-        <div 
-            className="relative pointer-events-auto cursor-pointer p-12 -m-12"
-            onClick={handleClick}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            style={{
-                transform: `rotate(${rotation}deg)`,
-                transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' // Smooth turn
-            }}
-        >
-            {/* Message Bubble (Counter-rotated so text is readable) */}
-            {message && !isExploding && (
-                <div 
-                    className="absolute -top-14 left-1/2 -translate-x-1/2 bg-white border-2 border-black text-black px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap shadow-[3px_3px_0px_rgba(0,0,0,0.2)] animate-bounce-in z-20 font-mono"
-                    style={{ transform: `rotate(${-rotation}deg)` }}
-                >
-                    {message}
-                    {/* Little Triangle */}
-                    <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-black transform rotate-45"></div>
-                </div>
-            )}
-
-            {/* THE BUG SVG - OUTLINE STYLE */}
-            {/* viewBox extended to -20 -20 80 85 to prevent clipping of enlarged eyes */}
+    <>
+        {/* SMOKE EFFECT (Independent fixed position) */}
+        {showSmoke && (
             <div 
-                style={{ width: BUG_SIZE, height: BUG_SIZE * 1.2 }}
-                className={`relative transition-all duration-300
-                  ${isTrembling ? 'animate-tremble' : (stateRef.current === 'MOVING' ? 'animate-body-wobble' : '')}
-                `}
+                className="fixed z-[9998] pointer-events-none animate-smoke"
+                style={{ 
+                    top: smokePos.y, 
+                    left: smokePos.x,
+                    width: BUG_SIZE * 2,
+                    height: BUG_SIZE * 2,
+                    transform: 'translate(-50%, -50%)'
+                }}
             >
-                <svg viewBox="-20 -20 80 85" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-sm overflow-visible">
-                    
-                    {/* EXPLOSION GRAPHIC - Only visible when exploding */}
-                    {isExploding && (
-                        <g className="animate-blast">
-                            <path 
-                                d="M20 -15 L25 0 L35 -10 L30 5 L45 5 L30 15 L45 25 L30 25 L40 40 L25 30 L20 45 L15 30 L0 40 L10 25 L-5 25 L10 15 L-5 5 L10 5 L5 -10 L15 0 Z" 
-                                fill="#ffe100" 
-                                stroke="black" 
-                                strokeWidth="2" 
-                            />
-                            <text x="20" y="20" fontSize="12" fontWeight="bold" textAnchor="middle" fill="black" style={{fontFamily: 'sans-serif'}}>POW!</text>
-                        </g>
-                    )}
-
-                    {/* BUG BODY - Applies Explode Animation Class */}
-                    <g className={isExploding ? 'animate-bug-explode' : ''}>
-                        {/* LEGS (Strokes only - Bottom Layer) */}
-                        <path d="M5 20L-4 15" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-left-1" />
-                        <path d="M35 20L44 15" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-right-1" />
-                        
-                        <path d="M5 30L-6 30" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-left-2" />
-                        <path d="M35 30L46 30" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-right-2" />
-                        
-                        <path d="M8 38L-2 44" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-left-3" />
-                        <path d="M32 38L42 44" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-leg-right-3" />
-
-                        {/* BODY (Small oval behind eyes - Middle Layer) */}
-                        <ellipse 
-                            cx="20" 
-                            cy="28" 
-                            rx="10" 
-                            ry="14" 
-                            fill={isExploding ? "#ffcccc" : "white"} 
-                            stroke={isExploding ? "red" : "black"} 
-                            strokeWidth="2.5" 
-                        />
-                        
-                        {/* EYES (Head - Front Layer) */}
-                        {/* Scale logic: Scared > Looking > Normal */}
-                        <g 
-                            className={`transition-transform duration-150 origin-center ${isScared ? 'scale-150' : (isLooking ? 'scale-125' : 'scale-100')}`}
-                            style={{ transformOrigin: '20px 14px' }}
-                        >
-                            {/* Antennas (Coming out of eyes/head) */}
-                            <path d="M14 8L8 -2" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-antenna" />
-                            <path d="M26 8L32 -2" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className="animate-antenna-alt" />
-
-                            {/* Left Eye */}
-                            <circle cx="12" cy="14" r="7.5" fill="white" stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
-                            {/* Right Eye */}
-                            <circle cx="28" cy="14" r="7.5" fill="white" stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
-                            
-                            {/* Pupils */}
-                            {/* Hide pupils when exploding to look 'dead' or shocked */}
-                            {!isExploding && (
-                                <>
-                                <circle cx={isLooking && !isScared ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
-                                <circle cx={isLooking && !isScared ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
-                                </>
-                            )}
-                             {isExploding && (
-                                <>
-                                <path d="M9 11 L15 17 M15 11 L9 17" stroke="red" strokeWidth="2" />
-                                <path d="M25 11 L31 17 M31 11 L25 17" stroke="red" strokeWidth="2" />
-                                </>
-                            )}
-                        </g>
+                <svg viewBox="0 0 100 100" fill="none" className="w-full h-full opacity-80">
+                    <g fill="#e2e8f0" stroke="black" strokeWidth="2">
+                        <circle cx="50" cy="50" r="25" />
+                        <circle cx="30" cy="60" r="15" />
+                        <circle cx="70" cy="60" r="15" />
+                        <circle cx="50" cy="30" r="15" />
+                        <path d="M20 50 Q 10 40 20 30" fill="none" strokeWidth="2" strokeLinecap="round"/>
+                        <path d="M80 50 Q 90 40 80 30" fill="none" strokeWidth="2" strokeLinecap="round"/>
                     </g>
                 </svg>
             </div>
-        </div>
-        
-        {/* CSS Keyframes for Bug Animation */}
-        <style dangerouslySetInnerHTML={{__html: `
-            /* Body wobbles when walking */
-            @keyframes body-wobble {
-                0%, 100% { transform: rotate(0deg); }
-                25% { transform: rotate(3deg); }
-                75% { transform: rotate(-3deg); }
-            }
-            .animate-body-wobble { animation: body-wobble 0.6s infinite ease-in-out; }
+        )}
 
-            /* Tremble when scared */
-            @keyframes tremble {
-                0% { transform: translate(1px, 1px) rotate(0deg); }
-                10% { transform: translate(-1px, -1px) rotate(-1deg); }
-                20% { transform: translate(-2px, 0px) rotate(1deg); }
-                30% { transform: translate(2px, 1px) rotate(0deg); }
-                40% { transform: translate(1px, -1px) rotate(1deg); }
-                50% { transform: translate(-1px, 1px) rotate(-1deg); }
-                60% { transform: translate(-2px, 1px) rotate(0deg); }
-                70% { transform: translate(2px, 1px) rotate(-1deg); }
-                80% { transform: translate(-1px, -1px) rotate(1deg); }
-                90% { transform: translate(1px, 1px) rotate(0deg); }
-                100% { transform: translate(1px, -1px) rotate(-1deg); }
-            }
-            .animate-tremble { animation: tremble 0.1s infinite linear; }
+        {/* THE BUG */}
+        <div 
+        className="fixed z-[9999] pointer-events-none ease-in-out"
+        style={{
+            top: pos.y,
+            left: pos.x,
+            transitionProperty: 'top, left',
+            // If trembling, transition is 0 to hold place. If fleeing, fast. If walking, slow.
+            transitionDuration: `${isTrembling ? 0 : moveDuration}ms`,
+            transitionTimingFunction: stateRef.current === 'FLEEING' ? 'ease-in' : 'linear',
+        }}
+        >
+            {/* Interaction Hitbox */}
+            <div 
+                className="relative pointer-events-auto cursor-pointer p-12 -m-12"
+                onClick={handleClick}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                style={{
+                    transform: `rotate(${rotation}deg)`,
+                    transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                }}
+            >
+                {/* Speech Bubble */}
+                {message && !isExploding && !showSmoke && (
+                    <div 
+                        className="absolute -top-14 left-1/2 -translate-x-1/2 bg-white border-2 border-black text-black px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap shadow-[3px_3px_0px_rgba(0,0,0,0.2)] animate-bounce-in z-20 font-mono"
+                        style={{ transform: `rotate(${-rotation}deg)` }}
+                    >
+                        {message}
+                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-black transform rotate-45"></div>
+                    </div>
+                )}
 
-            /* Explosion Animation */
-            @keyframes bug-explode {
-                0% { transform: scale(1) rotate(0deg); opacity: 1; }
-                10% { transform: scale(1.1) rotate(5deg); opacity: 1; }
-                20% { transform: scale(1.1) rotate(-5deg); opacity: 1; }
-                50% { transform: scale(1.2) rotate(0deg); opacity: 0.8; }
-                100% { transform: scale(1.5) rotate(10deg); opacity: 0; }
-            }
-            .animate-bug-explode { animation: bug-explode 0.8s forwards ease-out; }
+                {/* Bug SVG */}
+                <div 
+                    style={{ width: BUG_SIZE, height: BUG_SIZE * 1.2 }}
+                    className={`relative transition-all duration-300
+                    ${isTrembling ? 'animate-tremble' : (stateRef.current === 'MOVING' ? 'animate-body-wobble' : '')}
+                    ${isExploding ? 'animate-hurt-shake' : ''}
+                    `}
+                >
+                    <svg viewBox="-20 -20 80 85" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-sm overflow-visible">
+                        
+                        {isExploding && (
+                            <g className="animate-blast">
+                                <path 
+                                    d="M20 -15 L25 0 L35 -10 L30 5 L45 5 L30 15 L45 25 L30 25 L40 40 L25 30 L20 45 L15 30 L0 40 L10 25 L-5 25 L10 15 L-5 5 L10 5 L5 -10 L15 0 Z" 
+                                    fill="#ffe100" 
+                                    stroke="black" 
+                                    strokeWidth="2" 
+                                />
+                                <text x="20" y="20" fontSize="12" fontWeight="bold" textAnchor="middle" fill="black" style={{fontFamily: 'sans-serif'}}>POW!</text>
+                            </g>
+                        )}
+
+                        <g>
+                            {/* Legs */}
+                            <path d="M5 20L-4 15" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={legAnim("animate-leg-left-1")} />
+                            <path d="M35 20L44 15" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={legAnim("animate-leg-right-1")} />
+                            <path d="M5 30L-6 30" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={legAnim("animate-leg-left-2")} />
+                            <path d="M35 30L46 30" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={legAnim("animate-leg-right-2")} />
+                            <path d="M8 38L-2 44" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={legAnim("animate-leg-left-3")} />
+                            <path d="M32 38L42 44" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={legAnim("animate-leg-right-3")} />
+
+                            {/* Body */}
+                            <ellipse cx="20" cy="28" rx="10" ry="14" fill={isExploding ? "#fee2e2" : "white"} stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
+                            
+                            {/* Bandage (Hurt State) */}
+                            {isExploding && (
+                                <path d="M15 24 L25 32 M25 24 L15 32" stroke="red" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+                            )}
+                            
+                            {/* Head/Antenna Group */}
+                            <g 
+                                className={`transition-transform duration-150 origin-center ${isScared ? 'scale-150' : (isLooking ? 'scale-125' : 'scale-100')}`}
+                                style={{ transformOrigin: '20px 14px' }}
+                            >
+                                <path d="M14 8L8 -2" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={isExploding ? '' : "animate-antenna"} />
+                                <path d="M26 8L32 -2" stroke={isExploding ? "red" : "black"} strokeWidth="2" strokeLinecap="round" className={isExploding ? '' : "animate-antenna-alt"} />
+                                
+                                {/* Eye Backgrounds */}
+                                <circle cx="12" cy="14" r="7.5" fill="white" stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
+                                <circle cx="28" cy="14" r="7.5" fill="white" stroke={isExploding ? "red" : "black"} strokeWidth="2.5" />
+
+                                {/* Eyes (Normal vs Dead) */}
+                                {!isExploding ? (
+                                    <>
+                                        <circle cx={isLooking && !isScared ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
+                                        <circle cx={isLooking && !isScared ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
+                                    </>
+                                ) : (
+                                    <g stroke="red" strokeWidth="2" strokeLinecap="round">
+                                        {/* Left X */}
+                                        <path d="M9 11 L15 17" />
+                                        <path d="M15 11 L9 17" />
+                                        {/* Right X */}
+                                        <path d="M25 11 L31 17" />
+                                        <path d="M31 11 L25 17" />
+                                    </g>
+                                )}
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+            </div>
             
-            @keyframes blast-pop {
-                0% { transform: scale(0); opacity: 0; }
-                50% { transform: scale(1.5); opacity: 1; }
-                80% { transform: scale(1.3); opacity: 1; }
-                100% { transform: scale(2); opacity: 0; }
-            }
-            .animate-blast { animation: blast-pop 0.6s forwards ease-out; transform-origin: 20px 20px; }
+            <style dangerouslySetInnerHTML={{__html: `
+                @keyframes body-wobble {
+                    0%, 100% { transform: rotate(0deg); }
+                    25% { transform: rotate(3deg); }
+                    75% { transform: rotate(-3deg); }
+                }
+                .animate-body-wobble { animation: body-wobble 0.6s infinite ease-in-out; }
 
-            /* Legs Movement - Alternating tripod gait */
-            @keyframes leg-wiggle {
-                0%, 100% { transform: rotate(-15deg); }
-                50% { transform: rotate(15deg); }
-            }
-            .animate-leg-left-1 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 5px 20px; }
-            .animate-leg-right-2 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 35px 30px; }
-            .animate-leg-left-3 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 8px 38px; }
-            
-            .animate-leg-right-1 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 35px 20px; }
-            .animate-leg-left-2 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 5px 30px; }
-            .animate-leg-right-3 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 32px 38px; }
+                @keyframes tremble {
+                    0% { transform: translate(1px, 1px) rotate(0deg); }
+                    10% { transform: translate(-1px, -1px) rotate(-1deg); }
+                    20% { transform: translate(-2px, 0px) rotate(1deg); }
+                    30% { transform: translate(2px, 1px) rotate(0deg); }
+                    40% { transform: translate(1px, -1px) rotate(1deg); }
+                    50% { transform: translate(-1px, 1px) rotate(-1deg); }
+                    60% { transform: translate(-2px, 1px) rotate(0deg); }
+                    70% { transform: translate(2px, 1px) rotate(-1deg); }
+                    80% { transform: translate(-1px, -1px) rotate(1deg); }
+                    90% { transform: translate(1px, 1px) rotate(0deg); }
+                    100% { transform: translate(1px, -1px) rotate(-1deg); }
+                }
+                .animate-tremble { animation: tremble 0.08s infinite linear; }
+                
+                @keyframes hurt-shake {
+                    0% { transform: translate(0, 0) scale(1.1); }
+                    10% { transform: translate(-3px, 0) scale(1.1); }
+                    20% { transform: translate(3px, 0) scale(1.1); }
+                    30% { transform: translate(-3px, 0) scale(1.1); }
+                    40% { transform: translate(3px, 0) scale(1.1); }
+                    50% { transform: translate(0, 0) scale(1); }
+                    100% { transform: translate(0, 0) scale(1); }
+                }
+                .animate-hurt-shake { animation: hurt-shake 0.4s forwards ease-out; }
 
-            /* Antennae twitch */
-            @keyframes antenna-twitch {
-                0%, 100% { transform: rotate(-8deg); }
-                50% { transform: rotate(8deg); }
-            }
-            .animate-antenna { animation: antenna-twitch 2s infinite ease-in-out; transform-origin: 14px 8px; }
-            .animate-antenna-alt { animation: antenna-twitch 2.5s infinite reverse ease-in-out; transform-origin: 26px 8px; }
+                @keyframes blast-pop {
+                    0% { transform: scale(0); opacity: 0; }
+                    50% { transform: scale(1.5); opacity: 1; }
+                    100% { transform: scale(2); opacity: 0; }
+                }
+                .animate-blast { animation: blast-pop 0.6s forwards ease-out; transform-origin: 20px 20px; }
 
-            @keyframes bounce-in {
-                0% { transform: scale(0); opacity: 0; }
-                50% { transform: scale(1.1); }
-                100% { transform: scale(1); opacity: 1; }
-            }
-            .animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        `}} />
+                @keyframes smoke-puff {
+                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
+                    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
+                    100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+                }
+                .animate-smoke { animation: smoke-puff 0.8s forwards ease-out; }
+
+                @keyframes leg-wiggle {
+                    0%, 100% { transform: rotate(-15deg); }
+                    50% { transform: rotate(15deg); }
+                }
+                .animate-leg-left-1 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 5px 20px; }
+                .animate-leg-right-2 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 35px 30px; }
+                .animate-leg-left-3 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 8px 38px; }
+                .animate-leg-right-1 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 35px 20px; }
+                .animate-leg-left-2 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 5px 30px; }
+                .animate-leg-right-3 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 32px 38px; }
+
+                @keyframes antenna-twitch {
+                    0%, 100% { transform: rotate(-8deg); }
+                    50% { transform: rotate(8deg); }
+                }
+                .animate-antenna { animation: antenna-twitch 2s infinite ease-in-out; transform-origin: 14px 8px; }
+                .animate-antenna-alt { animation: antenna-twitch 2.5s infinite reverse ease-in-out; transform-origin: 26px 8px; }
+
+                @keyframes bounce-in {
+                    0% { transform: scale(0); opacity: 0; }
+                    50% { transform: scale(1.1); }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+                .animate-bounce-in { animation: bounce-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+            `}} />
     </div>
+  </>
   );
 };
 
