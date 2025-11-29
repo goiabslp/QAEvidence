@@ -95,7 +95,9 @@ const EasterEggBug: React.FC = () => {
     if (stateRef.current === 'HIDDEN' || stateRef.current === 'FLEEING' || isExploding) return;
 
     // Decide next action: Move or Idle
-    const action = Math.random() > 0.3 ? 'MOVE' : 'IDLE';
+    // CHANGED: 50% chance to move, 50% chance to idle (was 70/30)
+    // This makes the bug stop and look much more frequently.
+    const action = Math.random() > 0.5 ? 'MOVE' : 'IDLE';
 
     if (action === 'MOVE') {
       stateRef.current = 'MOVING';
@@ -114,8 +116,8 @@ const EasterEggBug: React.FC = () => {
       setRotation(angle);
       setPos({ x: nextX, y: nextY });
 
-      // Slow Movement: 4s to 8s duration
-      const duration = Math.random() * 4000 + 4000;
+      // Slow Movement: 3s to 6s duration (Slightly faster transitions to allow for more stops)
+      const duration = Math.random() * 3000 + 3000;
       setMoveDuration(duration);
       
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -125,8 +127,9 @@ const EasterEggBug: React.FC = () => {
       stateRef.current = 'IDLE';
       setIsLooking(true);
       
-      // Occasional Speech (25% chance when idle)
-      if (Math.random() > 0.75) {
+      // Occasional Speech
+      // CHANGED: > 0.3 means 70% chance to speak when stopped (was 25%)
+      if (Math.random() > 0.3) {
         const text = BUG_DIALECT[Math.floor(Math.random() * BUG_DIALECT.length)];
         setMessage(text);
         
@@ -139,7 +142,8 @@ const EasterEggBug: React.FC = () => {
         }, speechDuration);
       }
 
-      const idleDuration = Math.random() * 2000 + 1500;
+      // Idle Duration: 2.5s to 4.5s (Longer stop to read text)
+      const idleDuration = Math.random() * 2000 + 2500;
       
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
