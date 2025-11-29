@@ -69,10 +69,6 @@ const App: React.FC = () => {
   
   // State for Ticket Deletion
   const [ticketToDelete, setTicketToDelete] = useState<ArchivedTicket | null>(null);
-
-  // Footer Detection
-  const [isFooterVisible, setIsFooterVisible] = useState(false);
-  const footerRef = useRef<HTMLDivElement>(null);
   
   const reportRef = useRef<HTMLDivElement>(null);
   
@@ -80,6 +76,8 @@ const App: React.FC = () => {
   
   const formTicketInfoRef = useRef<TicketInfo | null>(null);
   const historyCarouselRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
 
   // --- PERSISTENCE & INITIALIZATION ---
   useEffect(() => {
@@ -127,23 +125,26 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Intersection Observer for Footer
   useEffect(() => {
     const observer = new IntersectionObserver(
-        ([entry]) => {
-            setIsFooterVisible(entry.isIntersecting);
-        },
-        { threshold: 0 }
+      ([entry]) => {
+        setIsFooterVisible(entry.isIntersecting);
+      },
+      {
+        root: null,
+        threshold: 0,
+        rootMargin: "0px"
+      }
     );
 
     if (footerRef.current) {
-        observer.observe(footerRef.current);
+      observer.observe(footerRef.current);
     }
 
     return () => {
-        if (footerRef.current) {
-            observer.unobserve(footerRef.current);
-        }
+      if (footerRef.current) {
+        observer.unobserve(footerRef.current);
+      }
     };
   }, []);
 
@@ -889,7 +890,7 @@ const App: React.FC = () => {
                         />
 
                         {/* FINAL ACTIONS - FLOATING BUTTONS */}
-                        <div className={`left-0 right-0 z-[60] px-4 pointer-events-none transition-all duration-300 ${isFooterVisible ? 'absolute bottom-10' : 'fixed bottom-6'}`}>
+                        <div className={`left-0 right-0 z-[60] px-4 pointer-events-none ${isFooterVisible ? 'absolute bottom-6' : 'fixed bottom-6'}`}>
                             <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
                                 {pdfError && (
                                     <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
@@ -1232,7 +1233,9 @@ const App: React.FC = () => {
 
       {/* Hidden Report Container for Main PDF - REFACTORED FOR HEADER/CONTENT/FOOTER */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '210mm' }}>
-         {/* Removing padding-4, ensuring margin-0 */}
+         <div ref={reportRef} className="bg-white font-inter text-slate-900 relative w-full" style={{ margin: 0, padding: 0 }}>
+             <Footer />
+         </div>
          <div ref={reportRef} className="bg-white font-inter text-slate-900 relative w-full" style={{ margin: 0, padding: 0 }}>
             <main className="w-full">
                 {/* SECTION: TICKET INFORMATION */}
@@ -1405,7 +1408,8 @@ const App: React.FC = () => {
          </div>
       </div>
       
-      <Footer />
+    </main>
+    <div ref={footerRef}><Footer /></div>
     </div>
   );
 };
