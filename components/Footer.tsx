@@ -4,7 +4,7 @@ import { Bug, Crosshair } from 'lucide-react';
 const Footer: React.FC = () => {
   return (
     <footer className="bg-slate-900 border-t border-slate-800 mt-auto text-slate-400 relative z-50">
-      <div className="w-full py-4 px-6 md:px-8">
+      <div className="w-full py-5 px-6 md:px-8">
         <div className="flex justify-between items-center">
              {/* Left: Bug Target Icon */}
              <div className="relative group cursor-default select-none opacity-30 hover:opacity-100 transition-opacity duration-300" title="Bug Hunter">
