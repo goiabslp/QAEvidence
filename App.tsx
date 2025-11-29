@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -699,7 +700,7 @@ const App: React.FC = () => {
         enabled={currentUser?.showEasterEgg !== false}
       />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-12">
         
         {/* User Management Panel Toggle */}
         {currentUser && (
@@ -871,55 +872,6 @@ const App: React.FC = () => {
                             onAddCase={handleAddCase}
                             onEditCase={handleEditCase}
                         />
-
-                        {/* FINAL ACTIONS - FLOATING BUTTONS */}
-                        <div className="fixed bottom-6 left-0 right-0 z-40 px-4 pointer-events-none">
-                            <div className="max-w-7xl mx-auto flex flex-col items-center justify-center">
-                                {pdfError && (
-                                    <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
-                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                        {pdfError}
-                                    </div>
-                                )}
-                                
-                                <div className="flex flex-wrap gap-4 justify-center w-full sm:w-auto pointer-events-auto">
-                                    {/* Save Button */}
-                                    <button
-                                        onClick={handleSaveAndClose}
-                                        disabled={false}
-                                        className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-900/20 transition-all duration-300 hover:shadow-emerald-900/40 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 backdrop-blur-sm opacity-75 hover:opacity-100"
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
-                                        <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
-                                            <Save className="w-5 h-5" />
-                                            Salvar
-                                        </div>
-                                    </button>
-
-                                    {/* PDF Button */}
-                                    <button
-                                        onClick={handlePdfFlow}
-                                        disabled={isGeneratingPdf}
-                                        className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-900/20 transition-all duration-300 hover:shadow-blue-900/40 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 backdrop-blur-sm opacity-75 hover:opacity-100 ${isPdfLocked ? 'cursor-not-allowed !opacity-90' : ''}`}
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
-                                        <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
-                                            {isGeneratingPdf ? (
-                                                <Loader2 className="w-5 h-5 animate-spin" /> 
-                                            ) : isPdfLocked ? (
-                                                <div className="relative w-5 h-5 flex items-center justify-center">
-                                                    <FileDown className="w-5 h-5 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-75" />
-                                                    <Lock className="w-5 h-5 absolute transition-all duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-100" />
-                                                </div>
-                                            ) : (
-                                                <FileDown className="w-5 h-5" />
-                                            )}
-                                            Gerar PDF
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                    </>
                ) : (
                    <BugReportForm 
@@ -1124,6 +1076,57 @@ const App: React.FC = () => {
                      </div>
                  )}
              </div>
+        )}
+
+        {/* FLOATING ACTION BUTTONS (STICKY) - Only for Ticket Module */}
+        {!showAdminPanel && activeModule === 'TICKET' && (
+            <div className="sticky bottom-6 z-40 mt-8 pointer-events-none">
+                <div className="flex flex-col items-center justify-center">
+                    {pdfError && (
+                        <div className="mb-3 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 border border-red-100 animate-slide-up shadow-lg pointer-events-auto">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            {pdfError}
+                        </div>
+                    )}
+                    
+                    <div className="flex flex-wrap gap-4 justify-center w-full sm:w-auto pointer-events-auto">
+                        {/* Save Button */}
+                        <button
+                            onClick={handleSaveAndClose}
+                            disabled={false}
+                            className="group relative overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 px-8 py-3 text-white shadow-xl shadow-emerald-900/20 transition-all duration-300 hover:shadow-emerald-900/40 hover:-translate-y-1 active:scale-95 w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 backdrop-blur-sm opacity-75 hover:opacity-100"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                            <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
+                                <Save className="w-5 h-5" />
+                                Salvar
+                            </div>
+                        </button>
+
+                        {/* PDF Button */}
+                        <button
+                            onClick={handlePdfFlow}
+                            disabled={isGeneratingPdf}
+                            className={`group relative overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-blue-700 px-8 py-3 text-white shadow-xl shadow-blue-900/20 transition-all duration-300 hover:shadow-blue-900/40 hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:grayscale w-full sm:w-auto min-w-[160px] ring-1 ring-white/20 backdrop-blur-sm opacity-75 hover:opacity-100 ${isPdfLocked ? 'cursor-not-allowed !opacity-90' : ''}`}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+                            <div className="relative flex items-center justify-center gap-2 font-bold text-sm tracking-widest uppercase">
+                                {isGeneratingPdf ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" /> 
+                                ) : isPdfLocked ? (
+                                    <div className="relative w-5 h-5 flex items-center justify-center">
+                                        <FileDown className="w-5 h-5 absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-75" />
+                                        <Lock className="w-5 h-5 absolute transition-all duration-300 opacity-0 group-hover:opacity-100 group-hover:scale-100" />
+                                    </div>
+                                ) : (
+                                    <FileDown className="w-5 h-5" />
+                                )}
+                                Gerar PDF
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
         )}
 
         {/* PDF Confirmation Modal */}
