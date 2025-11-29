@@ -21,21 +21,24 @@ const BUG_DIALECT = [
 ];
 
 const ACRONYM_PHRASES = [
-  "Opa, {SIGLA}!",
-  "De olho em você, {SIGLA}",
-  "Bug no código do {SIGLA}?",
-  "Isso funciona, {SIGLA}?",
-  "{SIGLA} aprovou?",
-  "Siga o {SIGLA}!",
-  "Psst... {SIGLA}",
-  "Ei, {SIGLA}!",
-  "{SIGLA} 👀",
-  "Achei um bug, {SIGLA}!",
-  "Foi o {SIGLA}?",
-  "{SIGLA} codou isso?",
-  "Cuidado {SIGLA}...",
-  "Testando {SIGLA}...",
-  "Commit do {SIGLA}?"
+  "Culpa do {SIGLA}, certeza.",
+  "{SIGLA} testou? Duvido.",
+  "Deploy do {SIGLA} = 💥",
+  "Gambiarra by {SIGLA}.",
+  "{SIGLA} vai quebrar a prod.",
+  "Git blame: {SIGLA} 😬",
+  "Na máquina do {SIGLA} roda...",
+  "Dorme não, {SIGLA}!",
+  "{SIGLA} + Prod = Perigo ☠️",
+  "Refaz isso aí, {SIGLA}.",
+  "Code review do {SIGLA}? Medo.",
+  "Commit suspeito do {SIGLA}...",
+  "Foco, {SIGLA}, foco!",
+  "{SIGLA} fingindo que trabalha...",
+  "Deu ruim, né {SIGLA}?",
+  "Foi o {SIGLA} que fez isso?",
+  "Rollback no código do {SIGLA}!",
+  "{SIGLA}, o rei do POG."
 ];
 
 interface EasterEggBugProps {
