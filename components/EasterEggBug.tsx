@@ -20,7 +20,29 @@ const BUG_DIALECT = [
   "[object Object]"
 ];
 
-const EasterEggBug: React.FC = () => {
+const ACRONYM_PHRASES = [
+  "Opa, {SIGLA}!",
+  "De olho em você, {SIGLA}",
+  "Bug no código do {SIGLA}?",
+  "Isso funciona, {SIGLA}?",
+  "{SIGLA} aprovou?",
+  "Siga o {SIGLA}!",
+  "Psst... {SIGLA}",
+  "Ei, {SIGLA}!",
+  "{SIGLA} 👀",
+  "Achei um bug, {SIGLA}!",
+  "Foi o {SIGLA}?",
+  "{SIGLA} codou isso?",
+  "Cuidado {SIGLA}...",
+  "Testando {SIGLA}...",
+  "Commit do {SIGLA}?"
+];
+
+interface EasterEggBugProps {
+  userAcronym?: string;
+}
+
+const EasterEggBug: React.FC<EasterEggBugProps> = ({ userAcronym }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [pos, setPos] = useState({ x: -100, y: -100 });
   const [rotation, setRotation] = useState(0);
@@ -39,6 +61,13 @@ const EasterEggBug: React.FC = () => {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fleeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Ref for userAcronym to access current value inside closures
+  const userAcronymRef = useRef(userAcronym);
+
+  useEffect(() => {
+    userAcronymRef.current = userAcronym;
+  }, [userAcronym]);
 
   // Constants
   const BUG_SIZE = 36; 
@@ -128,9 +157,19 @@ const EasterEggBug: React.FC = () => {
       setIsLooking(true);
       
       // Occasional Speech
-      // CHANGED: > 0.3 means 70% chance to speak when stopped (was 25%)
+      // > 0.3 means 70% chance to speak when stopped
       if (Math.random() > 0.3) {
-        const text = BUG_DIALECT[Math.floor(Math.random() * BUG_DIALECT.length)];
+        let text = "";
+        const currentAcronym = userAcronymRef.current;
+        
+        // Priority for User Acronym (60% chance if available)
+        if (currentAcronym && Math.random() > 0.4) {
+             const template = ACRONYM_PHRASES[Math.floor(Math.random() * ACRONYM_PHRASES.length)];
+             text = template.replace("{SIGLA}", currentAcronym);
+        } else {
+             text = BUG_DIALECT[Math.floor(Math.random() * BUG_DIALECT.length)];
+        }
+
         setMessage(text);
         
         // Auto hide message after 2-3 seconds random
@@ -442,7 +481,7 @@ const EasterEggBug: React.FC = () => {
                     50% { transform: translate(0, 0) scale(1); }
                     100% { transform: translate(0, 0) scale(1); }
                 }
-                .animate-hurt-shake { animation: hurt-shake 0.4s forwards ease-out; }
+                .animate-hurt-shake { animation: hurt-shake 0.4s forwards ease-out; transform-origin: 20px 20px; }
 
                 @keyframes blast-pop {
                     0% { transform: scale(0); opacity: 0; }

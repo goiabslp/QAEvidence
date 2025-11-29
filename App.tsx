@@ -692,7 +692,7 @@ const App: React.FC = () => {
       <Header user={currentUser} onLogout={handleLogout} />
       
       {/* EASTER EGG BUG - Added here to ensure it's loaded in the context of the App */}
-      <EasterEggBug />
+      <EasterEggBug userAcronym={currentUser?.acronym} />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
         
