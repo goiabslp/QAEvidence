@@ -1,330 +1,267 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Zap } from 'lucide-react';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Bug as BugIcon, Bomb } from 'lucide-react';
-
-type BugMode = 'NORMAL' | 'NINJA';
-type BugState = 'HIDDEN' | 'SPAWNING' | 'WALKING' | 'IDLE' | 'LOOKING' | 'DYING';
-
-const SCREEN_PADDING = 100;
+const PHRASES = [
+  "É feature...",
+  "Na minha máquina funciona!",
+  "Culpem o estagiário",
+  "Já limpou o cache?",
+  "NullPointer?!",
+  "Café?",
+  "Commitando...",
+  "404",
+  "Deploy sexta-feira?",
+  "To invisível...",
+  "Cadê os logs?",
+  "Compilando..."
+];
 
 const EasterEggBug: React.FC = () => {
-  const [bugState, setBugState] = useState<BugState>('HIDDEN');
-  const [mode, setMode] = useState<BugMode>('NORMAL');
-  const [pos, setPos] = useState({ x: -100, y: -100, rotation: 0 });
-  const [targetPos, setTargetPos] = useState({ x: 0, y: 0 });
+  const [isVisible, setIsVisible] = useState(false);
+  const [pos, setPos] = useState({ x: -100, y: -100 });
+  const [rotation, setRotation] = useState(0);
+  const [isLooking, setIsLooking] = useState(false);
   const [isExploding, setIsExploding] = useState(false);
-  const [speech, setSpeech] = useState<string | null>(null);
-
-  // Behavior loop reference
-  const behaviorTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const moveInterval = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   
-  // Refs for current values to access inside animation frames without re-renders
-  const posRef = useRef(pos);
-  const targetRef = useRef(targetPos);
-  const speedRef = useRef(2);
+  // Refs to manage timeouts and loops without causing re-renders
+  const stateRef = useRef<'HIDDEN' | 'MOVING' | 'IDLE' | 'FLEEING'>('HIDDEN');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- UTILS ---
-  const getRandomPos = () => {
-    return {
-      x: Math.random() * (window.innerWidth - SCREEN_PADDING * 2) + SCREEN_PADDING,
-      y: Math.random() * (window.innerHeight - SCREEN_PADDING * 2) + SCREEN_PADDING
+  // Constants
+  const BUG_SIZE = 40;
+  
+  useEffect(() => {
+    // Initial spawn timer (Random start between 10s and 60s)
+    scheduleSpawn();
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  };
-
-  const getAngle = (x1: number, y1: number, x2: number, y2: number) => {
-    return Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI) + 90;
-  };
-
-  // --- LIFECYCLE: SPAWNING ---
-  const scheduleSpawn = useCallback(() => {
-    // Random time between 15s and 60s (made shorter for testing visibility, realistically should be higher)
-    const time = Math.random() * 45000 + 15000; 
-    
-    if (behaviorTimeout.current) clearTimeout(behaviorTimeout.current);
-    
-    behaviorTimeout.current = setTimeout(() => {
-      spawnBug();
-    }, time);
   }, []);
 
+  const scheduleSpawn = () => {
+    stateRef.current = 'HIDDEN';
+    setIsVisible(false);
+    setIsExploding(false);
+    setMessage(null);
+    
+    // Spawn between 10 and 45 seconds
+    const timeToSpawn = Math.random() * 35000 + 10000;
+    
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(spawnBug, timeToSpawn);
+  };
+
   const spawnBug = () => {
-    const startX = Math.random() > 0.5 ? -50 : window.innerWidth + 50;
-    const startY = Math.random() * window.innerHeight;
+    // Start off-screen
+    const startX = Math.random() * window.innerWidth;
+    const startY = -50; // Top
     
-    // 30% Chance to be a NINJA (Fast, hard to click)
-    const isNinja = Math.random() < 0.3;
-    setMode(isNinja ? 'NINJA' : 'NORMAL');
-    speedRef.current = isNinja ? 8 : 2.5;
-
-    const initialPos = { x: startX, y: startY, rotation: 0 };
-    setPos(initialPos);
-    posRef.current = initialPos;
+    setPos({ x: startX, y: startY });
+    setIsVisible(true);
+    stateRef.current = 'MOVING';
     
-    setBugState('SPAWNING');
-    
-    // Start walking immediately
-    const firstTarget = getRandomPos();
-    setTargetPos(firstTarget);
-    targetRef.current = firstTarget;
-    
-    setBugState('WALKING');
-    startMovementLoop();
+    moveLoop();
   };
 
-  // --- MOVEMENT LOOP ---
-  const startMovementLoop = () => {
-    if (moveInterval.current) cancelAnimationFrame(moveInterval.current);
+  const moveLoop = () => {
+    if (stateRef.current === 'HIDDEN' || stateRef.current === 'FLEEING') return;
 
-    const animate = () => {
-      if (bugState === 'DYING' || bugState === 'HIDDEN' || bugState === 'IDLE' || bugState === 'LOOKING') return;
+    // Decide next action: Move or Idle (Look at user)
+    const action = Math.random() > 0.3 ? 'MOVE' : 'IDLE';
 
-      const dx = targetRef.current.x - posRef.current.x;
-      const dy = targetRef.current.y - posRef.current.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+    if (action === 'MOVE') {
+      stateRef.current = 'MOVING';
+      setIsLooking(false);
+      setMessage(null);
 
-      if (distance < 10) {
-        // Reached destination, decide next move
-        decideNextBehavior();
-        return;
-      }
+      // Pick random spot on screen
+      const nextX = Math.random() * (window.innerWidth - BUG_SIZE);
+      const nextY = Math.random() * (window.innerHeight - BUG_SIZE);
 
-      // Move towards target
-      const angle = Math.atan2(dy, dx);
-      const moveX = Math.cos(angle) * speedRef.current;
-      const moveY = Math.sin(angle) * speedRef.current;
+      // Calculate angle
+      const dx = nextX - pos.x;
+      const dy = nextY - pos.y;
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
 
-      posRef.current = {
-        x: posRef.current.x + moveX,
-        y: posRef.current.y + moveY,
-        rotation: (angle * 180 / Math.PI) + 90
-      };
+      setRotation(angle);
+      setPos({ x: nextX, y: nextY });
 
-      setPos({ ...posRef.current });
-      moveInterval.current = requestAnimationFrame(animate);
-    };
+      // Move duration
+      const duration = Math.random() * 2000 + 1000;
+      
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(moveLoop, duration);
 
-    moveInterval.current = requestAnimationFrame(animate);
-  };
-
-  // --- AI BEHAVIOR ---
-  const decideNextBehavior = () => {
-    if (moveInterval.current) cancelAnimationFrame(moveInterval.current);
-    
-    // Ninja just keeps running mostly
-    if (mode === 'NINJA' && Math.random() > 0.2) {
-       const next = getRandomPos();
-       setTargetPos(next);
-       targetRef.current = next;
-       startMovementLoop();
-       return;
-    }
-
-    const action = Math.random();
-
-    if (action < 0.4) {
-      // WALK AGAIN
-      const next = getRandomPos();
-      setTargetPos(next);
-      targetRef.current = next;
-      setBugState('WALKING');
-      startMovementLoop();
-    } else if (action < 0.7) {
-      // IDLE & LOOK
-      setBugState('IDLE');
-      setTimeout(() => {
-        setBugState('LOOKING'); // Eyes move
-        if (Math.random() > 0.7) setSpeech(mode === 'NINJA' ? "..." : "Hehe");
-        
-        setTimeout(() => {
-           setSpeech(null);
-           setBugState('WALKING');
-           const next = getRandomPos();
-           setTargetPos(next);
-           targetRef.current = next;
-           startMovementLoop();
-        }, 2000);
-      }, 1000);
     } else {
-       // LEAVE SCREEN
-       const exitX = Math.random() > 0.5 ? -100 : window.innerWidth + 100;
-       const exitY = Math.random() * window.innerHeight;
-       setTargetPos({ x: exitX, y: exitY });
-       targetRef.current = { x: exitX, y: exitY };
-       setBugState('WALKING');
-       
-       // Detect when off screen to reset
-       const checkExit = setInterval(() => {
-          const d = Math.sqrt(Math.pow(targetRef.current.x - posRef.current.x, 2) + Math.pow(targetRef.current.y - posRef.current.y, 2));
-          if (d < 20) {
-             clearInterval(checkExit);
-             setBugState('HIDDEN');
-             scheduleSpawn();
-          }
-       }, 500);
-       startMovementLoop();
-    }
-  };
-
-  // --- INTERACTION ---
-  const handleInteraction = (type: 'CLICK' | 'HOVER') => {
-    if (bugState === 'HIDDEN' || bugState === 'DYING') return;
-
-    if (mode === 'NINJA') {
-      // Ninja dodges on hover or click attempt if not fast enough
-      // But if clicked successfully (hard), it dies.
-      if (type === 'HOVER') {
-         setSpeech("!");
-         speedRef.current = 15; // Speed boost
-         const dodgeX = Math.random() * window.innerWidth;
-         const dodgeY = Math.random() * window.innerHeight;
-         setTargetPos({ x: dodgeX, y: dodgeY });
-         targetRef.current = { x: dodgeX, y: dodgeY };
-         setBugState('WALKING');
-         startMovementLoop();
-         
-         setTimeout(() => {
-            speedRef.current = 8; // Reset speed
-            setSpeech(null);
-         }, 1000);
-         return;
+      // IDLE / LOOK
+      stateRef.current = 'IDLE';
+      setIsLooking(true);
+      
+      // Chance to speak
+      if (Math.random() > 0.5) {
+        setMessage(PHRASES[Math.floor(Math.random() * PHRASES.length)]);
       }
-    }
 
-    if (type === 'CLICK') {
-      explodeBug();
+      const idleDuration = Math.random() * 1500 + 1000;
+      
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+         // Despawn check (give it a chance to leave)
+         if (Math.random() > 0.8) {
+            flee(false); // Flee without user interaction (just leaving)
+         } else {
+            moveLoop();
+         }
+      }, idleDuration);
     }
   };
 
-  const explodeBug = () => {
-    setBugState('DYING');
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isExploding) return;
+
+    // 50% Explode, 50% Flee
+    if (Math.random() > 0.5) {
+      triggerExplosion();
+    } else {
+      flee(true);
+    }
+  };
+
+  const triggerExplosion = () => {
     setIsExploding(true);
-    setSpeech(null);
-    if (moveInterval.current) cancelAnimationFrame(moveInterval.current);
+    setMessage("BUG !!!");
     
-    // Play sound effect? (Optional)
-    
+    // Remove after animation
     setTimeout(() => {
-      setIsExploding(false);
-      setBugState('HIDDEN');
+      scheduleSpawn();
+    }, 800);
+  };
+
+  const flee = (scared: boolean) => {
+    stateRef.current = 'FLEEING';
+    setIsLooking(false);
+    if (scared) setMessage("Aaaah!");
+    else setMessage(null);
+
+    // Pick a point WAY off screen based on current position relative to center
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    const dirX = pos.x > centerX ? 1 : -1;
+    const dirY = pos.y > centerY ? 1 : -1;
+
+    const endX = pos.x + (dirX * 500);
+    const endY = pos.y + (dirY * 500);
+
+    const dx = endX - pos.x;
+    const dy = endY - pos.y;
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+
+    setRotation(angle);
+    setPos({ x: endX, y: endY });
+
+    setTimeout(() => {
       scheduleSpawn();
     }, 1000);
   };
 
-  // Initial Spawn Timer
-  useEffect(() => {
-    scheduleSpawn();
-    return () => {
-      if (behaviorTimeout.current) clearTimeout(behaviorTimeout.current);
-      if (moveInterval.current) cancelAnimationFrame(moveInterval.current);
-    };
-  }, [scheduleSpawn]);
-
-  if (bugState === 'HIDDEN') return null;
+  if (!isVisible) return null;
 
   return (
     <div 
-      className="fixed z-[9999] pointer-events-auto"
+      className="fixed z-[9999] pointer-events-none transition-all ease-in-out"
       style={{
-        left: pos.x,
         top: pos.y,
-        transform: `translate(-50%, -50%) rotate(${pos.rotation}deg)`,
-        transition: bugState === 'WALKING' ? 'none' : 'transform 0.3s ease-out'
+        left: pos.x,
+        // When fleeing, move faster (0.5s), when moving normally (2-3s)
+        transitionDuration: stateRef.current === 'FLEEING' ? '0.5s' : stateRef.current === 'MOVING' ? '2.5s' : '0s',
       }}
-      onClick={() => handleInteraction('CLICK')}
-      onMouseEnter={() => handleInteraction('HOVER')}
     >
-      {/* Speech Bubble */}
-      {speech && !isExploding && (
+        {/* Container for Rotation */}
         <div 
-            className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white border-2 border-black px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap z-50 animate-bounce"
-            style={{ transform: `rotate(-${pos.rotation}deg)` }} // Counter-rotate text
+            className="relative pointer-events-auto cursor-pointer"
+            onClick={handleClick}
+            style={{
+                transform: `rotate(${rotation}deg)`,
+                transition: 'transform 0.3s ease-out'
+            }}
         >
-            {speech}
-        </div>
-      )}
+            {/* Message Bubble (Counter-rotated so text is readable) */}
+            {message && !isExploding && (
+                <div 
+                    className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white border-2 border-black text-black px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shadow-[2px_2px_0px_rgba(0,0,0,1)] animate-bounce-in z-20"
+                    style={{ transform: `rotate(${-rotation}deg)` }}
+                >
+                    {message}
+                    {/* Little Triangle */}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-b-2 border-r-2 border-black transform rotate-45"></div>
+                </div>
+            )}
 
-      {isExploding ? (
-         // EXPLOSION ANIMATION (Sketch Style)
-         <div className="relative w-20 h-20 flex items-center justify-center">
-             <div className="absolute inset-0 animate-ping border-4 border-black rounded-full opacity-75"></div>
-             <div className="absolute inset-0 animate-pulse border-2 border-slate-800 rounded-full opacity-50 scale-150"></div>
-             {/* Particles */}
-             {[...Array(8)].map((_, i) => (
-                <div key={i} className="absolute w-2 h-8 bg-black rounded-full" 
-                     style={{ 
-                         transform: `rotate(${i * 45}deg) translate(20px)`,
-                         animation: 'explode-particles 0.5s ease-out forwards'
-                     }} 
-                />
-             ))}
-             <span className="font-black text-xl text-black relative z-10" style={{ transform: `rotate(-${pos.rotation}deg)` }}>POOF!</span>
-         </div>
-      ) : (
-        // SKETCH BUG SVG
-        <div className={`relative w-16 h-16 drop-shadow-xl transition-transform ${bugState === 'WALKING' ? 'animate-bug-bounce' : ''}`}>
-             <svg viewBox="0 0 100 100" className="w-full h-full overflow-visible">
-                {/* LEGS (Animated when walking) */}
-                <g className={bugState === 'WALKING' ? 'animate-leg-wiggle' : ''}>
-                    <path d="M20,30 L5,20" stroke="black" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    <path d="M80,30 L95,20" stroke="black" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    <path d="M20,50 L2,50" stroke="black" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    <path d="M80,50 L98,50" stroke="black" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    <path d="M20,70 L5,85" stroke="black" strokeWidth="3" fill="none" strokeLinecap="round" />
-                    <path d="M80,70 L95,85" stroke="black" strokeWidth="3" fill="none" strokeLinecap="round" />
-                </g>
-
-                {/* BODY (Rough Sketch Circle) */}
-                <path 
-                    d="M50,10 C20,10 10,40 15,70 C20,95 80,95 85,70 C90,40 80,10 50,10 Z" 
-                    fill="white" 
-                    stroke="black" 
-                    strokeWidth="3"
-                    strokeLinejoin="round"
-                    className="drop-shadow-sm"
-                />
-                
-                {/* STRIPES (Sketchy) */}
-                <path d="M20,40 Q50,45 80,40" stroke="black" strokeWidth="2" fill="none" opacity="0.6" />
-                <path d="M18,60 Q50,65 82,60" stroke="black" strokeWidth="2" fill="none" opacity="0.6" />
-
-                {/* EYES */}
-                <g transform="translate(0, 10)">
-                    {/* Left Eye */}
-                    <circle cx="35" cy="30" r="8" fill="white" stroke="black" strokeWidth="2" />
-                    <circle 
-                        cx={bugState === 'LOOKING' ? 35 : 35} 
-                        cy={bugState === 'LOOKING' ? 34 : 28} 
-                        r="3" 
-                        fill="black" 
-                        className="transition-all duration-500"
-                    />
-
-                    {/* Right Eye */}
-                    <circle cx="65" cy="30" r="8" fill="white" stroke="black" strokeWidth="2" />
-                    <circle 
-                        cx={bugState === 'LOOKING' ? 65 : 65} 
-                        cy={bugState === 'LOOKING' ? 34 : 28} 
-                        r="3" 
-                        fill="black" 
-                        className="transition-all duration-500"
-                    />
-                </g>
-
-                {/* MOUTH (Small smile) */}
-                {bugState === 'LOOKING' ? (
-                     <path d="M40,80 Q50,85 60,80" stroke="black" strokeWidth="2" fill="none" strokeLinecap="round" />
-                ) : (
-                     <path d="M45,80 L55,80" stroke="black" strokeWidth="2" fill="none" strokeLinecap="round" />
+            {/* THE BUG SVG */}
+            <div 
+                className={`relative w-10 h-12 transition-all duration-300 ${isExploding ? 'scale-150 opacity-0 filter blur-sm' : 'scale-100'}`}
+            >
+                {/* EXPLOSION EFFECT */}
+                {isExploding && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Zap className="w-12 h-12 text-yellow-500 fill-yellow-400 animate-pulse" />
+                    </div>
                 )}
 
-                {/* NINJA HEADBAND (If Ninja) */}
-                {mode === 'NINJA' && (
-                    <path d="M25,15 L75,15" stroke="red" strokeWidth="6" strokeLinecap="round" />
-                )}
-             </svg>
+                <svg viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-lg">
+                    {/* LEGS */}
+                    <path d="M10 15L2 10" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-wiggle" />
+                    <path d="M30 15L38 10" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-wiggle" />
+                    
+                    <path d="M10 25L1 25" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-wiggle-reverse" />
+                    <path d="M30 25L39 25" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-wiggle-reverse" />
+                    
+                    <path d="M10 35L3 42" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-wiggle" />
+                    <path d="M30 35L37 42" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-wiggle" />
+
+                    {/* BODY */}
+                    <ellipse cx="20" cy="25" rx="12" ry="18" fill="black" />
+                    
+                    {/* ANTENNAE */}
+                    <path d="M15 10L10 2" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+                    <path d="M25 10L30 2" stroke="black" strokeWidth="1.5" strokeLinecap="round" />
+
+                    {/* EYES (Scalable) */}
+                    <g 
+                        className={`transition-transform duration-200 origin-center ${isLooking ? 'scale-125' : 'scale-100'}`}
+                        style={{ transformOrigin: '20px 25px' }}
+                    >
+                        {/* White parts */}
+                        <circle cx="14" cy="16" r="4" fill="white" />
+                        <circle cx="26" cy="16" r="4" fill="white" />
+                        
+                        {/* Pupils - look at user (center) or random if moving */}
+                        <circle cx={isLooking ? 14 : 14 + (Math.random() - 0.5)} cy={isLooking ? 16 : 15} r="1.5" fill="black" />
+                        <circle cx={isLooking ? 26 : 26 + (Math.random() - 0.5)} cy={isLooking ? 16 : 15} r="1.5" fill="black" />
+                    </g>
+                </svg>
+            </div>
         </div>
-      )}
+        
+        {/* Simple global keyframes for legs */}
+        <style dangerouslySetInnerHTML={{__html: `
+            @keyframes wiggle {
+                0%, 100% { transform: rotate(-5deg); }
+                50% { transform: rotate(5deg); }
+            }
+            .animate-wiggle { animation: wiggle 0.2s infinite ease-in-out; transform-origin: center; }
+            .animate-wiggle-reverse { animation: wiggle 0.3s infinite reverse ease-in-out; transform-origin: center; }
+            @keyframes bounce-in {
+                0% { transform: scale(0); opacity: 0; }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            .animate-bounce-in { animation: bounce-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        `}} />
     </div>
   );
 };
