@@ -23,6 +23,7 @@ const EasterEggBug: React.FC = () => {
   const [rotation, setRotation] = useState(0);
   const [isLooking, setIsLooking] = useState(false);
   const [isExploding, setIsExploding] = useState(false);
+  const [isScared, setIsScared] = useState(false); // New state for Fear
   const [message, setMessage] = useState<string | null>(null);
   const [moveDuration, setMoveDuration] = useState(0);
   
@@ -46,6 +47,7 @@ const EasterEggBug: React.FC = () => {
     stateRef.current = 'HIDDEN';
     setIsVisible(false);
     setIsExploding(false);
+    setIsScared(false);
     setMessage(null);
     
     // Spawn between 20 and 60 seconds (Rare appearance)
@@ -156,6 +158,7 @@ const EasterEggBug: React.FC = () => {
   const flee = (scared: boolean) => {
     stateRef.current = 'FLEEING';
     setIsLooking(false);
+    setIsScared(false); // Can't tremble while running at mach speed
     if (scared) setMessage("Aaaah!");
     else setMessage(null);
 
@@ -185,7 +188,20 @@ const EasterEggBug: React.FC = () => {
     }, 1000);
   };
 
+  const handleMouseEnter = () => {
+    if (!isExploding && stateRef.current !== 'FLEEING') {
+        setIsScared(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsScared(false);
+  };
+
   if (!isVisible) return null;
+
+  // Determine if showing fear (Trembling override)
+  const isTrembling = isScared && !isExploding && stateRef.current !== 'FLEEING';
 
   return (
     <div 
@@ -199,9 +215,12 @@ const EasterEggBug: React.FC = () => {
       }}
     >
         {/* Container for Rotation & Interaction */}
+        {/* Added Padding to Create Hitbox for "Proximity" */}
         <div 
-            className="relative pointer-events-auto cursor-pointer"
+            className="relative pointer-events-auto cursor-pointer p-12 -m-12"
             onClick={handleClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             style={{
                 transform: `rotate(${rotation}deg)`,
                 transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' // Smooth turn
@@ -222,7 +241,10 @@ const EasterEggBug: React.FC = () => {
             {/* THE BUG SVG - OUTLINE STYLE - REDESIGNED: Eyes at front, smaller */}
             <div 
                 style={{ width: BUG_SIZE, height: BUG_SIZE * 1.2 }}
-                className={`relative transition-all duration-300 ${isExploding ? 'scale-150 opacity-0 filter blur-sm' : 'scale-100'} ${stateRef.current === 'MOVING' ? 'animate-body-wobble' : ''}`}
+                className={`relative transition-all duration-300 
+                  ${isExploding ? 'scale-150 opacity-0 filter blur-sm' : 'scale-100'} 
+                  ${isTrembling ? 'animate-tremble' : (stateRef.current === 'MOVING' ? 'animate-body-wobble' : '')}
+                `}
             >
                 {/* EXPLOSION EFFECT */}
                 {isExploding && (
@@ -254,8 +276,9 @@ const EasterEggBug: React.FC = () => {
                     />
                     
                     {/* EYES (Head - Front Layer) */}
+                    {/* Scale logic: Scared > Looking > Normal */}
                     <g 
-                        className={`transition-transform duration-300 origin-center ${isLooking ? 'scale-125' : 'scale-100'}`}
+                        className={`transition-transform duration-150 origin-center ${isScared ? 'scale-150' : (isLooking ? 'scale-125' : 'scale-100')}`}
                         style={{ transformOrigin: '20px 14px' }}
                     >
                         {/* Antennas (Coming out of eyes/head) */}
@@ -268,8 +291,8 @@ const EasterEggBug: React.FC = () => {
                         <circle cx="28" cy="14" r="7.5" fill="white" stroke="black" strokeWidth="2.5" />
                         
                         {/* Pupils */}
-                        <circle cx={isLooking ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking ? 14 : 13} r="2.5" fill="black" />
-                        <circle cx={isLooking ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking ? 14 : 13} r="2.5" fill="black" />
+                        <circle cx={isLooking && !isScared ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
+                        <circle cx={isLooking && !isScared ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking && !isScared ? 14 : 13} r={isScared ? 2 : 2.5} fill="black" />
                     </g>
                 </svg>
             </div>
@@ -284,6 +307,22 @@ const EasterEggBug: React.FC = () => {
                 75% { transform: rotate(-3deg); }
             }
             .animate-body-wobble { animation: body-wobble 0.6s infinite ease-in-out; }
+
+            /* Tremble when scared */
+            @keyframes tremble {
+                0% { transform: translate(1px, 1px) rotate(0deg); }
+                10% { transform: translate(-1px, -1px) rotate(-1deg); }
+                20% { transform: translate(-2px, 0px) rotate(1deg); }
+                30% { transform: translate(2px, 1px) rotate(0deg); }
+                40% { transform: translate(1px, -1px) rotate(1deg); }
+                50% { transform: translate(-1px, 1px) rotate(-1deg); }
+                60% { transform: translate(-2px, 1px) rotate(0deg); }
+                70% { transform: translate(2px, 1px) rotate(-1deg); }
+                80% { transform: translate(-1px, -1px) rotate(1deg); }
+                90% { transform: translate(1px, 1px) rotate(0deg); }
+                100% { transform: translate(1px, -1px) rotate(-1deg); }
+            }
+            .animate-tremble { animation: tremble 0.1s infinite linear; }
 
             /* Legs Movement - Alternating tripod gait */
             @keyframes leg-wiggle {
