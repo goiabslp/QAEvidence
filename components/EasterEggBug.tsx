@@ -30,8 +30,8 @@ const EasterEggBug: React.FC = () => {
   const stateRef = useRef<'HIDDEN' | 'MOVING' | 'IDLE' | 'FLEEING'>('HIDDEN');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Constants
-  const BUG_SIZE = 48; // Slightly larger to show detail
+  // Constants - Reduced size as requested
+  const BUG_SIZE = 30; 
   
   useEffect(() => {
     // Initial spawn timer (Rare: 20s to 60s)
@@ -100,8 +100,8 @@ const EasterEggBug: React.FC = () => {
       setRotation(angle);
       setPos({ x: nextX, y: nextY });
 
-      // Slow Movement: 3s to 7s duration (Walking pace)
-      const duration = Math.random() * 4000 + 3000;
+      // Slow Movement: 4s to 8s duration (Walking pace - very slow as requested)
+      const duration = Math.random() * 4000 + 4000;
       setMoveDuration(duration);
       
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -219,52 +219,57 @@ const EasterEggBug: React.FC = () => {
                 </div>
             )}
 
-            {/* THE BUG SVG - OUTLINE STYLE */}
+            {/* THE BUG SVG - OUTLINE STYLE - REDESIGNED: Eyes at front, smaller */}
             <div 
-                className={`relative w-12 h-16 transition-all duration-300 ${isExploding ? 'scale-150 opacity-0 filter blur-sm' : 'scale-100'} ${stateRef.current === 'MOVING' ? 'animate-body-wobble' : ''}`}
+                style={{ width: BUG_SIZE, height: BUG_SIZE * 1.2 }}
+                className={`relative transition-all duration-300 ${isExploding ? 'scale-150 opacity-0 filter blur-sm' : 'scale-100'} ${stateRef.current === 'MOVING' ? 'animate-body-wobble' : ''}`}
             >
                 {/* EXPLOSION EFFECT */}
                 {isExploding && (
                     <div className="absolute inset-0 flex items-center justify-center -z-10">
-                        <Zap className="w-20 h-20 text-red-500 fill-red-500 animate-pulse" />
+                        <Zap className="w-16 h-16 text-red-500 fill-red-500 animate-pulse" />
                     </div>
                 )}
 
-                <svg viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-md">
-                    {/* LEGS (Strokes only) */}
-                    <path d="M10 15L-2 8" stroke="black" strokeWidth="2.5" strokeLinecap="round" className="animate-leg-left-1" />
-                    <path d="M30 15L42 8" stroke="black" strokeWidth="2.5" strokeLinecap="round" className="animate-leg-right-1" />
+                <svg viewBox="0 0 40 45" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-sm">
+                    {/* LEGS (Strokes only - Bottom Layer) */}
+                    <path d="M5 20L-4 15" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-left-1" />
+                    <path d="M35 20L44 15" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-right-1" />
                     
-                    <path d="M10 25L-4 25" stroke="black" strokeWidth="2.5" strokeLinecap="round" className="animate-leg-left-2" />
-                    <path d="M30 25L44 25" stroke="black" strokeWidth="2.5" strokeLinecap="round" className="animate-leg-right-2" />
+                    <path d="M5 30L-6 30" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-left-2" />
+                    <path d="M35 30L46 30" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-right-2" />
                     
-                    <path d="M10 35L-2 42" stroke="black" strokeWidth="2.5" strokeLinecap="round" className="animate-leg-left-3" />
-                    <path d="M30 35L42 42" stroke="black" strokeWidth="2.5" strokeLinecap="round" className="animate-leg-right-3" />
+                    <path d="M8 38L-2 44" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-left-3" />
+                    <path d="M32 38L42 44" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-leg-right-3" />
 
-                    {/* BODY (Outline, transparent fill) */}
-                    <path 
-                        d="M20 5 C 10 5, 2 15, 5 35 C 7 45, 15 48, 20 48 C 25 48, 33 45, 35 35 C 38 15, 30 5, 20 5 Z" 
+                    {/* BODY (Small oval behind eyes - Middle Layer) */}
+                    <ellipse 
+                        cx="20" 
+                        cy="28" 
+                        rx="10" 
+                        ry="14" 
+                        fill="white" 
                         stroke="black" 
-                        strokeWidth="3" 
-                        fill="none" 
+                        strokeWidth="2.5" 
                     />
                     
-                    {/* ANTENNAE */}
-                    <path d="M15 8L8 -5" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-antenna" />
-                    <path d="M25 8L32 -5" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-antenna-alt" />
-
-                    {/* EYES (Scalable, White background to pop) */}
+                    {/* EYES (Head - Front Layer) */}
                     <g 
-                        className={`transition-transform duration-300 origin-center ${isLooking ? 'scale-150' : 'scale-100'}`}
-                        style={{ transformOrigin: '20px 20px' }}
+                        className={`transition-transform duration-300 origin-center ${isLooking ? 'scale-125' : 'scale-100'}`}
+                        style={{ transformOrigin: '20px 14px' }}
                     >
-                        {/* White parts (to hide body line behind) */}
-                        <circle cx="13" cy="18" r="5" fill="white" stroke="black" strokeWidth="2" />
-                        <circle cx="27" cy="18" r="5" fill="white" stroke="black" strokeWidth="2" />
+                        {/* Antennas (Coming out of eyes/head) */}
+                        <path d="M14 8L8 -2" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-antenna" />
+                        <path d="M26 8L32 -2" stroke="black" strokeWidth="2" strokeLinecap="round" className="animate-antenna-alt" />
+
+                        {/* Left Eye */}
+                        <circle cx="12" cy="14" r="7.5" fill="white" stroke="black" strokeWidth="2.5" />
+                        {/* Right Eye */}
+                        <circle cx="28" cy="14" r="7.5" fill="white" stroke="black" strokeWidth="2.5" />
                         
                         {/* Pupils */}
-                        <circle cx={isLooking ? 13 : 13 + (Math.random() - 0.5) * 2} cy={isLooking ? 18 : 17} r="2" fill="black" />
-                        <circle cx={isLooking ? 27 : 27 + (Math.random() - 0.5) * 2} cy={isLooking ? 18 : 17} r="2" fill="black" />
+                        <circle cx={isLooking ? 12 : 12 + (Math.random() - 0.5) * 2} cy={isLooking ? 14 : 13} r="2.5" fill="black" />
+                        <circle cx={isLooking ? 28 : 28 + (Math.random() - 0.5) * 2} cy={isLooking ? 14 : 13} r="2.5" fill="black" />
                     </g>
                 </svg>
             </div>
@@ -275,31 +280,31 @@ const EasterEggBug: React.FC = () => {
             /* Body wobbles when walking */
             @keyframes body-wobble {
                 0%, 100% { transform: rotate(0deg); }
-                25% { transform: rotate(2deg); }
-                75% { transform: rotate(-2deg); }
+                25% { transform: rotate(3deg); }
+                75% { transform: rotate(-3deg); }
             }
-            .animate-body-wobble { animation: body-wobble 0.5s infinite ease-in-out; }
+            .animate-body-wobble { animation: body-wobble 0.6s infinite ease-in-out; }
 
             /* Legs Movement - Alternating tripod gait */
             @keyframes leg-wiggle {
                 0%, 100% { transform: rotate(-15deg); }
                 50% { transform: rotate(15deg); }
             }
-            .animate-leg-left-1 { animation: leg-wiggle 0.4s infinite ease-in-out; transform-origin: 10px 15px; }
-            .animate-leg-right-2 { animation: leg-wiggle 0.4s infinite ease-in-out; transform-origin: 30px 25px; }
-            .animate-leg-left-3 { animation: leg-wiggle 0.4s infinite ease-in-out; transform-origin: 10px 35px; }
+            .animate-leg-left-1 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 5px 20px; }
+            .animate-leg-right-2 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 35px 30px; }
+            .animate-leg-left-3 { animation: leg-wiggle 0.5s infinite ease-in-out; transform-origin: 8px 38px; }
             
-            .animate-leg-right-1 { animation: leg-wiggle 0.4s infinite reverse ease-in-out; transform-origin: 30px 15px; }
-            .animate-leg-left-2 { animation: leg-wiggle 0.4s infinite reverse ease-in-out; transform-origin: 10px 25px; }
-            .animate-leg-right-3 { animation: leg-wiggle 0.4s infinite reverse ease-in-out; transform-origin: 30px 35px; }
+            .animate-leg-right-1 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 35px 20px; }
+            .animate-leg-left-2 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 5px 30px; }
+            .animate-leg-right-3 { animation: leg-wiggle 0.5s infinite reverse ease-in-out; transform-origin: 32px 38px; }
 
             /* Antennae twitch */
             @keyframes antenna-twitch {
-                0%, 100% { transform: rotate(-5deg); }
-                50% { transform: rotate(5deg); }
+                0%, 100% { transform: rotate(-8deg); }
+                50% { transform: rotate(8deg); }
             }
-            .animate-antenna { animation: antenna-twitch 2s infinite ease-in-out; transform-origin: 15px 8px; }
-            .animate-antenna-alt { animation: antenna-twitch 2.5s infinite reverse ease-in-out; transform-origin: 25px 8px; }
+            .animate-antenna { animation: antenna-twitch 2s infinite ease-in-out; transform-origin: 14px 8px; }
+            .animate-antenna-alt { animation: antenna-twitch 2.5s infinite reverse ease-in-out; transform-origin: 26px 8px; }
 
             @keyframes bounce-in {
                 0% { transform: scale(0); opacity: 0; }
