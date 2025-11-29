@@ -16,7 +16,8 @@ const BUG_DIALECT = [
   "Erro 502",
   "hahaha",
   "undefined",
-  "NaN"
+  "null",
+  "[object Object]"
 ];
 
 const EasterEggBug: React.FC = () => {
@@ -40,7 +41,7 @@ const EasterEggBug: React.FC = () => {
   const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Constants
-  const BUG_SIZE = 30; 
+  const BUG_SIZE = 36; 
   
   useEffect(() => {
     scheduleSpawn();
@@ -124,15 +125,18 @@ const EasterEggBug: React.FC = () => {
       stateRef.current = 'IDLE';
       setIsLooking(true);
       
-      // Occasional Speech (30% chance when idle)
-      if (Math.random() > 0.7) {
-        setMessage(BUG_DIALECT[Math.floor(Math.random() * BUG_DIALECT.length)]);
+      // Occasional Speech (25% chance when idle)
+      if (Math.random() > 0.75) {
+        const text = BUG_DIALECT[Math.floor(Math.random() * BUG_DIALECT.length)];
+        setMessage(text);
         
-        // Auto hide message after 2-3 seconds
+        // Auto hide message after 2-3 seconds random
+        const speechDuration = Math.random() * 1000 + 2000;
+        
         if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
         messageTimeoutRef.current = setTimeout(() => {
             setMessage(null);
-        }, 2500);
+        }, speechDuration);
       }
 
       const idleDuration = Math.random() * 2000 + 1500;
@@ -259,44 +263,66 @@ const EasterEggBug: React.FC = () => {
 
   return (
     <>
-        {/* SMOKE EFFECT (Independent fixed position) */}
+        {/* SMOKE EFFECT (Digital Dust) */}
         {showSmoke && (
             <div 
-                className="fixed z-[9998] pointer-events-none animate-smoke"
+                className="fixed z-[9998] pointer-events-none"
                 style={{ 
                     top: smokePos.y, 
                     left: smokePos.x,
-                    width: BUG_SIZE * 2,
-                    height: BUG_SIZE * 2,
+                    width: BUG_SIZE * 3,
+                    height: BUG_SIZE * 3,
                     transform: 'translate(-50%, -50%)'
                 }}
             >
-                <svg viewBox="0 0 100 100" fill="none" className="w-full h-full opacity-80">
-                    <g fill="#e2e8f0" stroke="black" strokeWidth="2">
-                        <circle cx="50" cy="50" r="25" />
-                        <circle cx="30" cy="60" r="15" />
-                        <circle cx="70" cy="60" r="15" />
-                        <circle cx="50" cy="30" r="15" />
-                        <path d="M20 50 Q 10 40 20 30" fill="none" strokeWidth="2" strokeLinecap="round"/>
-                        <path d="M80 50 Q 90 40 80 30" fill="none" strokeWidth="2" strokeLinecap="round"/>
-                    </g>
+                <svg viewBox="0 0 100 100" fill="none" className="w-full h-full overflow-visible" shapeRendering="crispEdges">
+                    {/* Generate Random Pixel Particles */}
+                    {[...Array(12)].map((_, i) => (
+                        <rect
+                            key={i}
+                            x={45 + (Math.random() * 20 - 10)} 
+                            y={45 + (Math.random() * 20 - 10)}
+                            width={Math.random() * 8 + 4} 
+                            height={Math.random() * 8 + 4}
+                            fill={i % 2 === 0 ? "black" : "transparent"}
+                            stroke="black"
+                            strokeWidth="2"
+                            style={{
+                                '--tx': `${(Math.random() - 0.5) * 150}px`,
+                                '--ty': `${(Math.random() - 0.5) * 150}px`,
+                                '--rot': `${Math.random() * 720}deg`,
+                                animation: `pixel-dissolve 0.8s forwards ease-out`
+                            } as React.CSSProperties}
+                        />
+                    ))}
                 </svg>
             </div>
         )}
 
-        {/* THE BUG */}
+        {/* THE BUG CONTAINER (Fixed Position, No Rotation) */}
         <div 
-        className="fixed z-[9999] pointer-events-none ease-in-out"
-        style={{
-            top: pos.y,
-            left: pos.x,
-            transitionProperty: 'top, left',
-            // If trembling, transition is 0 to hold place. If fleeing, fast. If walking, slow.
-            transitionDuration: `${isTrembling ? 0 : moveDuration}ms`,
-            transitionTimingFunction: stateRef.current === 'FLEEING' ? 'ease-in' : 'linear',
-        }}
+            className="fixed z-[9999] pointer-events-none ease-in-out"
+            style={{
+                top: pos.y,
+                left: pos.x,
+                transitionProperty: 'top, left',
+                // If trembling, transition is 0 to hold place. If fleeing, fast. If walking, slow.
+                transitionDuration: `${isTrembling ? 0 : moveDuration}ms`,
+                transitionTimingFunction: stateRef.current === 'FLEEING' ? 'ease-in' : 'linear',
+            }}
         >
-            {/* Interaction Hitbox */}
+            {/* SPEECH BUBBLE (Outside rotation context to stay upright) */}
+            {message && !isExploding && !showSmoke && (
+                <div className="absolute -top-20 left-1/2 -translate-x-1/2 z-[10000] pointer-events-auto">
+                    <div className="bg-white border-2 border-black text-black px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap shadow-[3px_3px_0px_rgba(0,0,0,0.2)] animate-bounce-in font-mono relative">
+                        {message}
+                        {/* Triangle pointer */}
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-black transform rotate-45"></div>
+                    </div>
+                </div>
+            )}
+
+            {/* ROTATABLE INNER CONTAINER (The Bug Itself) */}
             <div 
                 className="relative pointer-events-auto cursor-pointer p-12 -m-12"
                 onClick={handleClick}
@@ -307,17 +333,6 @@ const EasterEggBug: React.FC = () => {
                     transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                 }}
             >
-                {/* Speech Bubble */}
-                {message && !isExploding && !showSmoke && (
-                    <div 
-                        className="absolute -top-14 left-1/2 -translate-x-1/2 bg-white border-2 border-black text-black px-3 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap shadow-[3px_3px_0px_rgba(0,0,0,0.2)] animate-bounce-in z-20 font-mono"
-                        style={{ transform: `rotate(${-rotation}deg)` }}
-                    >
-                        {message}
-                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b-2 border-r-2 border-black transform rotate-45"></div>
-                    </div>
-                )}
-
                 {/* Bug SVG */}
                 <div 
                     style={{ width: BUG_SIZE, height: BUG_SIZE * 1.2 }}
@@ -432,12 +447,10 @@ const EasterEggBug: React.FC = () => {
                 }
                 .animate-blast { animation: blast-pop 0.6s forwards ease-out; transform-origin: 20px 20px; }
 
-                @keyframes smoke-puff {
-                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.8; }
-                    50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
-                    100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+                @keyframes pixel-dissolve {
+                    0% { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+                    100% { transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0); opacity: 0; }
                 }
-                .animate-smoke { animation: smoke-puff 0.8s forwards ease-out; }
 
                 @keyframes leg-wiggle {
                     0%, 100% { transform: rotate(-15deg); }
