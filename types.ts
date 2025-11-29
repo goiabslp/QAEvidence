@@ -49,6 +49,7 @@ export interface User {
   password: string; // Simple storage for simulation
   role: UserRole;
   isActive?: boolean; // Control access
+  showEasterEgg?: boolean; // Control Bug appearance
 }
 
 export interface TicketInfo {

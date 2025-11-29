@@ -1,7 +1,8 @@
 
+
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { Trash2, Plus, User as UserIcon, X, Check, UserPlus, ShieldAlert, Pencil, Save, ShieldCheck, Type, Lock, KeyRound, Ban, CheckCircle2 } from 'lucide-react';
+import { Trash2, Plus, User as UserIcon, X, Check, UserPlus, ShieldAlert, Pencil, Save, ShieldCheck, Type, Lock, KeyRound, Ban, CheckCircle2, Bug, BugOff } from 'lucide-react';
 
 interface UserManagementProps {
   users: User[];
@@ -22,14 +23,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
     acronym: '',
     name: '',
     password: '',
-    role: 'USER' as UserRole
+    role: 'USER' as UserRole,
+    showEasterEgg: true
   });
 
   // Filter users: Admin sees all, User sees only themselves
   const visibleUsers = isAdmin ? users : users.filter(u => u.id === currentUserId);
 
   const resetForm = () => {
-    setFormData({ acronym: '', name: '', password: '', role: 'USER' });
+    setFormData({ acronym: '', name: '', password: '', role: 'USER', showEasterEgg: true });
     setEditingUser(null);
     setIsFormOpen(false);
   };
@@ -37,7 +39,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
   const handleStartAdd = () => {
     if (!isAdmin) return;
     setEditingUser(null);
-    setFormData({ acronym: '', name: '', password: '', role: 'USER' });
+    setFormData({ acronym: '', name: '', password: '', role: 'USER', showEasterEgg: true });
     setIsFormOpen(true);
   };
 
@@ -47,7 +49,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
       acronym: user.acronym,
       name: user.name,
       password: user.password,
-      role: user.role
+      role: user.role,
+      showEasterEgg: user.showEasterEgg !== false // Default to true if undefined
     });
     setIsFormOpen(true);
   };
@@ -68,7 +71,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
         acronym: formData.acronym,
         name: formData.name,
         password: formData.password,
-        role: formData.role
+        role: formData.role,
+        showEasterEgg: formData.showEasterEgg
       });
     } else if (isAdmin && formData.acronym && formData.name && formData.password) {
       // Create new (Admin only)
@@ -78,7 +82,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
         name: formData.name,
         password: formData.password,
         role: formData.role,
-        isActive: true
+        isActive: true,
+        showEasterEgg: formData.showEasterEgg
       });
     }
     resetForm();
@@ -197,37 +202,59 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
                   </div>
                 </div>
 
-                {/* PERMISSÃO - Row 2 (7 cols) */}
+                {/* PERMISSÃO & BUG TOGGLE - Row 2 (7 cols) */}
                 <div className="md:col-span-7">
-                  <label className={labelClass}>Permissão de Acesso</label>
-                  <div className="flex gap-4">
-                      <button
-                          type="button"
-                          onClick={() => isAdmin && setFormData({...formData, role: 'USER'})}
-                          disabled={!isAdmin}
-                          className={`flex-1 py-4 rounded-2xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all outline-none focus:ring-4 focus:ring-indigo-500/10 ${
-                              formData.role === 'USER'
-                              ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
-                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-white hover:border-slate-300'
-                          } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                          <UserIcon className="w-5 h-5" />
-                          Colaborador
-                      </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* ROLE SELECTOR */}
+                      <div>
+                          <label className={labelClass}>Permissão</label>
+                          <div className="flex bg-white p-1 rounded-2xl border-2 border-slate-200">
+                              <button
+                                  type="button"
+                                  onClick={() => isAdmin && setFormData({...formData, role: 'USER'})}
+                                  disabled={!isAdmin}
+                                  className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                                      formData.role === 'USER'
+                                      ? 'bg-blue-100 text-blue-700 shadow-sm'
+                                      : 'text-slate-400 hover:text-slate-600'
+                                  } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                  <UserIcon className="w-4 h-4" />
+                                  USER
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={() => isAdmin && setFormData({...formData, role: 'ADMIN'})}
+                                  disabled={!isAdmin}
+                                  className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                                      formData.role === 'ADMIN'
+                                      ? 'bg-purple-100 text-purple-700 shadow-sm'
+                                      : 'text-slate-400 hover:text-slate-600'
+                                  } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              >
+                                  <ShieldCheck className="w-4 h-4" />
+                                  ADMIN
+                              </button>
+                          </div>
+                      </div>
 
-                      <button
-                          type="button"
-                          onClick={() => isAdmin && setFormData({...formData, role: 'ADMIN'})}
-                          disabled={!isAdmin}
-                          className={`flex-1 py-4 rounded-2xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all outline-none focus:ring-4 focus:ring-indigo-500/10 ${
-                              formData.role === 'ADMIN'
-                              ? 'bg-purple-50 border-purple-200 text-purple-700 shadow-sm'
-                              : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-white hover:border-slate-300'
-                          } ${!isAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                          <ShieldCheck className="w-5 h-5" />
-                          Administrador
-                      </button>
+                      {/* BUG TOGGLE */}
+                      <div>
+                          <label className={labelClass}>Bug Animado (Mascote)</label>
+                          <button
+                              type="button"
+                              onClick={() => setFormData({...formData, showEasterEgg: !formData.showEasterEgg})}
+                              className={`w-full py-3.5 rounded-2xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all outline-none focus:ring-4 focus:ring-indigo-500/10 ${
+                                  formData.showEasterEgg
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm hover:bg-emerald-100'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-white hover:border-slate-300'
+                              }`}
+                          >
+                              {formData.showEasterEgg ? <Bug className="w-5 h-5" /> : <BugOff className="w-5 h-5" />}
+                              {formData.showEasterEgg ? 'Ativado na Tela' : 'Desativado'}
+                          </button>
+                      </div>
                   </div>
                 </div>
             </div>
@@ -252,12 +279,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
               <th className="px-6 py-5 w-28">Sigla</th>
               <th className="px-6 py-5">Nome</th>
               <th className="px-6 py-5">Permissão</th>
+              <th className="px-6 py-5 text-center">Bug</th>
               <th className="px-6 py-5 w-40 text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {visibleUsers.map(user => {
               const isActive = user.isActive !== false;
+              const hasBug = user.showEasterEgg !== false;
+              
               return (
               <tr key={user.id} className={`transition-colors group ${!isActive ? 'bg-slate-50/50 opacity-75 grayscale-[0.5]' : 'hover:bg-slate-50'}`}>
                 <td className="px-6 py-4">
@@ -281,6 +311,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
                     {user.role === 'ADMIN' ? <ShieldAlert className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
                     {user.role === 'ADMIN' ? 'Administrador' : 'Colaborador'}
                   </span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                    {hasBug ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-bold uppercase">
+                            <Bug className="w-3 h-3" /> ON
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase">
+                            <BugOff className="w-3 h-3" /> OFF
+                        </span>
+                    )}
                 </td>
                 <td className="px-6 py-4 flex justify-end gap-2">
                    <button 

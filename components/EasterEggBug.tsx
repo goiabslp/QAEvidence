@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 
 const BUG_DIALECT = [
@@ -43,9 +44,10 @@ const ACRONYM_PHRASES = [
 
 interface EasterEggBugProps {
   userAcronym?: string;
+  enabled?: boolean;
 }
 
-const EasterEggBug: React.FC<EasterEggBugProps> = ({ userAcronym }) => {
+const EasterEggBug: React.FC<EasterEggBugProps> = ({ userAcronym, enabled = true }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [pos, setPos] = useState({ x: -100, y: -100 });
   const [rotation, setRotation] = useState(0);
@@ -76,14 +78,23 @@ const EasterEggBug: React.FC<EasterEggBugProps> = ({ userAcronym }) => {
   const BUG_SIZE = 36; 
   
   useEffect(() => {
-    scheduleSpawn();
+    if (enabled) {
+        scheduleSpawn();
+    } else {
+        // Cleanup if disabled
+        setIsVisible(false);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (fleeTimeoutRef.current) clearTimeout(fleeTimeoutRef.current);
+        if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
+        stateRef.current = 'HIDDEN';
+    }
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (fleeTimeoutRef.current) clearTimeout(fleeTimeoutRef.current);
       if (messageTimeoutRef.current) clearTimeout(messageTimeoutRef.current);
     };
-  }, []);
+  }, [enabled]); // Re-run when enabled prop changes
 
   const scheduleSpawn = () => {
     stateRef.current = 'HIDDEN';
@@ -295,7 +306,7 @@ const EasterEggBug: React.FC<EasterEggBugProps> = ({ userAcronym }) => {
     // Once triggered, the bug is committed to the "Tremble -> Flee" sequence.
   };
 
-  if (!isVisible) return null;
+  if (!isVisible || !enabled) return null;
 
   // Only tremble if scared AND not yet fleeing/exploding
   const isTrembling = isScared && !isExploding && stateRef.current !== 'FLEEING';

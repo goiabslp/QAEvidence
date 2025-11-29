@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -84,7 +86,7 @@ const App: React.FC = () => {
     const storedUsers = localStorage.getItem('narnia_users');
     
     // Define the system administrator
-    const sysAdmin: User = { id: 'admin-adm', acronym: 'ADM', name: 'Administrador', password: 'ADM', role: 'ADMIN', isActive: true };
+    const sysAdmin: User = { id: 'admin-adm', acronym: 'ADM', name: 'Administrador', password: 'ADM', role: 'ADMIN', isActive: true, showEasterEgg: true };
 
     if (storedUsers) {
       let loadedUsers: User[] = JSON.parse(storedUsers);
@@ -100,12 +102,12 @@ const App: React.FC = () => {
       // Seed default admins requested
       const defaultAdmins: User[] = [
         sysAdmin,
-        { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN', isActive: true },
-        { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN', isActive: true },
-        { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN', isActive: true },
-        { id: 'admin-rfp', acronym: 'RFP', name: 'Renan', password: 'RFP', role: 'ADMIN', isActive: true },
-        { id: 'admin-eds', acronym: 'EDS', name: 'Everton', password: 'EDS', role: 'ADMIN', isActive: true },
-        { id: 'admin-yeb', acronym: 'YEB', name: 'Ygor', password: 'YEB', role: 'ADMIN', isActive: true }
+        { id: 'admin-vtp', acronym: 'VTP', name: 'Valeria', password: 'VTP', role: 'ADMIN', isActive: true, showEasterEgg: true },
+        { id: 'admin-gaf', acronym: 'GAF', name: 'Guilherme', password: 'GAF', role: 'ADMIN', isActive: true, showEasterEgg: true },
+        { id: 'admin-kps', acronym: 'KPS', name: 'Karina', password: 'KPS', role: 'ADMIN', isActive: true, showEasterEgg: true },
+        { id: 'admin-rfp', acronym: 'RFP', name: 'Renan', password: 'RFP', role: 'ADMIN', isActive: true, showEasterEgg: true },
+        { id: 'admin-eds', acronym: 'EDS', name: 'Everton', password: 'EDS', role: 'ADMIN', isActive: true, showEasterEgg: true },
+        { id: 'admin-yeb', acronym: 'YEB', name: 'Ygor', password: 'YEB', role: 'ADMIN', isActive: true, showEasterEgg: true }
       ];
       setUsers(defaultAdmins);
       localStorage.setItem('narnia_users', JSON.stringify(defaultAdmins));
@@ -692,7 +694,10 @@ const App: React.FC = () => {
       <Header user={currentUser} onLogout={handleLogout} />
       
       {/* EASTER EGG BUG - Added here to ensure it's loaded in the context of the App */}
-      <EasterEggBug userAcronym={currentUser?.acronym} />
+      <EasterEggBug 
+        userAcronym={currentUser?.acronym} 
+        enabled={currentUser?.showEasterEgg !== false}
+      />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-32">
         
