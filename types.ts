@@ -1,5 +1,4 @@
 
-
 export enum TestStatus {
   PASS = 'PASS',
   FAIL = 'FAIL',
@@ -55,6 +54,7 @@ export interface User {
 export interface TicketInfo {
   sprint: string;
   ticketId: string;
+  isImprovement?: boolean; // Novo campo para identificar melhoria
   priority: TicketPriority;
   ticketStatus?: TicketStatus; // Novo campo
   ticketTitle: string;

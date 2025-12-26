@@ -1,9 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority, TicketStatus } from '../types';
 import { PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '../constants';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -43,6 +44,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
 }) => {
   const [sprint, setSprint] = useState('');
   const [ticketId, setTicketId] = useState('');
+  const [isImprovement, setIsImprovement] = useState(false);
   const [ticketSummary, setTicketSummary] = useState(''); 
   const [clientSystem, setClientSystem] = useState('');
   const [ticketTitle, setTicketTitle] = useState('');
@@ -92,6 +94,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     if (initialTicketInfo) {
       setSprint(initialTicketInfo.sprint || '');
       setTicketId(initialTicketInfo.ticketId || '');
+      setIsImprovement(initialTicketInfo.isImprovement || false);
       setTicketTitle(initialTicketInfo.ticketTitle || '');
       setTicketSummary(initialTicketInfo.ticketSummary || '');
       setClientSystem(initialTicketInfo.clientSystem || '');
@@ -150,6 +153,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const currentTicketInfo: TicketInfo = {
     sprint,
     ticketId: ticketId.startsWith('#') ? ticketId : (ticketId ? `#${ticketId}` : ''),
+    isImprovement,
     ticketTitle,
     ticketSummary,
     clientSystem,
@@ -172,7 +176,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       onTicketInfoChange(currentTicketInfo);
     }
   }, [
-    sprint, ticketId, ticketTitle, ticketSummary, clientSystem, 
+    sprint, ticketId, isImprovement, ticketTitle, ticketSummary, clientSystem, 
     requester, analyst, requestDate, selectedEnvs, environmentVersion, 
     evidenceDate, ticketDescription, solution, priority, ticketStatus, blockageReason, blockageImages, onTicketInfoChange
   ]);
@@ -196,6 +200,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   useEffect(() => {
     if (!isTitleManuallyEdited) {
       const parts = [];
+      if (isImprovement) parts.push("Melhoria");
       if (ticketId) parts.push(ticketId.startsWith('#') ? ticketId : `#${ticketId}`);
       if (clientSystem) parts.push(clientSystem);
       if (ticketSummary) parts.push(ticketSummary);
@@ -215,7 +220,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         setTicketTitle(parts.join(' - '));
       }
     }
-  }, [ticketId, clientSystem, ticketSummary, selectedEnvs, sprint, analyst, requester, isTitleManuallyEdited]);
+  }, [ticketId, isImprovement, clientSystem, ticketSummary, selectedEnvs, sprint, analyst, requester, isTitleManuallyEdited]);
 
   const handleAddEnv = (env: string) => {
     const trimmedEnv = env.trim();
@@ -445,9 +450,9 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         />
                     </div>
 
-                    {/* LINHA 2: ID, SPRINT, DATAS (Reorganized for width) */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div>
+                    {/* LINHA 2: ID, MELHORIA, SPRINT, DATAS - AJUSTE DE GRID */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                        <div className="md:col-span-2">
                             <label className={labelClass}>Chamado (ID)</label>
                             <input 
                                 type="text" 
@@ -458,23 +463,42 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                 placeholder="Ex: 58645" 
                             />
                         </div>
-                        <div>
-                            <label className={labelClass}>Data Solicitação</label>
-                            <CustomDatePicker 
-                                value={requestDate}
-                                onChange={setRequestDate}
-                                placeholder="Selecione"
-                            />
+
+                        {/* NOVO CAMPO MELHORIA */}
+                        <div className="md:col-span-3">
+                            <label className={labelClass}>
+                                <Sparkles className="w-3.5 h-3.5 inline mr-1 text-indigo-400" />
+                                Melhoria
+                            </label>
+                            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsImprovement(false)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                        !isImprovement 
+                                        ? 'bg-white text-slate-700 shadow-sm border border-slate-200' 
+                                        : 'text-slate-400 hover:text-slate-500'
+                                    }`}
+                                >
+                                    <X className={`w-3.5 h-3.5 ${!isImprovement ? 'text-red-500' : 'text-slate-300'}`} />
+                                    Não
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsImprovement(true)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                                        isImprovement 
+                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 border border-indigo-500 scale-105 z-10' 
+                                        : 'text-slate-400 hover:text-slate-500'
+                                    }`}
+                                >
+                                    <Check className={`w-3.5 h-3.5 ${isImprovement ? 'text-white' : 'text-slate-300'}`} />
+                                    Sim
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <label className={labelClass}>Data da Evidência</label>
-                            <CustomDatePicker 
-                                value={evidenceDate}
-                                onChange={setEvidenceDate}
-                                placeholder="Selecione"
-                            />
-                        </div>
-                        <div>
+
+                        <div className="md:col-span-1">
                             <label className={labelClass}>Sprint</label>
                             <input 
                                 type="text" 
@@ -483,6 +507,22 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                 onChange={e => setSprint(e.target.value.replace(/\D/g, ''))} 
                                 className={ticketInputClass} 
                                 placeholder="Ex: 24" 
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <label className={labelClass}>Data Solicitação</label>
+                            <CustomDatePicker 
+                                value={requestDate}
+                                onChange={setRequestDate}
+                                placeholder="Selecione"
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <label className={labelClass}>Data da Evidência</label>
+                            <CustomDatePicker 
+                                value={evidenceDate}
+                                onChange={setEvidenceDate}
+                                placeholder="Selecione"
                             />
                         </div>
                     </div>
