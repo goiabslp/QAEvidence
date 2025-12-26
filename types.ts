@@ -56,6 +56,7 @@ export interface TicketInfo {
   ticketId: string;
   isImprovement?: boolean; // Novo campo para identificar melhoria
   priority: TicketPriority;
+  errorOrigin?: string; // Novo campo: Origem do Erro
   ticketStatus?: TicketStatus; // Novo campo
   ticketTitle: string;
   ticketSummary: string;

@@ -4,7 +4,7 @@ import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority, TicketS
 import { PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '../constants';
 import TestScenarioWizard from './TestScenarioWizard';
 import CustomDatePicker from './CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles, Code, Brain, HelpCircle } from 'lucide-react';
 import { WizardTriggerContext } from '../App';
 import ImageEditor from './ImageEditor';
 
@@ -64,6 +64,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const [ticketDescription, setTicketDescription] = useState('');
   const [solution, setSolution] = useState('');
   const [priority, setPriority] = useState<TicketPriority>(TicketPriority.MEDIUM);
+  const [errorOrigin, setErrorOrigin] = useState(''); // Alterado para vazio por padrão
   const [ticketStatus, setTicketStatus] = useState<TicketStatus>(TicketStatus.PENDING);
   
   // BLOCKAGE STATE
@@ -102,11 +103,11 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       setAnalyst(initialTicketInfo.analyst || '');
       setRequestDate(initialTicketInfo.requestDate || '');
       setEnvironmentVersion(initialTicketInfo.environmentVersion || '');
-      // If editing, load original date, but App.tsx will overwrite on save with current date as per requirement
       setEvidenceDate(initialTicketInfo.evidenceDate || ''); 
       setTicketDescription(initialTicketInfo.ticketDescription || '');
       setSolution(initialTicketInfo.solution || '');
       setPriority(initialTicketInfo.priority || TicketPriority.MEDIUM);
+      setErrorOrigin(initialTicketInfo.errorOrigin || '');
       setTicketStatus(initialTicketInfo.ticketStatus || TicketStatus.PENDING);
       setBlockageReason(initialTicketInfo.blockageReason || '');
       setBlockageImages(initialTicketInfo.blockageImageUrls || []);
@@ -116,20 +117,17 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         setSelectedEnvs(envs);
       }
       
-      // CRITICAL: Reset manual edit flag to false when loading a ticket.
       setIsTitleManuallyEdited(false);
     }
   }, [initialTicketInfo]);
 
-  // Collapse Ticket Info automatically when Wizard is triggered and Scroll to Wizard
   useEffect(() => {
     if (wizardTrigger) {
       setIsTicketInfoExpanded(false);
       
-      // Wait for collapse animation then scroll
       setTimeout(() => {
         if (wizardSectionRef.current) {
-             const headerOffset = 100; // Adjust for sticky header
+             const headerOffset = 100;
              const elementPosition = wizardSectionRef.current.getBoundingClientRect().top;
              const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
              
@@ -142,7 +140,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     }
   }, [wizardTrigger]);
 
-  // Clear Blockage Data if Status is not BLOCKED
   useEffect(() => {
     if (ticketStatus !== TicketStatus.BLOCKED) {
         if (blockageReason !== '') setBlockageReason('');
@@ -161,6 +158,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     analyst,
     requestDate,
     priority,
+    errorOrigin,
     ticketStatus,
     environment: selectedEnvs.join(', '),
     environmentVersion,
@@ -178,7 +176,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   }, [
     sprint, ticketId, isImprovement, ticketTitle, ticketSummary, clientSystem, 
     requester, analyst, requestDate, selectedEnvs, environmentVersion, 
-    evidenceDate, ticketDescription, solution, priority, ticketStatus, blockageReason, blockageImages, onTicketInfoChange
+    evidenceDate, ticketDescription, solution, priority, errorOrigin, ticketStatus, blockageReason, blockageImages, onTicketInfoChange
   ]);
 
   useEffect(() => {
@@ -240,11 +238,10 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       e.preventDefault();
       handleAddEnv(envInputValue);
     } else if (e.key === 'Backspace' && !envInputValue && selectedEnvs.length > 0) {
-      handleRemoveEnv(selectedEnvs[selectedEnvs.length - 0]);
+      handleRemoveEnv(selectedEnvs[selectedEnvs.length - 1]);
     }
   };
 
-  // --- IMAGE HANDLING FOR BLOCKAGE ---
   const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
@@ -320,7 +317,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
   const handleRemoveImage = (index: number) => {
       setBlockageImages(blockageImages.filter((_, i) => i !== index));
   };
-  // ------------------------------------
 
   const toggleHistoryRow = (id: string) => {
     const newSet = new Set(expandedHistoryRows);
@@ -368,13 +364,11 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
       return detailsA.caseNumber - detailsB.caseNumber;
     });
   
-  // MODERN LIGHT THEME STYLES
   const ticketInputClass = "w-full rounded-lg border border-slate-300 bg-white text-slate-700 px-3 py-2.5 text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm hover:border-indigo-300";
   const labelClass = "block text-xs font-bold text-indigo-900 mb-1.5 uppercase tracking-wider ml-1";
 
   return (
     <>
-    {/* Editor Modal outside form structure */}
     {editorImageSrc && (
         <ImageEditor 
             imageSrc={editorImageSrc}
@@ -386,7 +380,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
     <form id="evidence-form" onSubmit={handlePreSubmit}>
       <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative">
         
-        {/* HEADER */}
         <div className="border-b border-slate-100 bg-slate-50/80 px-8 py-5 backdrop-blur-sm flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2.5">
@@ -414,7 +407,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         
         <div className="p-8 space-y-10">
           
-          {/* SEÇÃO 1: INFORMAÇÕES DO CHAMADO */}
           <div className="space-y-6">
             <div 
                 className="flex items-center justify-between pb-2 border-b border-slate-100 cursor-pointer group select-none"
@@ -435,7 +427,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             
             {isTicketInfoExpanded && (
                 <div className="space-y-6 animate-slide-down">
-                    {/* LINHA 1: TÍTULO DO CHAMADO */}
                     <div className="w-full">
                         <label className={labelClass}>Título do Chamado</label>
                         <input 
@@ -450,7 +441,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         />
                     </div>
 
-                    {/* LINHA 2: ID, MELHORIA, SPRINT, DATAS - AJUSTE DE GRID */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                         <div className="md:col-span-2">
                             <label className={labelClass}>Chamado (ID)</label>
@@ -464,7 +454,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                             />
                         </div>
 
-                        {/* NOVO CAMPO MELHORIA */}
                         <div className="md:col-span-3">
                             <label className={labelClass}>
                                 <Sparkles className="w-3.5 h-3.5 inline mr-1 text-indigo-400" />
@@ -527,9 +516,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         </div>
                     </div>
 
-                    {/* LINHA 3: STATUS & PRIORIDADE (Chips Row) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start py-2">
-                        {/* TICKET STATUS CHIPS */}
                         <div>
                             <label className={labelClass}>Status do Chamado</label>
                             <div className="flex flex-wrap gap-2 mt-2">
@@ -559,7 +546,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                             </div>
                         </div>
 
-                        {/* PRIORITY BUTTONS */}
                         <div>
                             <label className={labelClass}>Prioridade</label>
                             <div className="flex gap-2 mt-2">
@@ -590,7 +576,49 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         </div>
                     </div>
 
-                    {/* LINHA 4: PESSOAS */}
+                    <div className="w-full pt-2">
+                        <div className="flex items-center gap-2 mb-1.5 ml-1">
+                            <label className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                                Origem do Erro
+                            </label>
+                            <button 
+                                type="button" 
+                                onClick={() => setErrorOrigin('')}
+                                className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-all active:scale-90"
+                                title="Limpar seleção de Origem do Erro"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                            {[
+                                { id: 'Desenvolvimento Incompleto', label: 'Desenvolvimento Incompleto', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', active: 'bg-orange-600 text-white border-orange-700 shadow-orange-100' },
+                                { id: 'Desenvolvimento Incorreto', label: 'Desenvolvimento Incorreto', icon: Code, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', active: 'bg-red-600 text-white border-red-700 shadow-red-100' },
+                                { id: 'Entendimento Incorreto', label: 'Entendimento Incorreto', icon: Brain, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', active: 'bg-purple-600 text-white border-purple-700 shadow-purple-100' },
+                                { id: 'Indefinido', label: 'Indefinido', icon: HelpCircle, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', active: 'bg-slate-600 text-white border-slate-700 shadow-slate-100' }
+                            ].map((opt) => {
+                                const Icon = opt.icon;
+                                const isActive = errorOrigin === opt.id;
+                                return (
+                                    <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => setErrorOrigin(opt.id)}
+                                        className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl border text-[11px] font-bold uppercase tracking-wide transition-all shadow-sm ${
+                                            isActive 
+                                            ? `${opt.active} scale-[1.02] ring-2 ring-offset-1 ring-white z-10` 
+                                            : `bg-white ${opt.color} ${opt.border} hover:${opt.bg} hover:border-indigo-300`
+                                        }`}
+                                    >
+                                        <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : opt.color}`} />
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <label className={labelClass}>Solicitante</label>
@@ -614,7 +642,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                       </div>
                     </div>
 
-                    {/* LINHA 5: CONTEXTO */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={labelClass}>Resumo do Chamado</label>
@@ -638,7 +665,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         </div>
                     </div>
 
-                    {/* LINHA 6: AMBIENTE */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="relative z-20 md:col-span-2">
                         <label className={labelClass}>Ambiente do Commit / Teste</label>
@@ -718,7 +744,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                     </div>
                     </div>
 
-                    {/* LINHA 7: DESCRITIVO */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                         <label className={labelClass}>Descrição do Chamado</label>
@@ -730,7 +755,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                         </div>
                     </div>
 
-                    {/* BLOCKAGE SUBSECTION - Conditional Rendering */}
                     {ticketStatus === TicketStatus.BLOCKED && (
                         <div className="md:col-span-2 space-y-4 animate-fade-in border-t border-rose-100 pt-6 mt-2">
                             <div className="flex items-center gap-2 mb-2">
@@ -742,7 +766,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                 </h4>
                             </div>
                             
-                            {/* Reason Text Area */}
                             <div>
                                 <textarea
                                     rows={3}
@@ -753,14 +776,11 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                 />
                             </div>
 
-                            {/* Image Upload Section */}
                             <div>
                                 <label className={labelClass}>
                                     <ImageIcon className="w-3.5 h-3.5 text-slate-400" /> Evidências do Impedimento
                                 </label>
-                                {/* Grid of images */}
                                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                     {/* Modern Upload Tile */}
                                      <div 
                                         onDragOver={handleDragOver}
                                         onDragLeave={handleDragLeave}
@@ -794,7 +814,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
                                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                                     </div>
                                     
-                                    {/* Thumbnails */}
                                     {blockageImages.map((src, index) => (
                                         <div key={index} className="relative h-48 bg-slate-100 rounded-2xl border border-slate-200 group overflow-hidden shadow-sm hover:shadow-md transition-all">
                                             <img src={src} alt={`Impedimento ${index + 1}`} className="w-full h-full object-cover" />
@@ -812,7 +831,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             )}
           </div>
 
-          {/* SEÇÃO 2: HISTÓRICO */}
           {historyItems.length > 0 && (
             <div className="space-y-4 pt-4 border-t border-dashed border-slate-200">
                <div className="flex items-center gap-3 pb-2">
@@ -923,7 +941,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             </div>
           )}
 
-          {/* SEÇÃO 3: WIZARD */}
           <div ref={wizardSectionRef} className="space-y-4 pt-4 border-t border-dashed border-slate-200">
             <div className="flex justify-between items-center pb-2">
                 <div className="flex items-center gap-3">
@@ -954,7 +971,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
             </div>
           )}
           
-          {/* Action Footer for Form - "Close" Button specifically here if editing */}
           {onCancel && (
             <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
                <button 
@@ -971,7 +987,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({
         </div>
       </div>
 
-      {/* MODAL */}
       {showConfirmationModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
           <div 
