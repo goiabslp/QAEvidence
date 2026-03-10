@@ -1,6 +1,6 @@
 
 
-import { TestStatus, Severity, TicketPriority, TicketStatus } from './types';
+import { TestStatus, Severity, TicketPriority, TicketStatus } from '../types';
 import { CheckCircle2, XCircle, AlertCircle, MinusCircle, Clock, ArrowDown, ArrowRight, ArrowUp, Play, Ban, CheckCheck } from 'lucide-react';
 
 export const STATUS_CONFIG = {

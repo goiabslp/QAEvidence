@@ -45,7 +45,6 @@ export interface User {
   id: string;
   acronym: string; // 3 letters
   name: string;
-  password: string; // Simple storage for simulation
   role: UserRole;
   isActive?: boolean; // Control access
   showEasterEgg?: boolean; // Control Bug appearance
@@ -98,7 +97,7 @@ export interface TestCaseDetails {
 export interface EvidenceItem {
   id: string;
   // Campos da evidência técnica
-  title: string; 
+  title: string;
   description: string;
   imageUrl: string | null;
   status: TestStatus;
