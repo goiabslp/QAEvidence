@@ -350,6 +350,11 @@ const App: React.FC = () => {
     solution: ''
   });
 
+  // Memoized default ticket info to prevent EvidenceForm from resetting on re-renders
+  const defaultTicketInfo = useMemo(() => {
+    return currentUser ? getDefaultTicketInfo(currentUser.acronym) : null;
+  }, [currentUser?.acronym]);
+
   // --- AUTH HANDLERS ---
   const handleLogin = async (acronym: string, pass: string) => {
     setLoginError(null);
@@ -696,11 +701,6 @@ const App: React.FC = () => {
         }
       }
 
-      if (currentEvidences.length === 0) {
-        setIsSaving(false);
-        return;
-      }
-
       // UPDATE EVIDENCE DATE TO TODAY (Requirement: Save/Update always captures latest date in Brazil Time)
       const today = getBrazilDateString();
       const finalTicketInfo = { ...masterTicketInfo, evidenceDate: today };
@@ -913,7 +913,7 @@ const App: React.FC = () => {
           onDeleteScenario={handleDeleteScenario}
           users={users}
           evidenceCount={evidences.length}
-          initialTicketInfo={editingTicketInfo || getDefaultTicketInfo(currentUser.acronym)}
+          initialTicketInfo={editingTicketInfo || defaultTicketInfo}
           wizardTrigger={wizardTrigger}
           onWizardSave={handleWizardSave}
           onClearTrigger={() => setWizardTrigger(null)}
