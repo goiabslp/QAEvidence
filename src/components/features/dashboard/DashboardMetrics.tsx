@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArchivedTicket, User, TestStatus, EvidenceItem } from '@/types';
+import { ArchivedTicket, User, TestStatus, EvidenceItem, TicketStatus } from '@/types';
 import { CheckCircle2, XCircle, AlertCircle, Clock, Layers, BarChart3, ChevronDown, User as UserIcon, PieChart, LayoutDashboard, Activity, CheckCheck, FolderClock, Timer, Check, AlertTriangle } from 'lucide-react';
 
 interface DashboardMetricsProps {
@@ -46,27 +46,19 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
 
     // --- LOGIC HELPERS ---
 
-    // Determine Ticket Status based on specific business rules
-    // Success: All scenarios PASS
-    // Pending: All scenarios PENDING/SKIPPED
-    // In Progress: Any FAIL/BLOCKED or mixed
-    const getTicketState = (ticket: ArchivedTicket): 'SUCCESS' | 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'FAIL' => {
-        const items = ticket.items;
-        if (!items || items.length === 0) return 'PENDING';
+    // Determine Ticket Status based directly on the Ticket Status field
+    const getTicketState = (ticket: ArchivedTicket): 'FINISHED' | 'PENDING' | 'IN_PROGRESS' | 'BLOCKED' | 'FAIL' => {
+        const status = ticket.ticketInfo.ticketStatus || '';
+        const normalizedStatus = status.toString().toUpperCase().trim();
 
-        const hasFail = items.some(i => i.status === TestStatus.FAIL);
-        if (hasFail) return 'FAIL';
+        // Handles current Enum Values
+        if (normalizedStatus === TicketStatus.FINISHED || normalizedStatus === 'FINALIZADO') return 'FINISHED';
+        if (normalizedStatus === TicketStatus.IN_PROGRESS || normalizedStatus === 'EM ANDAMENTO') return 'IN_PROGRESS';
+        if (normalizedStatus === TicketStatus.PENDING || normalizedStatus === 'PENDENTE') return 'PENDING';
+        if (normalizedStatus === TicketStatus.BLOCKED || normalizedStatus === 'IMPEDIMENTO') return 'BLOCKED';
+        if (normalizedStatus === 'FALHA') return 'FAIL';
 
-        const hasBlocked = items.some(i => i.status === TestStatus.BLOCKED);
-        if (hasBlocked) return 'BLOCKED';
-
-        const allPass = items.every(i => i.status === TestStatus.PASS);
-        if (allPass) return 'SUCCESS';
-
-        const allPending = items.every(i => i.status === TestStatus.PENDING || i.status === TestStatus.SKIPPED);
-        if (allPending) return 'PENDING';
-
-        return 'IN_PROGRESS';
+        return 'PENDING'; // Fallback for undefined or legacy missing status
     };
 
     // Filter tickets based on selection
@@ -106,10 +98,16 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
             data.tickets.total++;
             const tState = getTicketState(t);
 
-            if (tState === 'SUCCESS') data.tickets.finished++;
+            if (tState === 'FINISHED') data.tickets.finished++;
             else if (tState === 'PENDING') data.tickets.pending++;
             else if (tState === 'IN_PROGRESS') data.tickets.inProgress++;
-            else if (tState === 'BLOCKED') data.tickets.blocked++;
+            else if (tState === 'BLOCKED') {
+                // The user explicitly requested:
+                // O valor: "Imped." =  "Impedimento" do Status chamado;
+                // O valor: "Falhas" =  "Impedimento" do Status chamado;
+                data.tickets.blocked++;
+                data.tickets.fail++;
+            }
             else if (tState === 'FAIL') data.tickets.fail++;
         });
 
@@ -150,10 +148,13 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
             const tState = getTicketState(t);
             stat.ticketsCount++;
 
-            if (tState === 'SUCCESS') stat.stats.success++;
+            if (tState === 'FINISHED') stat.stats.success++;
             else if (tState === 'IN_PROGRESS') stat.stats.inProgress++;
             else if (tState === 'PENDING') stat.stats.pending++;
-            else if (tState === 'BLOCKED') stat.stats.blocked++;
+            else if (tState === 'BLOCKED') {
+                stat.stats.blocked++;
+                stat.stats.fail++; // As per user mapping "Falhas" = "Impedimento"
+            }
             else if (tState === 'FAIL') stat.stats.fail++;
         });
 
@@ -412,11 +413,8 @@ const DashboardMetrics: React.FC<DashboardMetricsProps> = ({ tickets, users, cur
                                         {stat.ticketsCount}
                                     </td>
                                     <td className="px-6 py-4 text-center font-black text-slate-800 text-base">
-                                        {stat.ticketsCount}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
                                         {stat.stats.success > 0 ? (
-                                            <span className="inline-flex items-center justify-center min-w-[30px] h-[30px] rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">
+                                            <span className="text-emerald-600">
                                                 {stat.stats.success}
                                             </span>
                                         ) : <span className="text-slate-300">-</span>}
