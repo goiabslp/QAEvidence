@@ -61,6 +61,7 @@ const App: React.FC = () => {
   const [formKey, setFormKey] = useState(0);
   const [editingTicketInfo, setEditingTicketInfo] = useState<TicketInfo | null>(null);
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [isTicketFormOpen, setIsTicketFormOpen] = useState(false);
 
   const [users, setUsers] = useState<User[]>([]);
 
@@ -601,6 +602,7 @@ const App: React.FC = () => {
     setPdfError(null);
     setShowAdminPanel(false);
     setActiveModule('TICKET'); // Switch to editor module
+    setIsTicketFormOpen(true);
     setFormKey(prev => prev + 1);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -747,18 +749,18 @@ const App: React.FC = () => {
         // Also update local storage as a fallback, although Supabase is main source now
         localStorage.setItem('narnia_tickets', JSON.stringify(updatedTicketHistory));
 
-        // --- NEW BEHAVIOR: KEEP CONTEXT ---
-        // If it was a new ticket, set the ID so further saves update the same record
-        if (!editingHistoryId) {
-          setEditingHistoryId(finalTicket.id);
-        }
-
         // Show success feedback
         setIsSaveSuccess(true);
         setTimeout(() => setIsSaveSuccess(false), 3000);
 
         console.log('Evidence saved successfully to Supabase');
-        return; // Do NOT clear workspace
+
+        // --- REVERT TO EXPECTED BEHAVIOR: CLEAR WORKSPACE ---
+        // The user expects the evidence to close and clear after saving.
+        // If we don't do this, they accidentally edit the saved record instead of creating a new one.
+        handleCloseEvidence();
+
+        return;
       } else {
         // Show error and do not clear form Data
         alert("Ocorreu um erro ao salvar a evidência no banco de dados. Tente novamente.");
@@ -790,6 +792,7 @@ const App: React.FC = () => {
     }
     formTicketInfoRef.current = null;
     setIsDirty(false);
+    setIsTicketFormOpen(false);
     setFormKey(prev => prev + 1);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -904,59 +907,83 @@ const App: React.FC = () => {
 
     return (
       <div className="space-y-8 animate-fade-in">
-        {/* Formulário Principal */}
-        <EvidenceForm
-          key={formKey}
-          ref={formRef}
-          evidences={evidences}
-          onAdd={handleAddEvidence}
-          onDeleteScenario={handleDeleteScenario}
-          users={users}
-          evidenceCount={evidences.length}
-          initialTicketInfo={editingTicketInfo || defaultTicketInfo}
-          wizardTrigger={wizardTrigger}
-          onWizardSave={handleWizardSave}
-          onClearTrigger={() => setWizardTrigger(null)}
-          invalidFields={invalidFields}
-          onTicketInfoChange={(info) => {
-            formTicketInfoRef.current = info;
-            if (pdfError) setPdfError(null);
-
-            // Mark as dirty if any relevant field has content
-            if (info.ticketId || info.ticketTitle || info.sprint || info.requester) {
-              setIsDirty(true);
-            }
-          }}
-          onEditCase={handleEditCase}
-          disabled={isGeneratingPdf || isSaving}
-        />
-
-        {/* Lista de Evidências */}
-        {evidences.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 animate-slide-up">
-            <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <EvidenceList
-                  evidences={evidences}
-                  onDelete={handleDeleteEvidence}
-                  onAddCase={handleAddCase}
-                  onEditCase={handleEditCase}
-                />
-              </div>
+        {!isTicketFormOpen ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200 border-dashed animate-fade-in">
+            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
+              <FileDown className="w-10 h-10 text-indigo-500" />
             </div>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum chamado aberto</h2>
+            <p className="text-slate-500 mb-8 max-w-sm text-center">
+              Comece criando um novo registro de evidência de teste ou selecione um do histórico abaixo.
+            </p>
+            <button
+              onClick={() => setIsTicketFormOpen(true)}
+              className="group relative overflow-hidden rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 px-8 py-4 text-white shadow-xl shadow-indigo-900/20 transition-all duration-300 hover:shadow-indigo-900/40 hover:-translate-y-1 active:scale-95"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
+              <div className="relative flex items-center justify-center gap-2 font-bold text-base tracking-widest uppercase">
+                <FileText className="w-5 h-5" />
+                Novo Chamado
+              </div>
+            </button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Formulário Principal */}
+            <EvidenceForm
+              key={formKey}
+              ref={formRef}
+              evidences={evidences}
+              onAdd={handleAddEvidence}
+              onDeleteScenario={handleDeleteScenario}
+              users={users}
+              evidenceCount={evidences.length}
+              initialTicketInfo={editingTicketInfo || defaultTicketInfo}
+              wizardTrigger={wizardTrigger}
+              onWizardSave={handleWizardSave}
+              onClearTrigger={() => setWizardTrigger(null)}
+              invalidFields={invalidFields}
+              onTicketInfoChange={(info) => {
+                formTicketInfoRef.current = info;
+                if (pdfError) setPdfError(null);
 
-        {/* Floating Action Buttons */}
-        <FloatingActionButtons
-          evidencesCount={evidences.length}
-          onSave={handleSaveAndClose}
-          onPdf={handlePdfFlow}
-          onClose={handleCloseEvidence}
-          disabled={isGeneratingPdf || isSaving || !isDirty}
-          pdfError={pdfError}
-          isSaveSuccess={isSaveSuccess}
-        />
+                // Mark as dirty if any relevant field has content
+                if (info.ticketId || info.ticketTitle || info.sprint || info.requester) {
+                  setIsDirty(true);
+                }
+              }}
+              onEditCase={handleEditCase}
+              disabled={isGeneratingPdf || isSaving}
+            />
+
+            {/* Lista de Evidências */}
+            {evidences.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 animate-slide-up">
+                <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <EvidenceList
+                      evidences={evidences}
+                      onDelete={handleDeleteEvidence}
+                      onAddCase={handleAddCase}
+                      onEditCase={handleEditCase}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Floating Action Buttons */}
+            <FloatingActionButtons
+              evidencesCount={evidences.length}
+              onSave={handleSaveAndClose}
+              onPdf={handlePdfFlow}
+              onClose={handleCloseEvidence}
+              disabled={isGeneratingPdf || isSaving || !isDirty}
+              pdfError={pdfError}
+              isSaveSuccess={isSaveSuccess}
+            />
+          </>
+        )}
 
         {/* Carrossel de Histórico */}
         {!isGeneratingPdf && ticketHistory.length > 0 && (
