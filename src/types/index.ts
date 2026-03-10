@@ -146,3 +146,30 @@ export interface BugReport {
   createdBy: string;
   attachments?: string[]; // List of base64 images
 }
+
+// Interface para armazenar os casos de teste importados da planilha Excel
+export interface ExcelTestRecord {
+  id: string; // Auto-generated UUID
+  stepsText: string; // A -> Replicar a redação para o caso
+  browser: string; // B -> Navegador
+  bank: string; // C -> Banco
+  backoffice: string; // D -> Backoffice
+  mobile: string; // E -> Mobile
+  analyst: string; // F -> Analista
+  automated: string; // G -> Automatizado
+  bcsCode: string; // H -> Cód BCSChamados
+  useCase: string; // I -> Use Case
+  minimum: string; // J -> Minimo
+  priority: string; // K -> Prioridade
+  testId: string; // L -> Teste ID
+  module: string; // M -> Módulo
+  objective: string; // N -> Objetivo
+  estimatedTime: string; // O -> Tempo estimado
+  prerequisite: string; // P -> Pré-requisito
+  description: string; // Q -> Descrição
+  acceptanceCriteria: string; // R -> Critérios de Aceitação
+  result: string; // S -> Resultado
+  errorStatus: string; // T -> Status Erro
+  observation: string; // U -> Observação
+  gap: string; // V -> GAP
+}
