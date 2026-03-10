@@ -13,6 +13,7 @@ import EvidenceManagement from './components/features/evidence/EvidenceManagemen
 import DashboardMetrics from './components/features/dashboard/DashboardMetrics';
 import BugReportForm from './components/features/bugs/BugReportForm';
 import EasterEggBug from './components/features/bugs/EasterEggBug';
+import TestManagement from './components/features/testes/TestManagement';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, UserRole, TicketPriority, BugReport, TicketStatus } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
@@ -48,7 +49,7 @@ const App: React.FC = () => {
   const [adminTab, setAdminTab] = useState<'users' | 'evidences' | 'dashboard'>('users');
 
   // --- MODULE STATE ---
-  const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS' | 'EVIDENCES'>('TICKET');
+  const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS'>('TICKET');
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -889,6 +890,10 @@ const App: React.FC = () => {
           />
         </div>
       );
+    }
+
+    if (activeModule === 'TESTS') {
+      return <TestManagement />;
     }
 
     if (activeModule === 'EVIDENCES') {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ClipboardCheck, LogOut, User as UserIcon, Shield, ShieldCheck, Menu, FileText, Bug, Clock } from 'lucide-react';
+import { ClipboardCheck, LogOut, User as UserIcon, Shield, ShieldCheck, Menu, FileText, Bug, Clock, Beaker } from 'lucide-react';
 import { User } from '@/types';
 
 interface HeaderProps {
@@ -7,8 +7,8 @@ interface HeaderProps {
   onLogout?: () => void;
   showAdminPanel?: boolean;
   onToggleAdminPanel?: () => void;
-  activeModule?: 'TICKET' | 'BUGS' | 'EVIDENCES';
-  onMenuNavigate?: (module: 'TICKET' | 'BUGS' | 'EVIDENCES', resetToNewTicket?: boolean) => void;
+  activeModule?: 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS';
+  onMenuNavigate?: (module: 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS', resetToNewTicket?: boolean) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggleAdminPanel, activeModule, onMenuNavigate }) => {
@@ -80,6 +80,17 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggl
                       >
                         <Clock className={`w-4 h-4 ${activeModule === 'EVIDENCES' ? 'text-emerald-600' : 'text-slate-400'}`} />
                         Evidências
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onMenuNavigate) onMenuNavigate('TESTS');
+                          setIsMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm font-bold transition-all ${activeModule === 'TESTS' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                      >
+                        <Beaker className={`w-4 h-4 ${activeModule === 'TESTS' ? 'text-purple-600' : 'text-slate-400'}`} />
+                        Testes
                       </button>
                     </div>
                   </div>
