@@ -1021,6 +1021,13 @@ const App: React.FC = () => {
           }
           setShowAdminPanel(!showAdminPanel);
         }}
+        activeModule={activeModule}
+        onMenuNavigate={(module, resetToNewTicket) => {
+          setActiveModule(module);
+          if (resetToNewTicket) {
+            setIsTicketFormOpen(false);
+          }
+        }}
       />
 
       {/* EASTER EGG BUG */}
@@ -1031,42 +1038,8 @@ const App: React.FC = () => {
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-12">
         {currentUser && (
-          <div className="mb-8 flex justify-between items-center">
-            {/* MODULE SWITCHER - ONLY VISIBLE IF NOT ADMIN PANEL */}
-            {!showAdminPanel ? (
-              <div className="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 inline-flex">
-                <button
-                  onClick={() => setActiveModule('TICKET')}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeModule === 'TICKET'
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                    }`}
-                >
-                  <FileText className="w-4 h-4" />
-                  Tela de Chamado
-                </button>
-                <button
-                  onClick={() => setActiveModule('BUGS')}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeModule === 'BUGS'
-                    ? 'bg-red-600 text-white shadow-md'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                    }`}
-                >
-                  <Bug className="w-4 h-4" />
-                  Registro de BUGs
-                </button>
-                <button
-                  onClick={() => setActiveModule('EVIDENCES')}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeModule === 'EVIDENCES'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                    }`}
-                >
-                  <Clock className="w-4 h-4" />
-                  Evidências
-                </button>
-              </div>
-            ) : <div></div>}
+          <div className="mb-8 flex justify-between items-center hidden">
+            {/* The inline module tabs were removed. Navigation happens in the Header Menu. */}
           </div>
         )}
 

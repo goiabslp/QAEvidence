@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { ClipboardCheck, LogOut, User as UserIcon, Shield, ShieldCheck } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ClipboardCheck, LogOut, User as UserIcon, Shield, ShieldCheck, Menu, FileText, Bug, Clock } from 'lucide-react';
 import { User } from '@/types';
 
 interface HeaderProps {
@@ -8,22 +7,94 @@ interface HeaderProps {
   onLogout?: () => void;
   showAdminPanel?: boolean;
   onToggleAdminPanel?: () => void;
+  activeModule?: 'TICKET' | 'BUGS' | 'EVIDENCES';
+  onMenuNavigate?: (module: 'TICKET' | 'BUGS' | 'EVIDENCES', resetToNewTicket?: boolean) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggleAdminPanel }) => {
+const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggleAdminPanel, activeModule, onMenuNavigate }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-12 relative">
-          {/* Left Side: Logo */}
-          <div className="flex items-center gap-2 z-10">
-            <div className="bg-indigo-500/10 p-1.5 rounded-lg border border-indigo-500/20">
-              <ClipboardCheck className="h-5 w-5 text-indigo-400" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-white tracking-tight leading-none">
-                Evidencia de Teste
-              </h1>
+          {/* Left Side: Logo & Menu */}
+          <div className="flex items-center gap-3 z-20" ref={menuRef}>
+            {user && !showAdminPanel && (
+              <div className="relative">
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center focus:outline-none"
+                  aria-label="Menu Principal"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isMenuOpen && (
+                  <div className="absolute top-12 left-0 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden transform origin-top-left flex flex-col animate-fade-in z-50">
+                    <div className="p-3 border-b border-slate-100 bg-slate-50">
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Navegação</h3>
+                    </div>
+                    <div className="p-2 space-y-1">
+                      <button
+                        onClick={() => {
+                          if (onMenuNavigate) onMenuNavigate('TICKET', true);
+                          setIsMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm font-bold transition-all ${activeModule === 'TICKET' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                      >
+                        <FileText className={`w-4 h-4 ${activeModule === 'TICKET' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        Novo Chamado
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onMenuNavigate) onMenuNavigate('BUGS');
+                          setIsMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm font-bold transition-all ${activeModule === 'BUGS' ? 'bg-red-50 text-red-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                      >
+                        <Bug className={`w-4 h-4 ${activeModule === 'BUGS' ? 'text-red-600' : 'text-slate-400'}`} />
+                        Tela de Chamado e BUGs
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onMenuNavigate) onMenuNavigate('EVIDENCES');
+                          setIsMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 text-sm font-bold transition-all ${activeModule === 'EVIDENCES' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                      >
+                        <Clock className={`w-4 h-4 ${activeModule === 'EVIDENCES' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                        Evidências
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <div className="bg-indigo-500/10 p-1.5 rounded-lg border border-indigo-500/20">
+                <ClipboardCheck className="h-5 w-5 text-indigo-400" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold text-white tracking-tight leading-none pointer-events-none select-none">
+                  Evidencia de Teste
+                </h1>
+              </div>
             </div>
           </div>
 
