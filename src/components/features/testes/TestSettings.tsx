@@ -180,9 +180,9 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                     created_by: user.id
                 }));
 
-                // Clear old tests first for current user, or just app-wide? Usually user imports for themselves
-                // For this implementation let's clear all records created by this user
-                await supabase.from('excel_test_records').delete().eq('created_by', user.id);
+                // Removing 'created_by' restriction to make this a shared table globally
+                // Supabase requires at least one filter on delete, so we use a dummy neq
+                await supabase.from('excel_test_records').delete().neq('created_by', '00000000-0000-0000-0000-000000000000');
 
                 // Insert into Supabase
                 const { error: insertError } = await supabase
@@ -217,10 +217,11 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
     };
 
     const clearTests = async () => {
-        if (window.confirm("Limpar todos os testes importados?")) {
+        if (window.confirm("Limpar TODOS os testes importados em toda a plataforma?")) {
             setIsLoading(true);
             try {
-                await supabase.from('excel_test_records').delete().eq('created_by', user.id);
+                // Removing 'created_by' restriction to globally wipe
+                await supabase.from('excel_test_records').delete().neq('created_by', '00000000-0000-0000-0000-000000000000');
                 setHasLoadedTests(false);
                 setError(null);
             } catch (err) {

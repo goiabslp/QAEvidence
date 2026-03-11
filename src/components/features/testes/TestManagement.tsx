@@ -155,7 +155,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 const { data, error } = await supabase
                     .from('excel_test_records')
                     .select('*')
-                    .or(`analyst.is.null,analyst.eq.,analyst.eq.${user.acronym}`)
                     .order('module', { ascending: true })
                     .order('use_case', { ascending: true })
                     .order('priority', { ascending: true })
@@ -218,15 +217,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     const updatedRecord = payload.new;
                     
                     setTests(currentTests => {
-                        const isUnassigned = !updatedRecord.analyst || updatedRecord.analyst.trim() === '';
-                        const isAssignedToMe = updatedRecord.analyst === user.acronym;
-                        const shouldBeVisible = isUnassigned || isAssignedToMe;
-                        
                         const exists = currentTests.some(t => t.id === updatedRecord.id);
 
-                        if (shouldBeVisible) {
-                            const mappedTest = {
-                                id: updatedRecord.id,
+                        const mappedTest = {
+                            id: updatedRecord.id,
                                 stepsText: updatedRecord.steps_text,
                                 browser: updatedRecord.browser,
                                 bank: updatedRecord.bank,
@@ -252,18 +246,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 tagId: updatedRecord.tag_id
                             };
 
-                            if (exists) {
-                                return currentTests.map(t => t.id === mappedTest.id ? mappedTest : t);
-                            } else {
-                                return [...currentTests, mappedTest];
-                            }
+                        if (exists) {
+                            return currentTests.map(t => t.id === mappedTest.id ? mappedTest : t);
                         } else {
-                            if (exists) {
-                                return currentTests.filter(t => t.id !== updatedRecord.id);
-                            }
+                            return [...currentTests, mappedTest];
                         }
-                        
-                        return currentTests;
                     });
                 }
             )
