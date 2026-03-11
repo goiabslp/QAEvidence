@@ -851,11 +851,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                     <ChevronDown className={`w-4 h-4 transition-transform ${isActionMenuOpen ? 'rotate-180' : ''}`} />
                                 )}
                                 Ação
-                                {selectedIds.size > 0 && (
-                                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded text-[10px]">
-                                        {selectedIds.size}
-                                    </span>
-                                )}
                             </button>
 
                             {isActionMenuOpen && (
