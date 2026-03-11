@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, ChevronLeft, Upload, Loader2, FileSpreadsheet, AlertCircle, Check, Square, ArrowUp, ArrowDown } from 'lucide-react';
+import { Settings, ChevronLeft, Upload, Loader2, FileSpreadsheet, AlertCircle, Check, Square, ArrowUp, ArrowDown, LayoutDashboard, Target, Layers } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/services/supabaseClient';
 import { User, ExcelTestRecord, TestColumnKey, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER } from '../../../types';
+import DashboardTab from './DashboardTab';
+import TeamGoalsTab from './TeamGoalsTab';
 
 interface TestSettingsProps {
     onClose: () => void;
@@ -10,7 +12,8 @@ interface TestSettingsProps {
     onUpdateSettings: (settings: TestColumnSettings) => Promise<void>;
 }
 
-// Labels for internal columns
+type TabType = 'DATA' | 'VIEW' | 'DASHBOARD' | 'GOALS';
+
 export const COLUMN_LABELS: Record<TestColumnKey, string> = {
     stepsText: 'Replicar a redação para o caso',
     browser: 'Navegador',
@@ -37,12 +40,24 @@ export const COLUMN_LABELS: Record<TestColumnKey, string> = {
 };
 
 const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSettings }) => {
+    const [activeTab, setActiveTab] = useState<TabType>('DATA');
+    
+    // --- Data Fetching for Dashboards ---
+    const [testRecords, setTestRecords] = useState<ExcelTestRecord[]>([]);
+    const [isLoadingRecords, setIsLoadingRecords] = useState(false);
+    
+    // --- Minimo Sim Filter ---
+    const [filterMinimoSim, setFilterMinimoSim] = useState(false);
+
+    const displayedRecords = React.useMemo(() => {
+        if (!filterMinimoSim) return testRecords;
+        return testRecords.filter(t => String(t.minimum).trim().toLowerCase() === 'sim');
+    }, [testRecords, filterMinimoSim]);
+
     // --- File Input State ---
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    
-    // Fallback to determine if tests are loaded
     const [hasLoadedTests, setHasLoadedTests] = useState(false);
 
     // --- Column Visibility State ---
@@ -55,16 +70,59 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
     });
     const [isSaving, setIsSaving] = useState(false);
 
-    // Persist checks locally across renders / localStorage fallback
+    // Initial check + fetch for Dashboards
     useEffect(() => {
-        const checkTests = async () => {
-            const { count } = await supabase
-                .from('excel_test_records')
-                .select('*', { count: 'exact', head: true });
-            
-            setHasLoadedTests(!!count && count > 0);
+        const fetchAllData = async () => {
+            setIsLoadingRecords(true);
+            try {
+                const { data, count, error } = await supabase
+                    .from('excel_test_records')
+                    .select('*', { count: 'exact' });
+                
+                if (error) throw error;
+
+                const hasRecords = !!count && count > 0;
+                setHasLoadedTests(hasRecords);
+
+                if (hasRecords && data) {
+                    const mapped = data.map(record => ({
+                        id: record.id,
+                        stepsText: record.steps_text,
+                        browser: record.browser,
+                        bank: record.bank,
+                        backoffice: record.backoffice,
+                        mobile: record.mobile,
+                        analyst: record.analyst,
+                        automated: record.automated,
+                        bcsCode: record.bcs_code,
+                        useCase: record.use_case,
+                        minimum: record.minimum,
+                        priority: record.priority,
+                        testId: record.test_id,
+                        module: record.module,
+                        objective: record.objective,
+                        estimatedTime: record.estimated_time,
+                        prerequisite: record.prerequisite,
+                        description: record.description,
+                        acceptanceCriteria: record.acceptance_criteria,
+                        result: record.result,
+                        errorStatus: record.error_status,
+                        observation: record.observation,
+                        gap: record.gap,
+                        importedOrder: record.imported_order,
+                        createdBy: record.created_by
+                    })) as ExcelTestRecord[];
+                    setTestRecords(mapped);
+                } else {
+                    setTestRecords([]);
+                }
+            } catch (err: any) {
+                console.error("Erro ao carregar os testes para métricas:", err);
+            } finally {
+                setIsLoadingRecords(false);
+            }
         };
-        checkTests();
+        fetchAllData();
     }, []);
 
     const handleToggleColumn = (key: TestColumnKey) => {
@@ -83,7 +141,6 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
             
             const newOrder = [...currentOrder];
             
-            // Allow moving across the visible/ordered items
             if (direction === 'up' && index > 0) {
                 [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
             } else if (direction === 'down' && index < newOrder.length - 1) {
@@ -100,8 +157,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
     const handleSaveSettings = async () => {
         setIsSaving(true);
         try {
-            await onUpdateSettings(settings); // Send to App.tsx
-            // Visual feedback could be added here
+            await onUpdateSettings(settings);
             setTimeout(() => {
                 onClose();
             }, 500);
@@ -159,7 +215,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                     bank: String(row[2] || ''),
                     backoffice: String(row[3] || ''),
                     mobile: String(row[4] || ''),
-                    analyst: '', // Empty on root import
+                    analyst: '', 
                     automated: String(row[6] || ''),
                     bcs_code: String(row[7] || ''),
                     use_case: String(row[8] || ''),
@@ -172,19 +228,16 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                     prerequisite: String(row[15] || ''),
                     description: String(row[16] || ''),
                     acceptance_criteria: String(row[17] || ''),
-                    result: 'Pendente', // Forced status
+                    result: 'Pendente', 
                     error_status: String(row[19] || ''),
                     observation: String(row[20] || ''),
                     gap: String(row[21] || ''),
-                    imported_order: index, // Fixed sorting reference
+                    imported_order: index, 
                     created_by: user.id
                 }));
 
-                // Removing 'created_by' restriction to make this a shared table globally
-                // Supabase requires at least one filter on delete, so we use a dummy neq
                 await supabase.from('excel_test_records').delete().neq('created_by', '00000000-0000-0000-0000-000000000000');
 
-                // Insert into Supabase
                 const { error: insertError } = await supabase
                     .from('excel_test_records')
                     .insert(records);
@@ -193,6 +246,38 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
 
                 setHasLoadedTests(true);
                 alert(`${records.length} registro(s) importados com sucesso.`);
+                
+                // Reload dashboard data
+                const { data: newData } = await supabase.from('excel_test_records').select('*');
+                if (newData) {
+                    setTestRecords(newData.map(record => ({
+                        id: record.id,
+                        stepsText: record.steps_text,
+                        browser: record.browser,
+                        bank: record.bank,
+                        backoffice: record.backoffice,
+                        mobile: record.mobile,
+                        analyst: record.analyst,
+                        automated: record.automated,
+                        bcsCode: record.bcs_code,
+                        useCase: record.use_case,
+                        minimum: record.minimum,
+                        priority: record.priority,
+                        testId: record.test_id,
+                        module: record.module,
+                        objective: record.objective,
+                        estimatedTime: record.estimated_time,
+                        prerequisite: record.prerequisite,
+                        description: record.description,
+                        acceptanceCriteria: record.acceptance_criteria,
+                        result: record.result,
+                        errorStatus: record.error_status,
+                        observation: record.observation,
+                        gap: record.gap,
+                        importedOrder: record.imported_order,
+                        createdBy: record.created_by
+                    })) as ExcelTestRecord[]);
+                }
             } catch (err: any) {
                 console.error("Erro ao processar planilha:", err);
                 setError(err.message || "Ocorreu um erro ao processar o arquivo. Verifique se é um arquivo Excel válido.");
@@ -220,9 +305,9 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
         if (window.confirm("Limpar TODOS os testes importados em toda a plataforma?")) {
             setIsLoading(true);
             try {
-                // Removing 'created_by' restriction to globally wipe
                 await supabase.from('excel_test_records').delete().neq('created_by', '00000000-0000-0000-0000-000000000000');
                 setHasLoadedTests(false);
+                setTestRecords([]);
                 setError(null);
             } catch (err) {
                 console.error("Erro ao limpar testes:", err);
@@ -233,163 +318,261 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3 w-full">
-                    <button
-                        onClick={onClose}
-                        className="flex items-center gap-1 text-slate-500 hover:text-indigo-600 font-bold text-xs mr-2 p-2 rounded-lg hover:bg-white transition-all shadow-sm border border-transparent hover:border-slate-200"
-                    >
-                        <ChevronLeft className="w-4 h-4" />
-                        Voltar
-                    </button>
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center shadow-inner shrink-0">
-                        <Settings className="w-5 h-5 text-indigo-600" />
+        <div className="bg-slate-50 min-h-screen pb-12">
+            {/* Header Sticky */}
+            <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm px-6 py-4">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={onClose}
+                            className="flex items-center justify-center w-10 h-10 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors border border-transparent hover:border-indigo-100"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0">
+                            <Settings className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-slate-800 tracking-tight">Central de Testes</h2>
+                            <p className="text-sm text-slate-500 font-medium">Controle total sobre a operação de Quality Assurance</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800 tracking-tight">Configurações de Testes</h2>
-                        <p className="text-sm text-slate-500 font-medium">Configure a visualização e fonte de dados</p>
+
+                    {/* Navigation Tabs */}
+                    <div className="flex p-1 bg-slate-100 rounded-xl overflow-x-auto w-full md:w-auto shrink-0 shadow-inner">
+                        <button
+                            onClick={() => setActiveTab('DATA')}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${
+                                activeTab === 'DATA' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                            }`}
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Gestão de Dados
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('VIEW')}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${
+                                activeTab === 'VIEW' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                            }`}
+                        >
+                            <Layers className="w-4 h-4" />
+                            Exibição
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('DASHBOARD')}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${
+                                activeTab === 'DASHBOARD' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                            }`}
+                        >
+                            <LayoutDashboard className="w-4 h-4" />
+                            Dashboard
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('GOALS')}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${
+                                activeTab === 'GOALS' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                            }`}
+                        >
+                            <Target className="w-4 h-4" />
+                            Metas
+                        </button>
                     </div>
+
+                    {/* Minimum Toggle - Only for Dashboard header. Goals will have it in its own action bar */}
+                    {activeTab === 'DASHBOARD' && (
+                        <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 shadow-sm rounded-xl shrink-0 animate-in fade-in slide-in-from-right-4">
+                            <span className="text-sm font-bold text-slate-700">Mínimo Sim</span>
+                            <button 
+                                onClick={() => setFilterMinimoSim(!filterMinimoSim)}
+                                className={`w-11 h-6 rounded-full transition-colors relative shadow-inner ${filterMinimoSim ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform ${filterMinimoSim ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Coluna Esquerda: Ações principais */}
-                <div className="space-y-8">
-                    {/* Seção de Importação */}
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-base font-bold text-slate-800 uppercase tracking-wider">Gestão de Dados</h3>
-                        </div>
-                        
-                        <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-4">
-                            <div className="flex items-start gap-3">
-                                <FileSpreadsheet className="w-6 h-6 text-indigo-500 shrink-0" />
-                                <div>
-                                    <h5 className="text-sm font-bold text-slate-800">Importar Planilha</h5>
-                                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                        Faça upload de um arquivo .xlsx contendo seus casos de teste. O sistema mapeará automaticamente as colunas de A até V.
-                                    </p>
+            {/* Content Area */}
+            <div className="max-w-7xl mx-auto px-6 py-8">
+                {activeTab === 'DATA' && (
+                    <div className="animate-in fade-in zoom-in-95 duration-300 max-w-2xl mx-auto">
+                        <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                                <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+                                Gestão de Planilhas
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                                        <Upload className="w-6 h-6 text-indigo-600" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 mb-1">Importação Mestra</h4>
+                                        <p className="text-sm text-slate-500 leading-relaxed mb-4">
+                                            Faça upload de um arquivo `.xlsx` contendo os casos. O sistema mapeará automaticamente as colunas de A até V. Esta ação tornará os registros disponíveis para todos os usuários imediatamente.
+                                        </p>
+                                        <input
+                                            type="file"
+                                            accept=".xlsx, .xls"
+                                            className="hidden"
+                                            ref={fileInputRef}
+                                            onChange={handleFileUpload}
+                                        />
+                                        <button
+                                            onClick={triggerFileInput}
+                                            disabled={isLoading}
+                                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                                        >
+                                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                            {isLoading ? 'Importando e Processando...' : 'Selecionar Arquivo'}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <input
-                                type="file"
-                                accept=".xlsx, .xls"
-                                className="hidden"
-                                ref={fileInputRef}
-                                onChange={handleFileUpload}
-                            />
-                            
-                            {error && (
-                                <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg">
-                                    <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
-                                    <p className="text-xs font-medium text-red-800 leading-relaxed">{error}</p>
-                                </div>
-                            )}
 
-                            <div className="flex flex-col gap-2 pt-2">
-                                <button
-                                    onClick={triggerFileInput}
-                                    disabled={isLoading}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
-                                >
-                                    {isLoading ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Upload className="w-4 h-4" />
-                                    )}
-                                    {isLoading ? 'Importando...' : 'Selecionar Arquivo Excel'}
-                                </button>
-                                
+                                {error && (
+                                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-800">
+                                        <AlertCircle className="w-5 h-5 shrink-0" />
+                                        <p className="text-sm font-medium">{error}</p>
+                                    </div>
+                                )}
+
                                 {hasLoadedTests && (
-                                    <button
-                                        onClick={clearTests}
-                                        className="w-full px-4 py-3 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors border border-red-100"
-                                    >
-                                        Limpar Base Local
-                                    </button>
+                                    <div className="p-6 bg-red-50 border border-red-100 rounded-2xl">
+                                        <h4 className="font-bold text-red-800 mb-1 flex items-center gap-2">
+                                            <AlertCircle className="w-4 h-4" />
+                                            Ações Perigosas
+                                        </h4>
+                                        <p className="text-sm text-red-600/80 mb-4">
+                                            Aviso: Limpar a base local exclui todos os registros do repositório compartilhado para todos os analistas.
+                                        </p>
+                                        <button
+                                            onClick={clearTests}
+                                            className="flex items-center justify-center gap-2 px-6 py-3 font-bold text-red-600 bg-white border border-red-200 hover:bg-red-100 rounded-xl transition-colors shadow-sm"
+                                        >
+                                            Limpar Bando de Testes Global
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     </div>
+                )}
 
-                    {/* Action Block - Save */}
-                    <div className="mt-8 pt-6 border-t border-slate-100">
-                        <button
-                            onClick={handleSaveSettings}
-                            disabled={isSaving}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-4 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
-                        >
-                            {isSaving ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <Check className="w-5 h-5" />
-                            )}
-                            {isSaving ? 'Salvando...' : 'Salvar Configurações e Voltar'}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Coluna Direita: Checkboxes */}
-                <div className="lg:col-span-2 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-6">
-                        <h3 className="text-base font-bold text-slate-800 uppercase tracking-wider">Configuração de Exibição</h3>
-                        <p className="text-xs text-slate-500 font-medium">Selecione as colunas que aparecerão na tela</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {(settings.order || DEFAULT_COLUMN_ORDER)
-                            .filter(key => ![
-                                'estimatedTime', 'errorStatus', 'observation', 'gap',
-                                'objective', 'prerequisite', 'description', 'acceptanceCriteria'
-                            ].includes(key))
-                            .map((key, index, arr) => {
-                            const isChecked = settings[key];
-                            return (
-                                <div key={key} className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
-                                    isChecked 
-                                        ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' 
-                                        : 'bg-white border-slate-200'
-                                }`}>
-                                    <button
-                                        onClick={() => handleToggleColumn(key)}
-                                        className="flex-1 flex items-center gap-3 text-left group"
-                                    >
-                                        <div className={`flex items-center justify-center w-5 h-5 rounded flex-shrink-0 transition-colors ${
-                                            isChecked ? 'bg-indigo-600 text-white' : 'border-2 border-slate-300 text-transparent group-hover:border-slate-400'
-                                        }`}>
-                                            <Check className={`w-3.5 h-3.5 ${isChecked ? 'opacity-100' : 'opacity-0'}`} />
-                                        </div>
-                                        <span className={`text-sm tracking-tight line-clamp-1 ${isChecked ? 'font-semibold text-indigo-900' : 'font-medium text-slate-600'}`}>
-                                            {COLUMN_LABELS[key as TestColumnKey]}
-                                        </span>
-                                    </button>
-                                    
-                                    <div className="flex flex-col gap-1 border-l border-slate-200 pl-2">
-                                        <button 
-                                            onClick={(e) => handleMoveColumn(key, 'up', e)}
-                                            disabled={index === 0}
-                                            className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                                            title="Mover para cima"
-                                        >
-                                            <ArrowUp className="w-3 h-3" />
-                                        </button>
-                                        <button 
-                                            onClick={(e) => handleMoveColumn(key, 'down', e)}
-                                            disabled={index === arr.length - 1}
-                                            className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                                            title="Mover para baixo"
-                                        >
-                                            <ArrowDown className="w-3 h-3" />
-                                        </button>
-                                    </div>
+                {activeTab === 'VIEW' && (
+                    <div className="animate-in fade-in zoom-in-95 duration-300">
+                        <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                        <Layers className="w-5 h-5 text-indigo-600" />
+                                        Layout da Listagem
+                                    </h3>
+                                    <p className="text-sm text-slate-500 mt-1">Ligue ou desligue as colunas para simplificar a visualização do grid e altere a ordem dos itens.</p>
                                 </div>
-                            );
-                        })}
+                                <button
+                                    onClick={handleSaveSettings}
+                                    disabled={isSaving}
+                                    className="flex items-center justify-center gap-2 px-8 py-3 font-black text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 shrink-0"
+                                >
+                                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                                    {isSaving ? 'Salvando...' : 'Gravar Alterações'}
+                                </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {(settings.order || DEFAULT_COLUMN_ORDER)
+                                    .filter(key => ![
+                                        'estimatedTime', 'errorStatus', 'observation', 'gap',
+                                        'objective', 'prerequisite', 'description', 'acceptanceCriteria'
+                                    ].includes(key))
+                                    .map((key, index, arr) => {
+                                    const isChecked = settings[key];
+                                    return (
+                                        <div key={key} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
+                                            isChecked 
+                                                ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' 
+                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                        }`}>
+                                            <button
+                                                onClick={() => handleToggleColumn(key)}
+                                                className="flex-1 flex items-center gap-3 text-left group"
+                                            >
+                                                <div className={`flex items-center justify-center w-6 h-6 rounded-md flex-shrink-0 transition-colors ${
+                                                    isChecked ? 'bg-indigo-600 text-white shadow-inner' : 'bg-slate-100 border border-slate-300 text-transparent group-hover:border-slate-400'
+                                                }`}>
+                                                    <Check className={`w-4 h-4 ${isChecked ? 'opacity-100' : 'opacity-0'}`} />
+                                                </div>
+                                                <span className={`text-sm tracking-tight line-clamp-1 ${isChecked ? 'font-black text-indigo-900' : 'font-bold text-slate-500'}`}>
+                                                    {COLUMN_LABELS[key as TestColumnKey]}
+                                                </span>
+                                            </button>
+                                            
+                                            <div className="flex flex-col gap-1 border-l border-slate-200/60 pl-2">
+                                                <button 
+                                                    onClick={(e) => handleMoveColumn(key, 'up', e)}
+                                                    disabled={index === 0}
+                                                    className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                                    title="Mover para cima"
+                                                >
+                                                    <ArrowUp className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => handleMoveColumn(key, 'down', e)}
+                                                    disabled={index === arr.length - 1}
+                                                    className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 rounded disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                                    title="Mover para baixo"
+                                                >
+                                                    <ArrowDown className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {activeTab === 'DASHBOARD' && (
+                    <>
+                        {isLoadingRecords ? (
+                            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
+                                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+                                <p className="text-slate-500 font-bold">Processando KPIs...</p>
+                            </div>
+                        ) : displayedRecords.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95">
+                                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                    <FileSpreadsheet className="w-10 h-10 text-slate-400" />
+                                </div>
+                                <h3 className="text-lg font-black text-slate-800 mb-2">Base de Dados Vazia</h3>
+                                <p className="text-slate-500 font-medium">Nenhum teste encontrado para os filtros atuais.</p>
+                            </div>
+                        ) : (
+                            <DashboardTab testRecords={displayedRecords} />
+                        )}
+                    </>
+                )}
+
+                {activeTab === 'GOALS' && (
+                    <>
+                        {isLoadingRecords ? (
+                            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
+                                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+                                <p className="text-slate-500 font-bold">Processando Metas da Equipe...</p>
+                            </div>
+                        ) : (
+                             <TeamGoalsTab 
+                                user={user} 
+                                testRecords={displayedRecords} 
+                                isMinimoSimActive={filterMinimoSim} 
+                                onToggleMinimoSim={() => setFilterMinimoSim(!filterMinimoSim)}
+                            />
+                        )}
+                    </>
+                )}
+
             </div>
         </div>
     );
