@@ -37,11 +37,11 @@ const getSemanticStyle = (field: string, value: string) => {
     if (cleanVal === 'erro') return 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100';
     if (cleanVal === 'em andamento') return 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100';
     if (cleanVal === 'impedimento') return 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100';
-    if (cleanVal === 'pendente') return 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100';
+    if (cleanVal === 'pendente') return 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100';
   }
 
   if (field === 'analyst' || field === 'analista') {
-    return 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100';
+    return 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 font-bold';
   }
   
   return 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50';
