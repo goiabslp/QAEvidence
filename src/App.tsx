@@ -25,6 +25,7 @@ import FloatingActionButtons from '@/components/features/evidence/FloatingAction
 import PdfConfirmationModal from '@/components/features/evidence/PdfConfirmationModal';
 import DeleteTicketModal from '@/components/features/evidence/DeleteTicketModal';
 import TicketHistoryCarousel from '@/components/features/evidence/TicketHistoryCarousel';
+import TestSettings from '@/components/features/testes/TestSettings';
 import { supabase } from '@/services/supabaseClient';
 import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase } from '@/utils/supabaseEvidenceService';
 import ValidationModal from './components/common/ValidationModal';
@@ -49,7 +50,7 @@ const App: React.FC = () => {
   const [adminTab, setAdminTab] = useState<'users' | 'evidences' | 'dashboard'>('users');
 
   // --- MODULE STATE ---
-  const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS'>('TICKET');
+  const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS' | 'TEST_SETTINGS'>('TICKET');
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -86,6 +87,9 @@ const App: React.FC = () => {
           acronym,
           full_name,
           is_active,
+          test_column_settings,
+          daily_goal,
+          is_daily_goal_auto,
           user_roles (
             role_name
           )
@@ -106,7 +110,10 @@ const App: React.FC = () => {
             name: p.full_name,
             role: mapRoleFromDb(roleName),
             isActive: p.is_active !== false,
-            showEasterEgg: true // Keeping default for now as requested by behavior consistency
+            showEasterEgg: true, // Keeping default for now as requested by behavior consistency
+            testColumnSettings: p.test_column_settings,
+            dailyGoal: p.daily_goal !== null ? p.daily_goal : undefined,
+            isDailyGoalAuto: p.is_daily_goal_auto !== null ? p.is_daily_goal_auto : undefined
           };
         });
         setUsers(mappedUsers);
@@ -275,6 +282,7 @@ const App: React.FC = () => {
               id,
               acronym,
               full_name,
+              test_column_settings,
               user_roles (
                 role_name
               )
@@ -297,7 +305,8 @@ const App: React.FC = () => {
               name: profile.full_name,
               role: mapRoleFromDb(roleName),
               isActive: true, // Assuming active by default in this implementation
-              showEasterEgg: true
+              showEasterEgg: true,
+              testColumnSettings: profile.test_column_settings
             });
           }
         }
@@ -893,7 +902,42 @@ const App: React.FC = () => {
     }
 
     if (activeModule === 'TESTS') {
-      return <TestManagement />;
+      return (
+        <TestManagement 
+          onOpenSettings={() => setActiveModule('TEST_SETTINGS')} 
+          testColumnSettings={currentUser.testColumnSettings}
+          user={currentUser}
+        />
+      );
+    }
+
+    if (activeModule === 'TEST_SETTINGS') {
+      return (
+        <TestSettings 
+          onClose={() => setActiveModule('TESTS')} 
+          user={currentUser}
+          onUpdateSettings={async (newSettings) => {
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({ test_column_settings: newSettings })
+                .eq('id', currentUser.id);
+
+              if (error) throw error;
+
+              setCurrentUser({
+                ...currentUser,
+                testColumnSettings: newSettings
+              });
+              
+              // Opcional: Atualizar a lista local de usuários se precisar
+              setUsers(users.map(u => u.id === currentUser.id ? { ...u, testColumnSettings: newSettings } : u));
+            } catch (err: any) {
+              alert("Erro ao salvar configurações de exibição: " + err.message);
+            }
+          }}
+        />
+      );
     }
 
     if (activeModule === 'EVIDENCES') {

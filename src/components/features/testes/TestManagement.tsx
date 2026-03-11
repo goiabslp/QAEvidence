@@ -1,123 +1,415 @@
-import React, { useState, useRef } from 'react';
-import { Beaker, Upload, X, ChevronDown, ChevronUp, AlertCircle, Loader2, FileSpreadsheet, CheckCircle2, ShieldAlert } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { ExcelTestRecord } from '../../../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw } from 'lucide-react';
+import { ExcelTestRecord, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER, TestColumnKey } from '../../../types';
+import { COLUMN_LABELS } from './TestSettings';
+import ConfirmEditModal from './ConfirmEditModal';
+import DailyMetricsModal from './DailyMetricsModal';
+import { User } from '../../../types';
+import { supabase } from '@/services/supabaseClient';
 
-const TestManagement: React.FC = () => {
+// Fields that cannot be edited per user requirements
+const NON_EDITABLE_FIELDS: TestColumnKey[] = [
+    'stepsText',
+    'bank',
+    'backoffice',
+    'bcsCode',
+    'testId',
+    'module',
+    'useCase',
+    'estimatedTime',
+    'gap'
+];
+
+interface TestManagementProps {
+    onOpenSettings: () => void;
+    testColumnSettings?: TestColumnSettings;
+    user: User | null;
+}
+
+const TestManagement: React.FC<TestManagementProps> = ({ 
+    onOpenSettings,
+    testColumnSettings: propTestColumnSettings,
+    user
+}) => {
+    const testColumnSettings = propTestColumnSettings || DEFAULT_COLUMN_SETTINGS;
     const [tests, setTests] = useState<ExcelTestRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    // Inline Edit State
+    const [editState, setEditState] = useState<{
+        isOpen: boolean;
+        testId: string | null;
+        field: TestColumnKey | null;
+        oldValue: string;
+        newValue: string;
+        isSaving: boolean;
+    }>({
+        isOpen: false,
+        testId: null,
+        field: null,
+        oldValue: '',
+        newValue: '',
+        isSaving: false
+    });
 
-        setIsLoading(true);
-        setError(null);
+    // Direct Edit State (Complex Fields)
+    const [directEdit, setDirectEdit] = useState<{
+        testId: string | null;
+        field: TestColumnKey | null;
+        value: string;
+    }>({
+        testId: null,
+        field: null,
+        value: ''
+    });
+    const [isSavingDirect, setIsSavingDirect] = useState(false);
+    const [analysts, setAnalysts] = useState<string[]>([]);
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
+    // Fetch analysts list
+    useEffect(() => {
+        const fetchAnalysts = async () => {
             try {
-                const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('acronym')
+                    .eq('is_active', true)
+                    .order('acronym');
                 
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                // Validate if sheet structure goes from A to V minimum
-                const ref = worksheet['!ref'];
-                if (!ref) throw new Error("A planilha está vazia.");
-                
-                const range = XLSX.utils.decode_range(ref);
-                // A = 0, V = 21
-                if (range.e.c < 21) {
-                    throw new Error("Estrutura da planilha incompatível. Ela precisa conter as colunas de A até V.");
+                if (error) throw error;
+                if (data) {
+                    setAnalysts(data.map(p => p.acronym).filter(a => a && a !== 'ADM'));
                 }
+            } catch (err) {
+                console.error('Error fetching analysts:', err);
+            }
+        };
+        fetchAnalysts();
+    }, []);
+
+    // Load tests from Supabase
+    useEffect(() => {
+        const fetchTests = async () => {
+            if (!user) return;
+            try {
+                const { data, error } = await supabase
+                    .from('excel_test_records')
+                    .select('*')
+                    .eq('created_by', user.id)
+                    .order('module', { ascending: true })
+                    .order('use_case', { ascending: true })
+                    .order('priority', { ascending: true })
+                    .order('tag_id', { ascending: true });
+
+                if (error) throw error;
                 
-                const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' });
-                
-                if (jsonData.length === 0) {
-                    throw new Error("A planilha não contém dados.");
+                if (data) {
+                    // Map snake_case to camelCase
+                    const mappedTests = data.map((item: any) => ({
+                        id: item.id,
+                        stepsText: item.steps_text,
+                        browser: item.browser,
+                        bank: item.bank,
+                        backoffice: item.backoffice,
+                        mobile: item.mobile,
+                        analyst: item.analyst,
+                        automated: item.automated,
+                        bcsCode: item.bcs_code,
+                        useCase: item.use_case,
+                        minimum: item.minimum,
+                        priority: item.priority,
+                        testId: item.test_id,
+                        module: item.module,
+                        objective: item.objective,
+                        estimatedTime: item.estimated_time,
+                        prerequisite: item.prerequisite,
+                        description: item.description,
+                        acceptanceCriteria: item.acceptance_criteria,
+                        result: item.result,
+                        errorStatus: item.error_status,
+                        observation: item.observation,
+                        gap: item.gap,
+                        tagId: item.tag_id
+                    }));
+                    setTests(mappedTests);
                 }
-
-                let rawRows = jsonData;
-                // Ignorar a primeira linha se for o cabeçalho
-                if (rawRows.length > 0) {
-                    const firstRow = rawRows[0];
-                    if (String(firstRow[11] || '').trim().toLowerCase().includes('teste id') || 
-                        String(firstRow[0] || '').trim().toLowerCase().includes('replicar a redação')) {
-                        rawRows = rawRows.slice(1);
-                    }
-                }
-
-                const validRows = rawRows.filter(row => row.some(cell => cell !== ''));
-
-                const records: ExcelTestRecord[] = validRows.map(row => ({
-                    id: crypto.randomUUID(),
-                    stepsText: String(row[0] || ''),
-                    browser: String(row[1] || ''),
-                    bank: String(row[2] || ''),
-                    backoffice: String(row[3] || ''),
-                    mobile: String(row[4] || ''),
-                    analyst: String(row[5] || ''),
-                    automated: String(row[6] || ''),
-                    bcsCode: String(row[7] || ''),
-                    useCase: String(row[8] || ''),
-                    minimum: String(row[9] || ''),
-                    priority: String(row[10] || ''),
-                    testId: String(row[11] || ''),
-                    module: String(row[12] || ''),
-                    objective: String(row[13] || ''),
-                    estimatedTime: String(row[14] || ''),
-                    prerequisite: String(row[15] || ''),
-                    description: String(row[16] || ''),
-                    acceptanceCriteria: String(row[17] || ''),
-                    result: String(row[18] || ''),
-                    errorStatus: String(row[19] || ''),
-                    observation: String(row[20] || ''),
-                    gap: String(row[21] || '')
-                }));
-
-                setTests(records);
-            } catch (err: any) {
-                console.error("Erro ao processar planilha:", err);
-                setError(err.message || "Ocorreu um erro ao processar o arquivo. Verifique se é um arquivo Excel válido.");
-                setTests([]);
-            } finally {
-                setIsLoading(false);
-                if (fileInputRef.current) fileInputRef.current.value = '';
+            } catch (error) {
+                console.error('Error fetching tests:', error);
             }
         };
 
-        reader.onerror = () => {
-            setError("Erro ao ler o arquivo.");
-            setIsLoading(false);
-        };
+        fetchTests();
+    }, [user, isMetricsModalOpen]); // Reload if modal closes in case there were updates
 
-        reader.readAsArrayBuffer(file);
-    };
+    const handleResultChange = async (testId: string, newResult: string) => {
+        if (!user) return;
+        
+        const isPending = newResult === 'Pendente';
+        const newAnalyst = isPending ? '' : user.acronym;
 
-    const triggerFileInput = () => {
-        if (fileInputRef.current) {
-            fileInputRef.current.click();
+        // Optimistic UI update
+        setTests(prev => prev.map(t => 
+            t.id === testId 
+                ? { ...t, result: newResult, analyst: newAnalyst } 
+                : t
+        ));
+
+        // Save to Supabase
+        try {
+            const { error } = await supabase
+                .from('excel_test_records')
+                .update({ 
+                    result: newResult,
+                    analyst: newAnalyst,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', testId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating test result:', error);
+            // Could revert UI here on fail
         }
     };
+
+    const handleSelectChange = async (testId: string, field: TestColumnKey, value: string) => {
+        if (!user) return;
+
+        // Optimistic update
+        setTests(prev => prev.map(t => t.id === testId ? { ...t, [field]: value } : t));
+
+        try {
+            const snakeField = field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            const { error } = await supabase
+                .from('excel_test_records')
+                .update({ 
+                    [snakeField]: value,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', testId);
+
+            if (error) throw error;
+        } catch (err) {
+            console.error(`Error updating field ${field}:`, err);
+        }
+    };
+
+    const initiateEdit = (test: ExcelTestRecord, key: TestColumnKey) => {
+        if (NON_EDITABLE_FIELDS.includes(key)) return;
+        
+        // Skip prompt for specific fields that use selects
+        if (['analyst', 'priority', 'minimum', 'result'].includes(key)) return;
+
+        const oldValue = String((test as any)[key] || '');
+        const newValue = window.prompt(`Novo valor para ${COLUMN_LABELS[key]}:`, oldValue);
+        
+        if (newValue !== null && newValue !== oldValue) {
+            setEditState({
+                isOpen: true,
+                testId: test.id,
+                field: key,
+                oldValue,
+                newValue,
+                isSaving: false
+            });
+        }
+    };
+
+    const confirmEdit = async () => {
+        if (!user || !editState.testId || !editState.field) return;
+
+        setEditState(prev => ({ ...prev, isSaving: true }));
+
+        try {
+            // Map camelCase to snake_case for the database
+            const snakeField = editState.field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            
+            const { error } = await supabase
+                .from('excel_test_records')
+                .update({ 
+                    [snakeField]: editState.newValue,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', editState.testId);
+
+            if (error) throw error;
+
+            // Update local state
+            setTests(prev => prev.map(t => 
+                t.id === editState.testId 
+                    ? { ...t, [editState.field!]: editState.newValue } 
+                    : t
+            ));
+
+            setEditState({
+                isOpen: false,
+                testId: null,
+                field: null,
+                oldValue: '',
+                newValue: '',
+                isSaving: false
+            });
+        } catch (error) {
+            console.error('Error saving inline edit:', error);
+            setEditState(prev => ({ ...prev, isSaving: false }));
+            alert('Erro ao salvar alteração. Tente novamente.');
+        }
+    };
+
+    const handleDirectSave = async () => {
+        if (!user || !directEdit.testId || !directEdit.field) return;
+        
+        const test = tests.find(t => t.id === directEdit.testId);
+        const oldValue = test ? String((test as any)[directEdit.field] || '') : '';
+        
+        if (directEdit.value === oldValue) {
+            setDirectEdit({ testId: null, field: null, value: '' });
+            return;
+        }
+
+        setIsSavingDirect(true);
+        try {
+            const snakeField = directEdit.field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            
+            const { error } = await supabase
+                .from('excel_test_records')
+                .update({ 
+                    [snakeField]: directEdit.value,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', directEdit.testId);
+
+            if (error) throw error;
+
+            setTests(prev => prev.map(t => 
+                t.id === directEdit.testId 
+                    ? { ...t, [directEdit.field!]: directEdit.value } 
+                    : t
+            ));
+        } catch (err) {
+            console.error('Error saving direct edit:', err);
+        } finally {
+            setIsSavingDirect(false);
+            setDirectEdit({ testId: null, field: null, value: '' });
+        }
+    };
+
+    const filteredTests = useMemo(() => {
+        if (!searchTerm.trim()) return tests;
+        return tests.filter(test => {
+            const searchLower = searchTerm.toLowerCase();
+            const searchableFields = [
+                test.tagId,
+                test.testId,
+                test.module,
+                test.useCase,
+                test.priority,
+                test.analyst,
+                test.result
+            ];
+            return searchableFields.some(field => 
+                String(field || '').toLowerCase().includes(searchLower)
+            );
+        });
+    }, [tests, searchTerm]);
 
     const toggleExpand = (id: string) => {
         setExpandedId(prev => prev === id ? null : id);
     };
 
-    const clearTests = () => {
-        if (window.confirm("Limpar todos os testes importados?")) {
-            setTests([]);
-            setError(null);
-        }
+    // Helper para renderizar um campo apenas se estiver ativado nas configurações
+    const renderField = (
+        key: TestColumnKey, 
+        test: ExcelTestRecord,
+        renderCustom?: (val: string) => React.ReactNode
+    ) => {
+        // Essential fields might be forced to show, but per requirements all are configurable
+        if (!testColumnSettings[key]) return null;
+        
+        const label = COLUMN_LABELS[key];
+        const value = (test as any)[key] as string | undefined;
+        const displayValue = value || '--';
+        const isEditable = !NON_EDITABLE_FIELDS.includes(key);
+        // Fields that use direct select (no modal)
+        const isSelectField = ['analyst', 'priority', 'minimum', 'result'].includes(key);
+
+        return (
+            <div 
+                className={`flex flex-col group/field transition-all ${isEditable && !isSelectField ? 'cursor-pointer hover:bg-slate-50 p-1 -m-1 rounded' : 'p-1 -m-1'}`} 
+                key={key}
+                onClick={(e) => {
+                    if (isEditable && !isSelectField) {
+                        e.stopPropagation();
+                        initiateEdit(test, key);
+                    }
+                }}
+            >
+                <div className="flex items-center gap-1">
+                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+                    {isEditable && !isSelectField && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 opacity-0 group-hover/field:opacity-100 transition-opacity"></div>
+                    )}
+                </div>
+                {renderCustom ? renderCustom(displayValue) : (
+                    <span className={`text-sm tracking-tight truncate ${isEditable ? 'text-slate-800' : 'text-slate-500'}`} title={displayValue}>
+                        {displayValue}
+                    </span>
+                )}
+            </div>
+        );
+    };
+
+    // Helper to render complex text fields with direct inline edit
+    const renderComplexEditableField = (test: ExcelTestRecord, key: TestColumnKey, icon: React.ReactNode, iconColor: string) => {
+        const isEditing = directEdit.testId === test.id && directEdit.field === key;
+        const value = (test as any)[key] || '';
+        const label = COLUMN_LABELS[key];
+
+        return (
+            <div>
+                <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
+                    <div className={`p-1 rounded-md bg-white shadow-sm border border-slate-100`}>
+                        {React.cloneElement(icon as React.ReactElement, { className: `w-3.5 h-3.5 ${iconColor}` })}
+                    </div>
+                    {label}
+                    {isSavingDirect && isEditing && (
+                        <RefreshCw className="w-3 h-3 animate-spin text-indigo-500 ml-auto" />
+                    )}
+                </h4>
+                {isEditing ? (
+                    <textarea
+                        autoFocus
+                        value={directEdit.value}
+                        onChange={(e) => setDirectEdit(prev => ({ ...prev, value: e.target.value }))}
+                        onBlur={handleDirectSave}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleDirectSave();
+                            }
+                        }}
+                        className="w-full bg-white p-4 rounded-2xl border-2 border-indigo-500 text-sm text-slate-700 shadow-inner focus:ring-0 outline-none min-h-[120px] transition-all animate-in fade-in zoom-in-95 duration-150"
+                    />
+                ) : (
+                    <div 
+                        onClick={() => setDirectEdit({ testId: test.id, field: key, value })}
+                        className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group relative overflow-hidden min-h-[60px]"
+                    >
+                        {value || <span className="italic text-slate-300">Nenhum conteúdo definido. Clique para editar.</span>}
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="p-1 px-2 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100">
+                                EDITAR
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative animate-in fade-in zoom-in-95 duration-200">
             <div className="p-8 space-y-8">
                 {/* Cabeçalho */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
@@ -130,77 +422,95 @@ const TestManagement: React.FC = () => {
                                 Gestão de Testes
                             </h2>
                             <p className="text-sm text-slate-500">
-                                {tests.length > 0 ? `${tests.length} casos de teste carregados.` : 'Importe sua planilha de cenários de teste.'}
+                                {filteredTests.length > 0 ? `${filteredTests.length} casos de teste ${searchTerm ? 'encontrados' : 'carregados'}.` : 'Nenhum teste encontrado.'}
                             </p>
                         </div>
                     </div>
                     
+                    <div className="flex-1 max-w-md mx-4 hidden md:block">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input 
+                                type="text"
+                                placeholder="Pesquisar por TAG, ID, Módulo, Analista..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+                            />
+                        </div>
+                    </div>
+                    
                     <div className="flex items-center gap-3">
-                        {tests.length > 0 && (
-                            <button
-                                onClick={clearTests}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                                Limpar
-                            </button>
-                        )}
-                        <input
-                            type="file"
-                            accept=".xlsx, .xls"
-                            className="hidden"
-                            ref={fileInputRef}
-                            onChange={handleFileUpload}
-                        />
                         <button
-                            onClick={triggerFileInput}
-                            disabled={isLoading}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                            onClick={() => setIsMetricsModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
                         >
-                            {isLoading ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <Upload className="w-4 h-4" />
-                            )}
-                            {isLoading ? 'Lendo...' : 'Importar Excel'}
+                            <Activity className="w-4 h-4" />
+                            Métricas Diárias
+                        </button>
+                        <button
+                            onClick={onOpenSettings}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Configurações
                         </button>
                     </div>
                 </div>
 
-                {/* Mensagem de Erro */}
-                {error && (
-                    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
-                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-                        <div>
-                            <h4 className="text-sm font-bold text-red-800">Falha na importação</h4>
-                            <p className="text-sm text-red-600 mt-1">{error}</p>
-                        </div>
+                {/* Barra de Pesquisa Mobile */}
+                <div className="md:hidden pb-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                            type="text"
+                            placeholder="Pesquisar testes..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none shadow-sm"
+                        />
                     </div>
-                )}
+                </div>
 
                 {/* Estado Zero */}
-                {!isLoading && tests.length === 0 && !error && (
+                {filteredTests.length === 0 && (
                     <div className="text-center py-16 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                         <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-slate-700">Nenhum teste carregado</h3>
+                        <h3 className="text-lg font-bold text-slate-700">{searchTerm ? 'Nenhum resultado para sua busca' : 'Nenhum teste carregado'}</h3>
                         <p className="text-slate-500 max-w-md mx-auto mt-2 text-sm">
-                            Faça o upload de uma planilha Excel contendo seus casos de teste. 
-                            Certifique-se de que a estrutura dos dados vai da coluna A até a coluna V.
+                            {searchTerm ? 'Tente buscar por TAG ID, Módulo ou Status diferente.' : 'Utilize o botão Configurações no canto superior direito para acessar as ferramentas administrativas e importar sua planilha.'}
                         </p>
-                        <button
-                            onClick={triggerFileInput}
-                            className="mt-6 px-4 py-2 bg-white border border-slate-300 shadow-sm text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors text-sm"
-                        >
-                            Selecionar Arquivo
-                        </button>
                     </div>
                 )}
 
                 {/* Lista de Testes */}
-                {tests.length > 0 && (
+                {filteredTests.length > 0 && (
                     <div className="space-y-3">
-                        {tests.map((test) => {
+                        {filteredTests.map((test) => {
                             const isExpanded = expandedId === test.id;
+                            
+                            // Determine active header fields to adjust grid columns
+                            const headerFields = (testColumnSettings.order || DEFAULT_COLUMN_ORDER).filter((key) => {
+                                if (['objective', 'prerequisite', 'stepsText', 'description', 'acceptanceCriteria', 'observation'].includes(key)) {
+                                    return false;
+                                }
+                                return testColumnSettings[key];
+                            });
+                            
+                            // Map number of fields to a tailwind grid class
+                            let gridColsClass = 'lg:grid-cols-6';
+                            if (headerFields.length <= 2) gridColsClass = 'lg:grid-cols-2';
+                            else if (headerFields.length === 3) gridColsClass = 'lg:grid-cols-3';
+                            else if (headerFields.length === 4) gridColsClass = 'lg:grid-cols-4';
+                            else if (headerFields.length === 5) gridColsClass = 'lg:grid-cols-5';
+                            else if (headerFields.length === 6) gridColsClass = 'lg:grid-cols-6';
+                            else if (headerFields.length === 7) gridColsClass = 'lg:grid-cols-7';
+                            else if (headerFields.length === 8) gridColsClass = 'lg:grid-cols-8';
+                            else if (headerFields.length === 9) gridColsClass = 'lg:grid-cols-9';
+                            else if (headerFields.length === 10) gridColsClass = 'lg:grid-cols-10';
+                            else if (headerFields.length === 11) gridColsClass = 'lg:grid-cols-11';
+                            else if (headerFields.length >= 12) gridColsClass = 'lg:grid-cols-12';
+
                             return (
                                 <div key={test.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow transition-shadow">
                                     {/* Cabeçalho do Card */}
@@ -208,45 +518,119 @@ const TestManagement: React.FC = () => {
                                         className="p-4 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
                                         onClick={() => toggleExpand(test.id)}
                                     >
-                                        <div className="flex-1 grid grid-cols-2 lg:grid-cols-6 gap-4 items-center">
-                                            {/* Test ID */}
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">ID</span>
-                                                <span className="text-sm font-medium text-slate-900">{test.testId || '--'}</span>
+                                        <div className="flex flex-col gap-1 min-w-[120px]">
+                                            <div className="flex items-center gap-2">
+                                                <Target className="w-3.5 h-3.5 text-indigo-500" />
+                                                <span className="text-xs font-black text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                    {test.tagId}
+                                                </span>
                                             </div>
-                                            {/* Banco */}
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Banco</span>
-                                                <span className="text-sm text-slate-700 truncate">{test.bank || '--'}</span>
-                                            </div>
-                                            {/* Backoffice */}
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Backoffice</span>
-                                                <span className="text-sm text-slate-700 truncate">{test.backoffice || '--'}</span>
-                                            </div>
-                                            {/* Módulo */}
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Módulo</span>
-                                                <span className="text-sm text-slate-700 truncate" title={test.module}>{test.module || '--'}</span>
-                                            </div>
-                                            {/* Analista */}
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Analista</span>
-                                                <span className="text-sm text-slate-700 truncate">{test.analyst || '--'}</span>
-                                            </div>
-                                            {/* Prioridade */}
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Prioridade</span>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${
-                                                        test.priority.toLowerCase().includes('alta') ? 'bg-red-50 text-red-700 border-red-200' :
-                                                        test.priority.toLowerCase().includes('média') ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                        'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                    }`}>
-                                                        {test.priority || 'Normal'}
-                                                    </span>
-                                                </div>
-                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter ml-5">TAG ID</span>
+                                        </div>
+
+                                        <div className={`flex-1 grid grid-cols-2 ${gridColsClass} gap-4 items-center`}>
+                                            {/* Render Dynamic Header Fields Based on User Order Configuration */}
+                                            {(testColumnSettings.order || DEFAULT_COLUMN_ORDER).map((key) => {
+                                                // Exclude fields intended for the expanded view
+                                                if (['objective', 'prerequisite', 'stepsText', 'description', 'acceptanceCriteria', 'observation'].includes(key)) {
+                                                    return null;
+                                                }
+
+                                                const columnKey = key as TestColumnKey;
+
+                                                // Custom render for Analyst
+                                                if (columnKey === 'analyst') {
+                                                    if (!testColumnSettings.analyst) return null;
+                                                    return renderField('analyst', test, (val) => (
+                                                        <select
+                                                            onClick={e => e.stopPropagation()}
+                                                            value={val || ''}
+                                                            onChange={(e) => handleSelectChange(test.id, 'analyst', e.target.value)}
+                                                            className="block w-full text-xs font-semibold rounded border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 bg-slate-50 text-slate-700"
+                                                        >
+                                                            <option value="">--</option>
+                                                            {analysts.map(acronym => (
+                                                                <option key={acronym} value={acronym}>{acronym}</option>
+                                                            ))}
+                                                        </select>
+                                                    ));
+                                                }
+
+                                                // Custom render for Priority
+                                                if (columnKey === 'priority') {
+                                                    if (!testColumnSettings.priority) return null;
+                                                    return renderField('priority', test, (val) => {
+                                                        const cleanVal = (val || 'Média').trim();
+                                                        let colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200'; // Normal/Média
+                                                        if (cleanVal.toLowerCase().includes('alta')) colorClass = 'bg-red-50 text-red-700 border-red-200';
+                                                        if (cleanVal.toLowerCase().includes('baixa')) colorClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                                                        
+                                                        return (
+                                                            <select
+                                                                onClick={e => e.stopPropagation()}
+                                                                value={val || 'Média'}
+                                                                onChange={(e) => handleSelectChange(test.id, 'priority', e.target.value)}
+                                                                className={`block w-full text-xs font-bold rounded border shadow-sm focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 ${colorClass}`}
+                                                            >
+                                                                <option value="Alta">Alta</option>
+                                                                <option value="Média">Média</option>
+                                                                <option value="Baixa">Baixa</option>
+                                                            </select>
+                                                        );
+                                                    });
+                                                }
+
+                                                // Custom render for Minimum (Sim/Não)
+                                                if (columnKey === 'minimum') {
+                                                    if (!testColumnSettings.minimum) return null;
+                                                    return renderField('minimum', test, (val) => {
+                                                        const isSim = val === 'Sim';
+                                                        const colorClass = isSim 
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                                            : 'bg-orange-50 text-orange-700 border-orange-200';
+                                                        
+                                                        return (
+                                                            <select
+                                                                onClick={e => e.stopPropagation()}
+                                                                value={val || 'Não'}
+                                                                onChange={(e) => handleSelectChange(test.id, 'minimum', e.target.value)}
+                                                                className={`block w-full text-xs font-black rounded border shadow-sm focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 ${colorClass}`}
+                                                            >
+                                                                <option value="Sim">Sim</option>
+                                                                <option value="Não">Não</option>
+                                                            </select>
+                                                        );
+                                                    });
+                                                }
+
+                                                // Custom render for Result Dropdown
+                                                if (columnKey === 'result') {
+                                                    if (!testColumnSettings.result) return null; // Respect visibility setting
+                                                    return renderField('result', test, (val) => (
+                                                        <select
+                                                            onClick={e => e.stopPropagation()}
+                                                            value={val || 'Pendente'}
+                                                            onChange={(e) => handleResultChange(test.id, e.target.value)}
+                                                            className={`block w-full text-xs font-semibold rounded border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 ${
+                                                                val === 'Sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                                val === 'Erro' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                                val === 'Em Andamento' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                                val === 'Impedimento' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                                'bg-slate-50 text-slate-600 border-slate-200'
+                                                            }`}
+                                                        >
+                                                            <option value="Pendente">Pendente</option>
+                                                            <option value="Em Andamento">Em Andamento</option>
+                                                            <option value="Sucesso">Sucesso</option>
+                                                            <option value="Erro">Erro</option>
+                                                            <option value="Impedimento">Impedimento</option>
+                                                        </select>
+                                                    ));
+                                                }
+
+                                                // Default field render
+                                                return renderField(columnKey, test);
+                                            })}
                                         </div>
                                         
                                         <div className="flex items-center justify-center p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 shrink-0">
@@ -254,51 +638,47 @@ const TestManagement: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Conteúdo Expandido */}
+                                    {/* Conteúdo Expandido - Complex Text Fields */}
                                     {isExpanded && (
-                                        <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-2 duration-200">
                                             {/* Coluna Esquerda */}
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-1.5">
-                                                        <ShieldAlert className="w-4 h-4 text-indigo-500" />
-                                                        Objetivo
-                                                    </h4>
-                                                    <div className="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                        {test.objective || 'Não especificado.'}
+                                            <div className="space-y-6">
+                                                {renderComplexEditableField(test, 'objective', <ShieldAlert />, 'text-indigo-500')}
+                                                {renderComplexEditableField(test, 'prerequisite', <AlertCircle />, 'text-amber-500')}
+                                                
+                                                {testColumnSettings.stepsText && (
+                                                    <div>
+                                                        <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
+                                                            <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
+                                                                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                                                            </div>
+                                                            {COLUMN_LABELS.stepsText}
+                                                        </h4>
+                                                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
+                                                            {test.stepsText || 'N/A'}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-1.5">
-                                                        <AlertCircle className="w-4 h-4 text-amber-500" />
-                                                        Pré-requisitos
-                                                    </h4>
-                                                    <div className="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                        {test.prerequisite || 'Nenhum pré-requisito.'}
-                                                    </div>
-                                                </div>
+                                                )}
                                             </div>
 
                                             {/* Coluna Direita */}
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-1.5">
-                                                        <FileSpreadsheet className="w-4 h-4 text-slate-500" />
-                                                        Descrição
-                                                    </h4>
-                                                    <div className="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                        {test.description || 'Não especificada.'}
+                                            <div className="space-y-6">
+                                                {renderComplexEditableField(test, 'description', <FileSpreadsheet />, 'text-indigo-500')}
+                                                {renderComplexEditableField(test, 'acceptanceCriteria', <CheckCircle2 />, 'text-emerald-500')}
+
+                                                {testColumnSettings.observation && (
+                                                    <div>
+                                                        <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
+                                                            <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
+                                                                <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
+                                                            </div>
+                                                            {COLUMN_LABELS.observation}
+                                                        </h4>
+                                                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
+                                                            {test.observation || 'N/A'}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-1.5">
-                                                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                                        Critérios de Aceitação
-                                                    </h4>
-                                                    <div className="bg-white p-3 rounded-lg border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                        {test.acceptanceCriteria || 'Não especificados.'}
-                                                    </div>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -308,9 +688,24 @@ const TestManagement: React.FC = () => {
                     </div>
                 )}
             </div>
+            
+            <DailyMetricsModal 
+                isOpen={isMetricsModalOpen}
+                onClose={() => setIsMetricsModalOpen(false)}
+                user={user}
+            />
+
+            <ConfirmEditModal 
+                isOpen={editState.isOpen}
+                onClose={() => setEditState(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmEdit}
+                fieldName={editState.field ? COLUMN_LABELS[editState.field] : ''}
+                oldValue={editState.oldValue}
+                newValue={editState.newValue}
+                isSaving={editState.isSaving}
+            />
         </div>
     );
 };
 
 export default TestManagement;
-

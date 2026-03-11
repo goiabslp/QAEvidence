@@ -45,9 +45,11 @@ export interface User {
   id: string;
   acronym: string; // 3 letters
   name: string;
-  role: UserRole;
   isActive?: boolean; // Control access
   showEasterEgg?: boolean; // Control Bug appearance
+  testColumnSettings?: TestColumnSettings; // Configurações de coluna de teste
+  dailyGoal?: number; // Meta diária de testes
+  isDailyGoalAuto?: boolean; // Se a meta diária se aplica automaticamente
 }
 
 export interface TicketInfo {
@@ -146,6 +148,50 @@ export interface BugReport {
   createdBy: string;
   attachments?: string[]; // List of base64 images
 }
+
+// Enum keys para as colunas de teste
+export type TestColumnKey = 
+  | 'stepsText' | 'browser' | 'bank' | 'backoffice' | 'mobile' 
+  | 'analyst' | 'automated' | 'bcsCode' | 'useCase' | 'minimum' 
+  | 'priority' | 'testId' | 'module' | 'objective' | 'estimatedTime' 
+  | 'prerequisite' | 'description' | 'acceptanceCriteria' | 'result' 
+  | 'errorStatus' | 'observation' | 'gap';
+
+export type TestColumnSettings = Record<TestColumnKey, boolean> & {
+  order?: TestColumnKey[];
+};
+
+export const DEFAULT_COLUMN_ORDER: TestColumnKey[] = [
+  'testId', 'bank', 'backoffice', 'module', 'analyst', 'priority', 
+  'browser', 'mobile', 'automated', 'bcsCode', 'useCase', 
+  'minimum', 'estimatedTime', 'result', 'errorStatus', 'gap'
+];
+
+export const DEFAULT_COLUMN_SETTINGS: TestColumnSettings = {
+  stepsText: false,
+  browser: true,
+  bank: true,
+  backoffice: true,
+  mobile: true,
+  analyst: true,
+  automated: false,
+  bcsCode: false,
+  useCase: false,
+  minimum: false,
+  priority: true,
+  testId: true,
+  module: true,
+  objective: true,
+  estimatedTime: false,
+  prerequisite: true,
+  description: true,
+  acceptanceCriteria: true,
+  result: false,
+  errorStatus: false,
+  observation: false,
+  gap: false,
+  order: DEFAULT_COLUMN_ORDER
+};
 
 // Interface para armazenar os casos de teste importados da planilha Excel
 export interface ExcelTestRecord {
