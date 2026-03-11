@@ -9,6 +9,7 @@ import TeamGoalsTab from './TeamGoalsTab';
 interface TestSettingsProps {
     onClose: () => void;
     user: User;
+    allUsers: User[];
     onUpdateSettings: (settings: TestColumnSettings) => Promise<void>;
 }
 
@@ -39,20 +40,30 @@ export const COLUMN_LABELS: Record<TestColumnKey, string> = {
     gap: 'GAP'
 };
 
-const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSettings }) => {
+const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, onUpdateSettings }) => {
     const [activeTab, setActiveTab] = useState<TabType>('DATA');
     
     // --- Data Fetching for Dashboards ---
     const [testRecords, setTestRecords] = useState<ExcelTestRecord[]>([]);
     const [isLoadingRecords, setIsLoadingRecords] = useState(false);
     
-    // --- Minimo Sim Filter ---
+    // --- Filter States ---
     const [filterMinimoSim, setFilterMinimoSim] = useState(false);
+    const [selectedBackoffice, setSelectedBackoffice] = useState<string>('Todos');
 
     const displayedRecords = React.useMemo(() => {
-        if (!filterMinimoSim) return testRecords;
-        return testRecords.filter(t => String(t.minimum).trim().toLowerCase() === 'sim');
-    }, [testRecords, filterMinimoSim]);
+        let filtered = testRecords;
+        
+        if (filterMinimoSim) {
+            filtered = filtered.filter(t => String(t.minimum).trim().toLowerCase() === 'sim');
+        }
+        
+        if (selectedBackoffice !== 'Todos') {
+            filtered = filtered.filter(t => t.backoffice === selectedBackoffice);
+        }
+        
+        return filtered;
+    }, [testRecords, filterMinimoSim, selectedBackoffice]);
 
     // --- File Input State ---
     const [isLoading, setIsLoading] = useState(false);
@@ -673,7 +684,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                                 <p className="text-slate-500 font-medium">Nenhum teste encontrado para os filtros atuais.</p>
                             </div>
                         ) : (
-                            <DashboardTab testRecords={displayedRecords} />
+                            <DashboardTab testRecords={displayedRecords} allUsers={allUsers} allRecords={testRecords} />
                         )}
                     </>
                 )}
@@ -689,8 +700,11 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                              <TeamGoalsTab 
                                 user={user} 
                                 testRecords={displayedRecords} 
+                                allRecords={testRecords}
                                 isMinimoSimActive={filterMinimoSim} 
                                 onToggleMinimoSim={() => setFilterMinimoSim(!filterMinimoSim)}
+                                selectedBackoffice={selectedBackoffice}
+                                onBackofficeChange={setSelectedBackoffice}
                             />
                         )}
                     </>

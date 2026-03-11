@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { ExcelTestRecord, User } from '../../../types';
 import { Target, TrendingUp, Calendar, Zap, Save, Loader2, Award } from 'lucide-react';
 import { supabase } from '@/services/supabaseClient';
+import ModernSelect from '../../common/ModernSelect';
 
 interface TeamGoalsTabProps {
     user: User;
-    testRecords: ExcelTestRecord[];
+    testRecords: ExcelTestRecord[]; // These are already filtered by Backoffice and MinimoSim in parent
+    allRecords: ExcelTestRecord[];  // To extract all available backoffices
     isMinimoSimActive?: boolean;
     onToggleMinimoSim?: () => void;
+    selectedBackoffice: string;
+    onBackofficeChange: (backoffice: string) => void;
 }
 
 interface GoalConfig {
@@ -18,7 +22,15 @@ interface GoalConfig {
     sprintEndDate?: string;
 }
 
-const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimoSimActive, onToggleMinimoSim }) => {
+const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ 
+    user, 
+    testRecords, 
+    allRecords,
+    isMinimoSimActive, 
+    onToggleMinimoSim,
+    selectedBackoffice,
+    onBackofficeChange
+}) => {
     const [goals, setGoals] = useState<GoalConfig>({ 
         dailyCount: 10, 
         weeklyCount: 50, 
@@ -31,6 +43,12 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
     
     // Derived Metrics
     const [achieved, setAchieved] = useState({ daily: 0, weekly: 0, monthly: 0 });
+
+    // Extract all unique backoffices from the complete record set
+    const backoffices = React.useMemo(() => {
+        const unique = Array.from(new Set(allRecords.map(r => r.backoffice))).filter(b => b && typeof b === 'string' && b.trim() !== '');
+        return ['Todos', ...unique.sort()];
+    }, [allRecords]);
 
     useEffect(() => {
         // Load goals from user settings if available
@@ -65,11 +83,13 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
     };
 
     useEffect(() => {
+        // IMPORTANT: testRecords are already filtered by Backoffice and MinimoSim in TestSettings.tsx
         const total = testRecords.length;
         const completed = testRecords.filter(t => t.result === 'Sucesso').length;
         
         // --- 1. Update Achieved Metrics ---
         // Mocking daily/weekly for demonstration until real timestamps exist
+        // Using a more dynamic mock based on completion
         const dailyAchieved = Math.floor(completed * 0.1); 
         const weeklyAchieved = Math.floor(completed * 0.4);
         
@@ -114,7 +134,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
                 };
             });
         }
-    }, [testRecords, goals.isAutoCalculated, isMinimoSimActive, goals.sprintEndDate]);
+    }, [testRecords, goals.isAutoCalculated, isMinimoSimActive, goals.sprintEndDate, selectedBackoffice]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -167,41 +187,60 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* Header and Editing Mode Toggle */}
-            <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                        <Target className="w-5 h-5 text-indigo-600" />
-                        Metas de Produtividade
-                    </h2>
-                    <p className="text-sm text-slate-500 mt-1">Acompanhe o ritmo do time e defina alvos de execução.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setIsEditing(!isEditing)}
-                        className="px-4 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-100"
-                    >
-                        {isEditing ? 'Cancelar Edição' : 'Ajustar Meta'}
-                    </button>
-                    <button
-                        onClick={() => setIsSprintModalOpen(true)}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all border ${
-                            goals.sprintEndDate 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100' 
-                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
-                    >
-                        <Calendar className="w-4 h-4" />
-                        {goals.sprintEndDate ? `Fim da Sprint: ${new Date(goals.sprintEndDate).toLocaleDateString()}` : 'Data Final da Sprint'}
-                    </button>
-                    {/* Minimum Toggle Inside Action Bar */}
-                    <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 shadow-sm rounded-xl">
-                        <span className="text-sm font-bold text-slate-700">Mínimo SIM</span>
-                        <button 
-                            onClick={onToggleMinimoSim}
-                            className={`w-11 h-6 rounded-full transition-colors relative shadow-inner ${isMinimoSimActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="shrink-0">
+                        <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                            <Target className="w-5 h-5 text-indigo-600" />
+                            Metas de Produtividade
+                        </h2>
+                        <p className="text-sm text-slate-500 mt-1">Acompanhe o ritmo do time e defina alvos de execução.</p>
+                    </div>
+                    
+                    <div className="flex items-center justify-start lg:justify-end gap-3 flex-1">
+                        <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className="px-4 py-2 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-100 whitespace-nowrap"
                         >
-                            <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform ${isMinimoSimActive ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                            {isEditing ? 'Cancelar Edição' : 'Ajustar Meta'}
                         </button>
+                        
+                        <button
+                            onClick={() => setIsSprintModalOpen(true)}
+                            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all border whitespace-nowrap ${
+                                goals.sprintEndDate 
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100' 
+                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                            }`}
+                        >
+                            <Calendar className="w-4 h-4" />
+                            <span className="hidden sm:inline">{goals.sprintEndDate ? `Fim: ${new Date(goals.sprintEndDate).toLocaleDateString()}` : 'Data Sprint'}</span>
+                            <span className="sm:hidden">{goals.sprintEndDate ? 'Sprint' : 'Sprint'}</span>
+                        </button>
+                        
+                        {/* Minimum Toggle */}
+                        <div className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 shadow-sm rounded-xl shrink-0">
+                            <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Mínimo SIM</span>
+                            <button 
+                                onClick={onToggleMinimoSim}
+                                className={`w-11 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${isMinimoSimActive ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 shadow-sm transition-transform ${isMinimoSimActive ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                            </button>
+                        </div>
+
+                        {/* Backoffice Filter - Modern Select */}
+                        <div className="shrink-0 flex items-center">
+                            <ModernSelect
+                                value={selectedBackoffice}
+                                onChange={onBackofficeChange}
+                                options={backoffices}
+                                variant="listing"
+                                placeholder="Backoffice"
+                                showSelectedValue={false}
+                                field="analyst" 
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -216,12 +255,14 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
                     <p className="text-xs text-indigo-800/80 leading-relaxed">
                         {goals.isAutoCalculated ? (
                             <>
-                                A {isMinimoSimActive ? 'meta Mínimo Sim' : 'meta mensal'} atual reflete o volume total de <strong>{goals.monthlyCount}</strong> testes filtrados. 
+                                A meta atual reflete o volume total de <strong>{goals.monthlyCount}</strong> testes filtrados 
+                                {selectedBackoffice !== 'Todos' && <> do backoffice <strong>{selectedBackoffice}</strong></>}
+                                {isMinimoSimActive && <> (apenas Mínimos)</>}. 
                                 Com {achieved.monthly} concluídos, restam <strong>{Math.max(0, goals.monthlyCount - achieved.monthly)}</strong>.<br/>
                                 {goals.sprintEndDate ? (
                                     <>
                                         Com o fim da sprint em <strong>{new Date(goals.sprintEndDate).toLocaleDateString()}</strong> ({getBusinessDaysLeft(goals.sprintEndDate)} dias úteis restantes), 
-                                        a produtividade necessária é de <strong>{goals.dailyCount}</strong> testes por dia.
+                                        a produtividade necessária é de <strong>{goals.dailyCount}</strong> testes por dia para este filtro.
                                     </>
                                 ) : (
                                     <>Para concluir essa carga restante, a produtividade recalculada e sugerida é de <strong>{goals.weeklyCount}</strong> testes por semana e <strong>{goals.dailyCount}</strong> testes por dia útil.</>
@@ -241,7 +282,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Daily */}
                 <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm relative overflow-hidden group">
-                    {achieved.daily >= goals.dailyCount && (
+                    {achieved.daily >= goals.dailyCount && goals.dailyCount > 0 && (
                         <div className="absolute top-0 right-0 p-4 opacity-10 flex items-center justify-center">
                             <Award className="w-24 h-24 text-emerald-500" />
                         </div>
@@ -281,7 +322,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
 
                 {/* Weekly */}
                 <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm relative overflow-hidden group">
-                    {achieved.weekly >= goals.weeklyCount && (
+                    {achieved.weekly >= goals.weeklyCount && goals.weeklyCount > 0 && (
                         <div className="absolute top-0 right-0 p-4 opacity-10 flex items-center justify-center">
                             <Award className="w-24 h-24 text-emerald-500" />
                         </div>
@@ -321,7 +362,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
 
                 {/* Monthly */}
                 <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm relative overflow-hidden group">
-                    {achieved.monthly >= goals.monthlyCount && (
+                    {achieved.monthly >= goals.monthlyCount && goals.monthlyCount > 0 && (
                         <div className="absolute top-0 right-0 p-4 opacity-10 flex items-center justify-center">
                             <Award className="w-24 h-24 text-emerald-500" />
                         </div>
@@ -332,7 +373,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
                         </div>
                         <div>
                             <h3 className="font-black text-slate-700 flex items-center gap-2">
-                                Meta Mensal
+                                Meta Total
                                 {isEditing && (
                                     <button 
                                         onClick={() => {
@@ -347,7 +388,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({ user, testRecords, isMinimo
                                     </button>
                                 )}
                             </h3>
-                            <p className="text-xs font-semibold text-slate-400">Este mês</p>
+                            <p className="text-xs font-semibold text-slate-400">Total Filtrado</p>
                         </div>
                     </div>
                     {isEditing ? (

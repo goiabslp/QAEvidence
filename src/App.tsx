@@ -946,6 +946,7 @@ const App: React.FC = () => {
         <TestSettings 
           onClose={() => setActiveModule('TESTS')} 
           user={currentUser}
+          allUsers={users}
           onUpdateSettings={async (newSettings) => {
             try {
               const { error } = await supabase

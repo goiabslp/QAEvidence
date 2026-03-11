@@ -16,6 +16,7 @@ interface ModernSelectProps {
   isMulti?: boolean;
   variant?: 'listing' | 'filter';
   onClear?: () => void;
+  showSelectedValue?: boolean;
 }
 
 const getSemanticStyle = (field: string, value: string) => {
@@ -55,7 +56,8 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
   field = '',
   isMulti = false,
   variant = 'listing',
-  onClear
+  onClear,
+  showSelectedValue = true
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [direction, setDirection] = useState<'down' | 'up'>('down');
@@ -107,9 +109,13 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
     <div className={`relative ${isListing ? 'w-fit' : ''}`} ref={dropdownRef}>
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 cursor-pointer transition-all ${
+        className={`flex items-center gap-2 cursor-pointer transition-all duration-300 ${
           isListing 
-            ? `px-2 py-0.5 w-fit rounded border shadow-sm text-xs font-semibold ${selectedValues.length > 0 ? getSemanticStyle(field, selectedValues[0]) : 'bg-slate-50 text-slate-400 border-slate-200'}`
+            ? `px-4 py-2 w-fit rounded-xl border-2 shadow-sm text-sm font-bold ${
+                selectedValues.length > 0 && showSelectedValue
+                  ? getSemanticStyle(field, selectedValues[0]) 
+                  : 'bg-white text-slate-600 border-slate-100 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/30'
+              }`
             : `w-full bg-white border-2 rounded-2xl p-2.5 min-h-[52px] ${isOpen ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-300'}`
         }`}
       >
@@ -135,9 +141,13 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
                 </span>
             ))}
           </div>
-        ) : (
+        ) : showSelectedValue ? (
           <span className="truncate flex-1">
             {normalizedOptions.find(o => o.value === selectedValues[0])?.label || selectedValues[0] || '--'}
+          </span>
+        ) : (
+          <span className="truncate flex-1 font-black underline decoration-indigo-300 decoration-2 underline-offset-4">
+            {placeholder}
           </span>
         )}
         
