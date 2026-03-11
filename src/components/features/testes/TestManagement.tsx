@@ -1,24 +1,43 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw } from 'lucide-react';
+import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw, Filter, X } from 'lucide-react';
 import { ExcelTestRecord, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER, TestColumnKey } from '../../../types';
 import { COLUMN_LABELS } from './TestSettings';
 import ConfirmEditModal from './ConfirmEditModal';
 import DailyMetricsModal from './DailyMetricsModal';
+import TestFilterModal from './TestFilterModal';
 import { User } from '../../../types';
 import { supabase } from '@/services/supabaseClient';
+import { FilterState, INITIAL_FILTER_STATE } from '../../../types';
 
 // Fields that cannot be edited per user requirements
 const NON_EDITABLE_FIELDS: TestColumnKey[] = [
+    'testId', 'bank', 'backoffice', 'module', 'analyst', 'priority', 'mobile', 'browser',
     'stepsText',
-    'bank',
-    'backoffice',
     'bcsCode',
-    'testId',
-    'module',
     'useCase',
     'estimatedTime',
     'gap'
 ];
+
+// Sorting Helpers
+const getPriorityWeight = (priority: string): number => {
+    switch (priority) {
+        case 'Alta': return 3;
+        case 'Média': return 2;
+        case 'Baixa': return 1;
+        default: return 0;
+    }
+};
+
+const getMinimumWeight = (minimum: string): number => {
+    return minimum === 'Sim' ? 2 : 1;
+};
+
+const extractTestIdNumber = (testId: string): number => {
+    if (!testId) return 0;
+    const match = testId.match(/(\d+)/);
+    return match ? parseInt(match[0], 10) : 0;
+};
 
 interface TestManagementProps {
     onOpenSettings: () => void;
@@ -67,6 +86,18 @@ const TestManagement: React.FC<TestManagementProps> = ({
     const [isSavingDirect, setIsSavingDirect] = useState(false);
     const [analysts, setAnalysts] = useState<string[]>([]);
 
+    // Batch Action State
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+    const [isUpdatingBatch, setIsUpdatingBatch] = useState(false);
+
+    // Filter State
+    const [filterState, setFilterState] = useState<FilterState>(INITIAL_FILTER_STATE);
+    const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+
+    // Pagination State
+    const [visibleCount, setVisibleCount] = useState(50);
+
     // Fetch analysts list
     useEffect(() => {
         const fetchAnalysts = async () => {
@@ -87,6 +118,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
         };
         fetchAnalysts();
     }, []);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setVisibleCount(50);
+    }, [searchTerm, filterState]);
 
     // Load tests from Supabase
     useEffect(() => {
@@ -171,6 +207,101 @@ const TestManagement: React.FC<TestManagementProps> = ({
             console.error('Error updating test result:', error);
             // Could revert UI here on fail
         }
+    };
+
+    const handleBatchResultChange = async (newResult: string) => {
+        if (!user || selectedIds.size === 0) return;
+        
+        setIsUpdatingBatch(true);
+        const acronym = user.acronym;
+        const selectedIdArray = Array.from(selectedIds);
+        
+        // Optimistic UI update
+        setTests(prev => prev.map(t => {
+            if (selectedIds.has(t.id)) {
+                const isPending = newResult === 'Pendente';
+                return { 
+                    ...t, 
+                    result: newResult, 
+                    analyst: isPending ? '' : acronym 
+                };
+            }
+            return t;
+        }));
+
+        try {
+            const updates = selectedIdArray.map(id => {
+                const isPending = newResult === 'Pendente';
+                return supabase
+                    .from('excel_test_records')
+                    .update({ 
+                        result: newResult,
+                        analyst: isPending ? '' : acronym,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', id);
+            });
+
+            await Promise.all(updates);
+            setSelectedIds(new Set());
+            setIsActionMenuOpen(false);
+        } catch (error) {
+            console.error('Error batch updating results:', error);
+            alert('Erro ao atualizar registros em lote.');
+        } finally {
+            setIsUpdatingBatch(false);
+        }
+    };
+
+    const handleBatchAnalystChange = async (newAnalyst: string) => {
+        if (!user || selectedIds.size === 0) return;
+        
+        setIsUpdatingBatch(true);
+        const selectedIdArray = Array.from(selectedIds);
+        
+        // Optimistic UI update
+        setTests(prev => prev.map(t => 
+            selectedIds.has(t.id) ? { ...t, analyst: newAnalyst } : t
+        ));
+
+        try {
+            const updates = selectedIdArray.map(id => 
+                supabase
+                    .from('excel_test_records')
+                    .update({ 
+                        analyst: newAnalyst,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', id)
+            );
+
+            await Promise.all(updates);
+            setSelectedIds(new Set());
+            setIsActionMenuOpen(false);
+        } catch (error) {
+            console.error('Error batch updating analysts:', error);
+            alert('Erro ao atualizar analistas em lote.');
+        } finally {
+            setIsUpdatingBatch(false);
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredTests.length && filteredTests.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredTests.map(t => t.id)));
+        }
+    };
+
+    const toggleSelect = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
     };
 
     const handleSelectChange = async (testId: string, field: TestColumnKey, value: string) => {
@@ -295,12 +426,64 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }
     };
 
+    const filterOptions = useMemo(() => {
+        const options = {
+            backoffice: new Set<string>(),
+            priority: new Set<string>(),
+            minimum: new Set<string>(),
+            module: new Set<string>(),
+            useCase: new Set<string>(),
+            analyst: new Set<string>(),
+            result: new Set<string>()
+        };
+
+        tests.forEach(test => {
+            if (test.backoffice) options.backoffice.add(test.backoffice);
+            if (test.priority) options.priority.add(test.priority);
+            if (test.minimum) options.minimum.add(test.minimum);
+            if (test.module) options.module.add(test.module);
+            if (test.useCase) options.useCase.add(test.useCase);
+            if (test.analyst) options.analyst.add(test.analyst);
+            if (test.result) options.result.add(test.result);
+        });
+
+        return {
+            backoffice: Array.from(options.backoffice).sort(),
+            priority: Array.from(options.priority).sort(),
+            minimum: Array.from(options.minimum).sort(),
+            module: Array.from(options.module).sort(),
+            useCase: Array.from(options.useCase).sort(),
+            analyst: Array.from(options.analyst).sort(),
+            result: Array.from(options.result).sort()
+        };
+    }, [tests]);
+
+    const activeFilterCount = useMemo(() => {
+        return (Object.keys(filterState) as Array<keyof FilterState>).reduce((acc, key) => acc + filterState[key].length, 0);
+    }, [filterState]);
+
+    const toggleFilter = (field: keyof FilterState, value: string) => {
+        setFilterState(prev => {
+            const current = [...prev[field]];
+            const index = current.indexOf(value);
+            if (index > -1) {
+                current.splice(index, 1);
+            } else {
+                current.push(value);
+            }
+            return { ...prev, [field]: current };
+        });
+    };
+
+    const clearFilters = () => {
+        setFilterState(INITIAL_FILTER_STATE);
+    };
+
     const filteredTests = useMemo(() => {
-        if (!searchTerm.trim()) return tests;
-        return tests.filter(test => {
+        let result = tests.filter(test => {
+            // Search filter
             const searchLower = searchTerm.toLowerCase();
             const searchableFields = [
-                test.tagId,
                 test.testId,
                 test.module,
                 test.useCase,
@@ -308,11 +491,60 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 test.analyst,
                 test.result
             ];
-            return searchableFields.some(field => 
+            const matchesSearch = !searchTerm.trim() || searchableFields.some(field => 
                 String(field || '').toLowerCase().includes(searchLower)
             );
+
+            if (!matchesSearch) return false;
+
+            // Advanced filters
+            const matchesBackoffice = filterState.backoffice.length === 0 || filterState.backoffice.includes(test.backoffice || '');
+            const matchesPriority = filterState.priority.length === 0 || filterState.priority.includes(test.priority || '');
+            const matchesMinimum = filterState.minimum.length === 0 || filterState.minimum.includes(test.minimum || '');
+            const matchesModule = filterState.module.length === 0 || filterState.module.includes(test.module || '');
+            const matchesUseCase = filterState.useCase.length === 0 || filterState.useCase.includes(test.useCase || '');
+            const matchesAnalyst = filterState.analyst.length === 0 || filterState.analyst.includes(test.analyst || '');
+            const matchesResult = filterState.result.length === 0 || filterState.result.includes(test.result || '');
+
+            return matchesBackoffice && matchesPriority && matchesMinimum && 
+                   matchesModule && matchesUseCase && matchesAnalyst && matchesResult;
         });
-    }, [tests, searchTerm]);
+
+        // Apply Default Sorting
+        // 1. Use Case (A-Z)
+        // 2. Module (A-Z)
+        // 3. Minimum (Sim > Não)
+        // 4. Priority (Alta > Média > Baixa)
+        // 5. TAG ID (Numeric extraction)
+        return result.sort((a, b) => {
+            // Use Case
+            const useCaseSort = (a.useCase || '').localeCompare(b.useCase || '');
+            if (useCaseSort !== 0) return useCaseSort;
+
+            // Module
+            const moduleSort = (a.module || '').localeCompare(b.module || '');
+            if (moduleSort !== 0) return moduleSort;
+
+            // Minimum (Sim > Não)
+            const minA = getMinimumWeight(a.minimum || '');
+            const minB = getMinimumWeight(b.minimum || '');
+            if (minA !== minB) return minB - minA;
+
+            // Priority (Alta > Média > Baixa)
+            const pA = getPriorityWeight(a.priority || '');
+            const pB = getPriorityWeight(b.priority || '');
+            if (pA !== pB) return pB - pA;
+
+            // TAG ID (QA-XXXXX)
+            const idA = extractTestIdNumber(a.testId || '');
+            const idB = extractTestIdNumber(b.testId || '');
+            return idA - idB;
+        });
+    }, [tests, searchTerm, filterState]);
+
+    const visibleTests = useMemo(() => {
+        return filteredTests.slice(0, visibleCount);
+    }, [filteredTests, visibleCount]);
 
     const toggleExpand = (id: string) => {
         setExpandedId(prev => prev === id ? null : id);
@@ -422,7 +654,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 Gestão de Testes
                             </h2>
                             <p className="text-sm text-slate-500">
-                                {filteredTests.length > 0 ? `${filteredTests.length} casos de teste ${searchTerm ? 'encontrados' : 'carregados'}.` : 'Nenhum teste encontrado.'}
+                                {filteredTests.length > 0 
+                                    ? `Exibindo ${visibleTests.length} de ${filteredTests.length} casos de teste.` 
+                                    : 'Nenhum teste encontrado.'
+                                }
                             </p>
                         </div>
                     </div>
@@ -455,6 +690,88 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             <Settings className="w-4 h-4" />
                             Configurações
                         </button>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                                disabled={selectedIds.size === 0 || isUpdatingBatch}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-lg transition-all shadow-sm ${
+                                    selectedIds.size > 0 
+                                        ? 'bg-amber-500 hover:bg-amber-600' 
+                                        : 'bg-slate-300 cursor-not-allowed'
+                                }`}
+                            >
+                                {isUpdatingBatch ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${isActionMenuOpen ? 'rotate-180' : ''}`} />
+                                )}
+                                Ação
+                                {selectedIds.size > 0 && (
+                                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded text-[10px]">
+                                        {selectedIds.size}
+                                    </span>
+                                )}
+                            </button>
+
+                            {isActionMenuOpen && (
+                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="px-4 py-2 border-b border-slate-50 mb-1">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alterar Resultado</p>
+                                    </div>
+                                    {['Pendente', 'Em Andamento', 'Sucesso', 'Erro', 'Impedimento'].map(res => (
+                                        <button
+                                            key={res}
+                                            onClick={() => handleBatchResultChange(res)}
+                                            className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2"
+                                        >
+                                            <div className={`w-2 h-2 rounded-full ${
+                                                res === 'Sucesso' ? 'bg-emerald-500' :
+                                                res === 'Erro' ? 'bg-red-500' :
+                                                res === 'Em Andamento' ? 'bg-blue-500' :
+                                                res === 'Impedimento' ? 'bg-purple-500' :
+                                                'bg-slate-300'
+                                            }`} />
+                                            {res}
+                                        </button>
+                                    ))}
+
+                                    <div className="px-4 py-2 border-b border-slate-50 my-1 mt-2">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transferir Analista</p>
+                                    </div>
+                                    <div className="max-h-48 overflow-y-auto">
+                                        {analysts.map(acronym => (
+                                            <button
+                                                key={acronym}
+                                                onClick={() => handleBatchAnalystChange(acronym)}
+                                                className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                            >
+                                                {acronym}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsFilterPanelOpen(true)}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all shadow-sm ${
+                                    activeFilterCount > 0 
+                                        ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700' 
+                                        : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                                }`}
+                            >
+                                <Filter className={`w-4 h-4 ${activeFilterCount > 0 ? 'text-white' : 'text-slate-500'}`} />
+                                Filtro
+                                {activeFilterCount > 0 && (
+                                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded text-[10px]">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -485,10 +802,47 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
                 {/* Lista de Testes */}
                 {filteredTests.length > 0 && (
-                    <div className="space-y-3">
-                        {filteredTests.map((test) => {
+                    <>
+                        <div className="space-y-3">
+                        {/* Batch Selection Header */}
+                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 mb-4 sticky top-0 z-10">
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={toggleSelectAll}
+                                    className="flex items-center gap-2 group"
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
+                                        selectedIds.size === filteredTests.length && filteredTests.length > 0
+                                            ? 'bg-indigo-600 border-indigo-600 text-white' 
+                                            : 'bg-white border-slate-300 group-hover:border-indigo-400'
+                                    }`}>
+                                        {selectedIds.size === filteredTests.length && filteredTests.length > 0 && (
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                        )}
+                                        {selectedIds.size > 0 && selectedIds.size < filteredTests.length && (
+                                            <div className="w-2 h-0.5 bg-indigo-500 rounded-full" />
+                                        )}
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                        {selectedIds.size === filteredTests.length && filteredTests.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                                    </span>
+                                </button>
+                                {selectedIds.size > 0 && (
+                                    <div className="h-4 w-px bg-slate-200 mx-1" />
+                                )}
+                                {selectedIds.size > 0 && (
+                                    <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                                        {selectedIds.size} SELECIONADOS
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                                {filteredTests.length} total
+                            </p>
+                        </div>
+                        {visibleTests.map((test) => {
                             const isExpanded = expandedId === test.id;
-                            
+
                             // Determine active header fields to adjust grid columns
                             const headerFields = (testColumnSettings.order || DEFAULT_COLUMN_ORDER).filter((key) => {
                                 if (['objective', 'prerequisite', 'stepsText', 'description', 'acceptanceCriteria', 'observation'].includes(key)) {
@@ -496,7 +850,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 }
                                 return testColumnSettings[key];
                             });
-                            
+
                             // Map number of fields to a tailwind grid class
                             let gridColsClass = 'lg:grid-cols-6';
                             if (headerFields.length <= 2) gridColsClass = 'lg:grid-cols-2';
@@ -514,18 +868,32 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             return (
                                 <div key={test.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow transition-shadow">
                                     {/* Cabeçalho do Card */}
-                                    <div 
+                                    <div
                                         className="p-4 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
                                         onClick={() => toggleExpand(test.id)}
                                     >
-                                        <div className="flex flex-col gap-1 min-w-[120px]">
-                                            <div className="flex items-center gap-2">
-                                                <Target className="w-3.5 h-3.5 text-indigo-500" />
-                                                <span className="text-xs font-black text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                                                    {test.tagId}
-                                                </span>
+                                        <div className="flex items-center gap-4">
+                                            {/* Checkbox Individual */}
+                                            <div
+                                                onClick={(e) => toggleSelect(test.id, e)}
+                                                className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                                                    selectedIds.has(test.id)
+                                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                                        : 'bg-white border-slate-200 hover:border-indigo-300'
+                                                }`}
+                                            >
+                                                {selectedIds.has(test.id) && <CheckCircle2 className="w-3.5 h-3.5" />}
                                             </div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter ml-5">TAG ID</span>
+
+                                            <div className="flex flex-col gap-1 min-w-[120px]">
+                                                <div className="flex items-center gap-2">
+                                                    <Target className="w-3.5 h-3.5 text-indigo-500" />
+                                                    <span className="text-xs font-black text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                        {test.tagId}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter ml-5">TAG ID</span>
+                                            </div>
                                         </div>
 
                                         <div className={`flex-1 grid grid-cols-2 ${gridColsClass} gap-4 items-center`}>
@@ -564,7 +932,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                                         let colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200'; // Normal/Média
                                                         if (cleanVal.toLowerCase().includes('alta')) colorClass = 'bg-red-50 text-red-700 border-red-200';
                                                         if (cleanVal.toLowerCase().includes('baixa')) colorClass = 'bg-blue-50 text-blue-700 border-blue-200';
-                                                        
+
                                                         return (
                                                             <select
                                                                 onClick={e => e.stopPropagation()}
@@ -585,10 +953,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                                     if (!testColumnSettings.minimum) return null;
                                                     return renderField('minimum', test, (val) => {
                                                         const isSim = val === 'Sim';
-                                                        const colorClass = isSim 
-                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                                        const colorClass = isSim
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                             : 'bg-orange-50 text-orange-700 border-orange-200';
-                                                        
+
                                                         return (
                                                             <select
                                                                 onClick={e => e.stopPropagation()}
@@ -632,7 +1000,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                                 return renderField(columnKey, test);
                                             })}
                                         </div>
-                                        
+
                                         <div className="flex items-center justify-center p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 shrink-0">
                                             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                         </div>
@@ -645,7 +1013,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                             <div className="space-y-6">
                                                 {renderComplexEditableField(test, 'objective', <ShieldAlert />, 'text-indigo-500')}
                                                 {renderComplexEditableField(test, 'prerequisite', <AlertCircle />, 'text-amber-500')}
-                                                
+
                                                 {testColumnSettings.stepsText && (
                                                     <div>
                                                         <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
@@ -686,10 +1054,27 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             );
                         })}
                     </div>
+
+                    {/* Load More Button */}
+                        {visibleCount < filteredTests.length && (
+                            <div className="mt-8 flex justify-center">
+                                <button
+                                    onClick={() => setVisibleCount(prev => prev + 50)}
+                                    className="group flex items-center gap-3 px-8 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-600 font-bold hover:border-indigo-500 hover:text-indigo-600 hover:shadow-lg transition-all active:scale-95"
+                                >
+                                    <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                                    Carregar mais itens
+                                    <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-400 text-[10px] rounded-full transition-colors">
+                                        {filteredTests.length - visibleCount} restantes
+                                    </span>
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
-            
-            <DailyMetricsModal 
+
+            <DailyMetricsModal
                 isOpen={isMetricsModalOpen}
                 onClose={() => setIsMetricsModalOpen(false)}
                 user={user}
@@ -703,6 +1088,18 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 oldValue={editState.oldValue}
                 newValue={editState.newValue}
                 isSaving={editState.isSaving}
+            />
+
+            <TestFilterModal 
+                isOpen={isFilterPanelOpen}
+                onClose={() => setIsFilterPanelOpen(false)}
+                onApply={(filters) => {
+                    setFilterState(filters);
+                    setIsFilterPanelOpen(false);
+                }}
+                onClear={clearFilters}
+                filterOptions={filterOptions}
+                initialFilters={filterState}
             />
         </div>
     );

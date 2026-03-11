@@ -323,7 +323,7 @@ const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, 
                                         </div>
                                         <div className="relative z-10 flex items-center gap-2">
                                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm animate-pulse"></div>
-                                            <span className="text-xs font-black text-blue-800 uppercase tracking-widest">Ativo</span>
+                                            <span className="text-xs font-black text-blue-800 uppercase tracking-widest">Em andamento</span>
                                         </div>
                                         <div className="relative z-10 mt-2">
                                             <span className="text-4xl font-black text-blue-700 tracking-tighter sm:text-5xl">

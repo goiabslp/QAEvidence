@@ -219,3 +219,22 @@ export interface ExcelTestRecord {
   observation: string; // U -> Observação
   gap: string; // V -> GAP
 }
+export interface FilterState {
+  backoffice: string[];
+  priority: string[];
+  minimum: string[];
+  module: string[];
+  useCase: string[];
+  analyst: string[];
+  result: string[];
+}
+
+export const INITIAL_FILTER_STATE: FilterState = {
+  backoffice: [],
+  priority: [],
+  minimum: [],
+  module: [],
+  useCase: [],
+  analyst: [],
+  result: []
+};
