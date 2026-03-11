@@ -284,6 +284,9 @@ const App: React.FC = () => {
               acronym,
               full_name,
               test_column_settings,
+              daily_goal,
+              is_daily_goal_auto,
+              last_active_date,
               user_roles (
                 role_name
               )
@@ -292,6 +295,26 @@ const App: React.FC = () => {
             .single();
 
           if (profile) {
+            // Evaluates if it is a new day and handles Daily Goals
+            const todayDateString = getBrazilDateString().split(' ')[0]; // Gets YYYY-MM-DD
+            let updatedDailyGoal = profile.daily_goal;
+            const isAuto = profile.is_daily_goal_auto;
+            let needsUpdate = false;
+
+            if (profile.last_active_date !== todayDateString) {
+                needsUpdate = true;
+                // It is a new day. Check rule.
+                if (!isAuto) {
+                    updatedDailyGoal = 0; // Reset if not automatic
+                }
+                
+                // Update Supabase to acknowledge the new day
+                await supabase.from('profiles').update({
+                    last_active_date: todayDateString,
+                    daily_goal: updatedDailyGoal
+                }).eq('id', session.user.id);
+            }
+
             // Check if profile.user_roles is an array (to safeguard against missing types)
             let roleName = 'USER';
             if (Array.isArray(profile.user_roles) && profile.user_roles.length > 0) {
@@ -307,7 +330,10 @@ const App: React.FC = () => {
               role: mapRoleFromDb(roleName),
               isActive: true, // Assuming active by default in this implementation
               showEasterEgg: true,
-              testColumnSettings: profile.test_column_settings
+              testColumnSettings: profile.test_column_settings,
+              dailyGoal: updatedDailyGoal,
+              isDailyGoalAuto: isAuto,
+              lastActiveDate: todayDateString
             });
           }
         }

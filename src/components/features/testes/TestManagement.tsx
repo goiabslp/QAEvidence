@@ -8,6 +8,7 @@ import TestFilterModal from './TestFilterModal';
 import { User } from '../../../types';
 import { supabase } from '@/services/supabaseClient';
 import { FilterState, INITIAL_FILTER_STATE } from '../../../types';
+import ModernSelect from '../../common/ModernSelect';
 
 // Fields that cannot be edited per user requirements
 const NON_EDITABLE_FIELDS: TestColumnKey[] = [
@@ -84,7 +85,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
         value: ''
     });
     const [isSavingDirect, setIsSavingDirect] = useState(false);
-    const [analysts, setAnalysts] = useState<string[]>([]);
+    const [analysts, setAnalysts] = useState<{acronym: string, name: string}[]>([]);
 
     // Batch Action State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -104,13 +105,13 @@ const TestManagement: React.FC<TestManagementProps> = ({
             try {
                 const { data, error } = await supabase
                     .from('profiles')
-                    .select('acronym')
+                    .select('acronym, full_name')
                     .eq('is_active', true)
                     .order('acronym');
                 
                 if (error) throw error;
                 if (data) {
-                    setAnalysts(data.map(p => p.acronym).filter(a => a && a !== 'ADM'));
+                    setAnalysts(data.map(p => ({ acronym: p.acronym, name: p.full_name })).filter(a => a.acronym && a.acronym !== 'ADM'));
                 }
             } catch (err) {
                 console.error('Error fetching analysts:', err);
@@ -132,11 +133,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 const { data, error } = await supabase
                     .from('excel_test_records')
                     .select('*')
-                    .eq('created_by', user.id)
+                    .or(`analyst.is.null,analyst.eq.,analyst.eq.${user.acronym}`)
                     .order('module', { ascending: true })
                     .order('use_case', { ascending: true })
                     .order('priority', { ascending: true })
                     .order('tag_id', { ascending: true });
+
 
                 if (error) throw error;
                 
@@ -177,6 +179,78 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
         fetchTests();
     }, [user, isMetricsModalOpen]); // Reload if modal closes in case there were updates
+
+    // Realtime Subscription
+    useEffect(() => {
+        if (!user) return;
+
+        const channel = supabase.channel('excel_test_records_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'excel_test_records'
+                },
+                (payload) => {
+                    const updatedRecord = payload.new;
+                    
+                    setTests(currentTests => {
+                        const isUnassigned = !updatedRecord.analyst || updatedRecord.analyst.trim() === '';
+                        const isAssignedToMe = updatedRecord.analyst === user.acronym;
+                        const shouldBeVisible = isUnassigned || isAssignedToMe;
+                        
+                        const exists = currentTests.some(t => t.id === updatedRecord.id);
+
+                        if (shouldBeVisible) {
+                            const mappedTest = {
+                                id: updatedRecord.id,
+                                stepsText: updatedRecord.steps_text,
+                                browser: updatedRecord.browser,
+                                bank: updatedRecord.bank,
+                                backoffice: updatedRecord.backoffice,
+                                mobile: updatedRecord.mobile,
+                                analyst: updatedRecord.analyst,
+                                automated: updatedRecord.automated,
+                                bcsCode: updatedRecord.bcs_code,
+                                useCase: updatedRecord.use_case,
+                                minimum: updatedRecord.minimum,
+                                priority: updatedRecord.priority,
+                                testId: updatedRecord.test_id,
+                                module: updatedRecord.module,
+                                objective: updatedRecord.objective,
+                                estimatedTime: updatedRecord.estimated_time,
+                                prerequisite: updatedRecord.prerequisite,
+                                description: updatedRecord.description,
+                                acceptanceCriteria: updatedRecord.acceptance_criteria,
+                                result: updatedRecord.result,
+                                errorStatus: updatedRecord.error_status,
+                                observation: updatedRecord.observation,
+                                gap: updatedRecord.gap,
+                                tagId: updatedRecord.tag_id
+                            };
+
+                            if (exists) {
+                                return currentTests.map(t => t.id === mappedTest.id ? mappedTest : t);
+                            } else {
+                                return [...currentTests, mappedTest];
+                            }
+                        } else {
+                            if (exists) {
+                                return currentTests.filter(t => t.id !== updatedRecord.id);
+                            }
+                        }
+                        
+                        return currentTests;
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user]);
 
     const handleResultChange = async (testId: string, newResult: string) => {
         if (!user) return;
@@ -586,7 +660,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     )}
                 </div>
                 {renderCustom ? renderCustom(displayValue) : (
-                    <span className={`text-sm tracking-tight truncate ${isEditable ? 'text-slate-800' : 'text-slate-500'}`} title={displayValue}>
+                    <span className={`text-sm tracking-tight ${['module', 'useCase'].includes(key) ? 'break-words whitespace-normal' : 'truncate'} ${isEditable ? 'text-slate-800' : 'text-slate-500'}`} title={displayValue}>
                         {displayValue}
                     </span>
                 )}
@@ -742,13 +816,14 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transferir Analista</p>
                                     </div>
                                     <div className="max-h-48 overflow-y-auto">
-                                        {analysts.map(acronym => (
+                                        {analysts.map(a => (
                                             <button
-                                                key={acronym}
-                                                onClick={() => handleBatchAnalystChange(acronym)}
+                                                key={a.acronym}
+                                                onClick={() => handleBatchAnalystChange(a.acronym)}
                                                 className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                                title={a.name}
                                             >
-                                                {acronym}
+                                                {a.acronym} - {a.name}
                                             </button>
                                         ))}
                                     </div>
@@ -807,7 +882,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     <>
                         <div className="space-y-3">
                         {/* Batch Selection Header */}
-                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 mb-4 sticky top-0 z-10">
+                        <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 mb-4 sticky top-12 z-40 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={toggleSelectAll}
@@ -868,7 +943,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             else if (headerFields.length >= 12) gridColsClass = 'lg:grid-cols-12';
 
                             return (
-                                <div key={test.id} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow transition-shadow">
+                                <div key={test.id} className="border border-slate-200 rounded-xl overflow-visible bg-white shadow-sm hover:shadow transition-shadow relative z-0 hover:z-30 focus-within:z-30">
                                     {/* Cabeçalho do Card */}
                                     <div
                                         className="p-4 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -908,93 +983,158 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
                                                 const columnKey = key as TestColumnKey;
 
+                                                // Custom render for Module
+                                                if (columnKey === 'module') {
+                                                    if (!testColumnSettings.module) return null;
+                                                    return renderField('module', test, (val) => {
+                                                        const fullText = val || '--';
+                                                        let shortText = fullText;
+                                                        
+                                                        // Abbreviations logic: take up to ' - ' or first word
+                                                        if (fullText.includes(' - ')) {
+                                                            shortText = fullText.split(' - ')[0].trim();
+                                                        } else if (fullText.includes('-')) {
+                                                            shortText = fullText.split('-')[0].trim();
+                                                        }
+                                                        
+                                                        const isAbridged = shortText !== fullText;
+
+                                                        return (
+                                                         <div className="relative group/tooltip flex items-center min-w-0">
+                                                            <span className={`text-sm tracking-tight truncate whitespace-nowrap text-slate-800 ${isAbridged ? 'cursor-help border-b border-dashed border-slate-300' : ''}`} title={!isAbridged ? fullText : undefined}>
+                                                                {shortText}
+                                                            </span>
+                                                            {/* Tooltip */}
+                                                            {fullText && fullText !== '--' && (
+                                                                <div className="pointer-events-none absolute bottom-full left-0 mb-2 w-max opacity-0 group-hover/tooltip:opacity-100 transition-all duration-300 ease-out translate-y-1 group-hover/tooltip:translate-y-0 z-[120] px-3.5 py-2 bg-[#1e2330] text-slate-50 text-[11px] uppercase tracking-wide font-bold rounded shadow-xl ring-1 ring-black/5 whitespace-nowrap">
+                                                                    {fullText}
+                                                                    <div className="absolute top-full left-6 -translate-x-1/2 border-[5px] border-transparent border-t-[#1e2330]" />
+                                                                </div>
+                                                            )}
+                                                         </div>
+                                                        );
+                                                    });
+                                                }
+
+                                                // Custom render for Use Case
+                                                if (columnKey === 'useCase') {
+                                                    if (!testColumnSettings.useCase) return null;
+                                                    return renderField('useCase', test, (val) => {
+                                                        const fullText = val || '--';
+                                                        let shortText = fullText;
+                                                        
+                                                        // Abbreviations logic: take up to ' - ' or first word
+                                                        if (fullText.includes(' - ')) {
+                                                            shortText = fullText.split(' - ')[0].trim();
+                                                        } else if (fullText.includes('-')) {
+                                                            shortText = fullText.split('-')[0].trim();
+                                                        }
+                                                        
+                                                        const isAbridged = shortText !== fullText;
+
+                                                        return (
+                                                         <div className="relative group/tooltip flex items-center min-w-0">
+                                                            <span className={`text-sm font-bold tracking-tight truncate whitespace-nowrap text-slate-900 ${isAbridged ? 'cursor-help border-b border-dashed border-slate-300' : ''}`} title={!isAbridged ? fullText : undefined}>
+                                                                {shortText}
+                                                            </span>
+                                                            {/* Tooltip */}
+                                                            {fullText && fullText !== '--' && (
+                                                                <div className="pointer-events-none absolute bottom-full left-0 mb-2 w-max opacity-0 group-hover/tooltip:opacity-100 transition-all duration-300 ease-out translate-y-1 group-hover/tooltip:translate-y-0 z-[120] px-3.5 py-2 bg-[#1e2330] text-slate-50 text-[11px] uppercase tracking-wide font-bold rounded shadow-xl ring-1 ring-black/5 whitespace-nowrap">
+                                                                    {fullText}
+                                                                    <div className="absolute top-full left-6 -translate-x-1/2 border-[5px] border-transparent border-t-[#1e2330]" />
+                                                                </div>
+                                                            )}
+                                                         </div>
+                                                        );
+                                                    });
+                                                }
+
+                                                // Custom render for Backoffice (TAGs)
+                                                if (columnKey === 'backoffice') {
+                                                    if (!testColumnSettings.backoffice) return null;
+                                                    return renderField('backoffice', test, (val) => {
+                                                        const cleanVal = (val || '').trim();
+                                                        let tagColorClass = 'bg-slate-100 text-slate-600 border-slate-200'; // Default
+                                                        
+                                                        if (cleanVal === 'SISJURI v11') {
+                                                            tagColorClass = 'bg-amber-100 text-amber-700 border-amber-200';
+                                                        } else if (cleanVal === 'SISJURI v12') {
+                                                            tagColorClass = 'bg-purple-100 text-purple-700 border-purple-200';
+                                                        }
+
+                                                        return (
+                                                            <div className="flex">
+                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${tagColorClass} uppercase tracking-tighter`}>
+                                                                    {cleanVal || '--'}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    });
+                                                }
+
                                                 // Custom render for Analyst
                                                 if (columnKey === 'analyst') {
                                                     if (!testColumnSettings.analyst) return null;
-                                                    return renderField('analyst', test, (val) => (
-                                                        <select
-                                                            onClick={e => e.stopPropagation()}
-                                                            value={val || ''}
-                                                            onChange={(e) => handleSelectChange(test.id, 'analyst', e.target.value)}
-                                                            className="block w-full text-xs font-semibold rounded border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 bg-slate-50 text-slate-700"
-                                                        >
-                                                            <option value="">--</option>
-                                                            {analysts.map(acronym => (
-                                                                <option key={acronym} value={acronym}>{acronym}</option>
-                                                            ))}
-                                                        </select>
-                                                    ));
+                                                    return renderField('analyst', test, (val) => {
+                                                        const analystObj = analysts.find(a => a.acronym === val);
+                                                        const tooltipName = analystObj ? analystObj.name : val;
+                                                        return (
+                                                         <div className="relative group/tooltip flex items-center w-fit">
+                                                            <ModernSelect
+                                                                value={val || ''}
+                                                                field="analyst"
+                                                                placeholder="--"
+                                                                options={analysts.map(a => a.acronym)}
+                                                                onChange={(newVal) => handleSelectChange(test.id, 'analyst', newVal)}
+                                                            />
+                                                            {/* Tooltip */}
+                                                            {val && val.trim() !== '' && (
+                                                                <div className="pointer-events-none absolute bottom-full left-0 mb-2 w-max opacity-0 group-hover/tooltip:opacity-100 transition-all duration-300 ease-out translate-y-1 group-hover/tooltip:translate-y-0 z-[120] px-3.5 py-2 bg-[#1e2330] text-slate-50 text-[11px] uppercase tracking-wide font-bold rounded shadow-xl ring-1 ring-black/5 whitespace-nowrap">
+                                                                    {tooltipName}
+                                                                    <div className="absolute top-full left-6 -translate-x-1/2 border-[5px] border-transparent border-t-[#1e2330]" />
+                                                                </div>
+                                                            )}
+                                                         </div>
+                                                        );
+                                                    });
                                                 }
 
                                                 // Custom render for Priority
                                                 if (columnKey === 'priority') {
                                                     if (!testColumnSettings.priority) return null;
-                                                    return renderField('priority', test, (val) => {
-                                                        const cleanVal = (val || 'Média').trim();
-                                                        let colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200'; // Normal/Média
-                                                        if (cleanVal.toLowerCase().includes('alta')) colorClass = 'bg-red-50 text-red-700 border-red-200';
-                                                        if (cleanVal.toLowerCase().includes('baixa')) colorClass = 'bg-blue-50 text-blue-700 border-blue-200';
-
-                                                        return (
-                                                            <select
-                                                                onClick={e => e.stopPropagation()}
-                                                                value={val || 'Média'}
-                                                                onChange={(e) => handleSelectChange(test.id, 'priority', e.target.value)}
-                                                                className={`block w-full text-xs font-bold rounded border shadow-sm focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 ${colorClass}`}
-                                                            >
-                                                                <option value="Alta">Alta</option>
-                                                                <option value="Média">Média</option>
-                                                                <option value="Baixa">Baixa</option>
-                                                            </select>
-                                                        );
-                                                    });
+                                                    return renderField('priority', test, (val) => (
+                                                        <ModernSelect
+                                                            value={val || 'Média'}
+                                                            field="priority"
+                                                            options={['Alta', 'Média', 'Baixa']}
+                                                            onChange={(newVal) => handleSelectChange(test.id, 'priority', newVal)}
+                                                        />
+                                                    ));
                                                 }
 
                                                 // Custom render for Minimum (Sim/Não)
                                                 if (columnKey === 'minimum') {
                                                     if (!testColumnSettings.minimum) return null;
-                                                    return renderField('minimum', test, (val) => {
-                                                        const isSim = val === 'Sim';
-                                                        const colorClass = isSim
-                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                            : 'bg-orange-50 text-orange-700 border-orange-200';
-
-                                                        return (
-                                                            <select
-                                                                onClick={e => e.stopPropagation()}
-                                                                value={val || 'Não'}
-                                                                onChange={(e) => handleSelectChange(test.id, 'minimum', e.target.value)}
-                                                                className={`block w-full text-xs font-black rounded border shadow-sm focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 ${colorClass}`}
-                                                            >
-                                                                <option value="Sim">Sim</option>
-                                                                <option value="Não">Não</option>
-                                                            </select>
-                                                        );
-                                                    });
+                                                    return renderField('minimum', test, (val) => (
+                                                        <ModernSelect
+                                                            value={val || 'Não'}
+                                                            field="minimum"
+                                                            options={['Sim', 'Não']}
+                                                            onChange={(newVal) => handleSelectChange(test.id, 'minimum', newVal)}
+                                                        />
+                                                    ));
                                                 }
 
                                                 // Custom render for Result Dropdown
                                                 if (columnKey === 'result') {
-                                                    if (!testColumnSettings.result) return null; // Respect visibility setting
+                                                    if (!testColumnSettings.result) return null;
                                                     return renderField('result', test, (val) => (
-                                                        <select
-                                                            onClick={e => e.stopPropagation()}
+                                                        <ModernSelect
                                                             value={val || 'Pendente'}
-                                                            onChange={(e) => handleResultChange(test.id, e.target.value)}
-                                                            className={`block w-full text-xs font-semibold rounded border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-0.5 pl-2 pr-6 appearance-none cursor-pointer transition-colors m-0 ${
-                                                                val === 'Sucesso' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                                val === 'Erro' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                                val === 'Em Andamento' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                                val === 'Impedimento' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                                'bg-slate-50 text-slate-600 border-slate-200'
-                                                            }`}
-                                                        >
-                                                            <option value="Pendente">Pendente</option>
-                                                            <option value="Em Andamento">Em Andamento</option>
-                                                            <option value="Sucesso">Sucesso</option>
-                                                            <option value="Erro">Erro</option>
-                                                            <option value="Impedimento">Impedimento</option>
-                                                        </select>
+                                                            field="result"
+                                                            options={['Pendente', 'Em Andamento', 'Sucesso', 'Erro', 'Impedimento']}
+                                                            onChange={(newVal) => handleResultChange(test.id, newVal)}
+                                                        />
                                                     ));
                                                 }
 

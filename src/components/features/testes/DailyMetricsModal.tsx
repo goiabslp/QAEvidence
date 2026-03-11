@@ -98,7 +98,8 @@ const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, 
                 .from('profiles')
                 .update({ 
                     daily_goal: dailyGoal,
-                    is_daily_goal_auto: isDailyGoalAuto
+                    is_daily_goal_auto: isDailyGoalAuto,
+                    last_active_date: new Date().toLocaleDateString('en-CA') // Force today as string YYYY-MM-DD
                 })
                 .eq('id', user.id);
 
@@ -108,8 +109,8 @@ const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, 
             setGoalSaveSuccess(true);
             setTimeout(() => setGoalSaveSuccess(false), 2000);
             
-            // Optionally update the user object if it was passed with a setter, 
-            // but since it's just a prop, updating DB is enough for next reload.
+            // We just let the parent handle the session update next time, or it updates via DB.
+            // Since we updated DB, this works fine for next login. 
         } catch (error: any) {
             console.error("Erro ao salvar meta:", error);
             alert("Erro ao salvar a meta diária.");

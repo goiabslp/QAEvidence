@@ -50,6 +50,7 @@ export interface User {
   testColumnSettings?: TestColumnSettings; // Configurações de coluna de teste
   dailyGoal?: number; // Meta diária de testes
   isDailyGoalAuto?: boolean; // Se a meta diária se aplica automaticamente
+  lastActiveDate?: string; // Data do último login/uso do sistema
 }
 
 export interface TicketInfo {
