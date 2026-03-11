@@ -15,6 +15,7 @@ import BugReportForm from './components/features/bugs/BugReportForm';
 import EasterEggBug from './components/features/bugs/EasterEggBug';
 import TestManagement from './components/features/testes/TestManagement';
 import MenuTutorial from './components/common/MenuTutorial';
+import Home from './components/features/home/Home';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, UserRole, TicketPriority, BugReport, TicketStatus } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
@@ -51,7 +52,7 @@ const App: React.FC = () => {
   const [adminTab, setAdminTab] = useState<'users' | 'evidences' | 'dashboard'>('users');
 
   // --- MODULE STATE ---
-  const [activeModule, setActiveModule] = useState<'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS' | 'TEST_SETTINGS'>('TICKET');
+  const [activeModule, setActiveModule] = useState<'HOME' | 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS' | 'TEST_SETTINGS'>('HOME');
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -969,6 +970,15 @@ const App: React.FC = () => {
       );
     }
 
+    if (activeModule === 'HOME') {
+      return (
+        <Home 
+          user={currentUser} 
+          onNavigate={(module) => setActiveModule(module)} 
+        />
+      );
+    }
+
     if (activeModule === 'EVIDENCES') {
       return (
         <UserEvidenceList
@@ -1114,7 +1124,7 @@ const App: React.FC = () => {
         enabled={currentUser?.showEasterEgg !== false}
       />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 pb-12">
+      <main className={`flex-grow w-full mx-auto ${activeModule === 'HOME' ? 'max-w-7xl px-4 sm:px-6 lg:px-8 py-0' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-10 pb-12'}`}>
         {currentUser && (
           <div className="mb-8 flex justify-between items-center hidden">
             {/* The inline module tabs were removed. Navigation happens in the Header Menu. */}

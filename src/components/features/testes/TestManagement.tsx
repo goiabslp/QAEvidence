@@ -5,6 +5,7 @@ import { COLUMN_LABELS } from './TestSettings';
 import ConfirmEditModal from './ConfirmEditModal';
 import DailyMetricsModal from './DailyMetricsModal';
 import TestFilterModal from './TestFilterModal';
+import ManualTestModal from './ManualTestModal';
 import { User } from '../../../types';
 import { supabase } from '@/services/supabaseClient';
 import { FilterState, INITIAL_FILTER_STATE } from '../../../types';
@@ -98,6 +99,51 @@ const TestManagement: React.FC<TestManagementProps> = ({
         return INITIAL_FILTER_STATE;
     });
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+
+    const handleCreateTest = async (testData: Partial<ExcelTestRecord>) => {
+        if (!user) return;
+        try {
+            const snakeCaseData: any = {};
+            for (const [key, value] of Object.entries(testData)) {
+                if (key === 'id') continue;
+                const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+                snakeCaseData[snakeKey] = value;
+            }
+            if (!snakeCaseData.tag_id && snakeCaseData.test_id) {
+                snakeCaseData.tag_id = snakeCaseData.test_id;
+            }
+            snakeCaseData.created_by = user.id;
+
+            const { error } = await supabase
+                .from('excel_test_records')
+                .insert([snakeCaseData]);
+
+            if (error) throw error;
+            setIsManualModalOpen(false);
+        } catch (error) {
+            console.error('Error creating manual test:', error);
+            alert('Erro ao criar teste manualmente.');
+        }
+    };
+
+    const handleDeleteTest = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm('Tem certeza que deseja excluir este teste?')) return;
+        try {
+            const { error } = await supabase
+                .from('excel_test_records')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            setExpandedId(null);
+            // WebSocket will update the list
+        } catch (error) {
+            console.error('Error deleting test:', error);
+            alert('Erro ao excluir teste.');
+        }
+    };
 
     // Sync from user prop on load if it becomes available later
     useEffect(() => {
@@ -763,19 +809,31 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setIsMetricsModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                            onClick={() => setIsManualModalOpen(true)}
+                            className="flex items-center justify-center px-4 py-2 text-lg font-black text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                            title="Novo Teste"
                         >
-                            <Activity className="w-4 h-4" />
-                            Métricas Diárias
+                            <span className="leading-none">+</span>
                         </button>
-                        <button
-                            onClick={onOpenSettings}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                        >
-                            <Settings className="w-4 h-4" />
-                            Configurações
-                        </button>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsFilterPanelOpen(true)}
+                                className={`flex items-center justify-center p-2.5 rounded-lg transition-all shadow-sm ${
+                                    activeFilterCount > 0 
+                                        ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700' 
+                                        : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                                }`}
+                                title="Filtros"
+                            >
+                                <Filter className={`w-4 h-4 ${activeFilterCount > 0 ? 'text-white' : 'text-slate-500'}`} />
+                                {activeFilterCount > 0 && (
+                                    <span className="absolute -top-2 -right-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold shadow-sm border border-white text-white">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
 
                         <div className="relative">
                             <button
@@ -841,24 +899,22 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             )}
                         </div>
 
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsFilterPanelOpen(true)}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all shadow-sm ${
-                                    activeFilterCount > 0 
-                                        ? 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-indigo-700' 
-                                        : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                                }`}
-                            >
-                                <Filter className={`w-4 h-4 ${activeFilterCount > 0 ? 'text-white' : 'text-slate-500'}`} />
-                                Filtro
-                                {activeFilterCount > 0 && (
-                                    <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded text-[10px]">
-                                        {activeFilterCount}
-                                    </span>
-                                )}
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => setIsMetricsModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm whitespace-nowrap"
+                            title="Métricas Diárias"
+                        >
+                            <Activity className="w-4 h-4" />
+                            Métricas
+                        </button>
+
+                        <button
+                            onClick={onOpenSettings}
+                            className="flex items-center justify-center p-2.5 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                            title="Configurações"
+                        >
+                            <Settings className="w-4 h-4 text-slate-500" />
+                        </button>
                     </div>
                 </div>
 
@@ -1160,47 +1216,58 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
                                     {/* Conteúdo Expandido - Complex Text Fields */}
                                     {isExpanded && (
-                                        <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-2 duration-200">
-                                            {/* Coluna Esquerda */}
-                                            <div className="space-y-6">
-                                                {renderComplexEditableField(test, 'objective', <ShieldAlert />, 'text-indigo-500')}
-                                                {renderComplexEditableField(test, 'prerequisite', <AlertCircle />, 'text-amber-500')}
+                                        <>
+                                            <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                {/* Coluna Esquerda */}
+                                                <div className="space-y-6">
+                                                    {renderComplexEditableField(test, 'objective', <ShieldAlert />, 'text-indigo-500')}
+                                                    {renderComplexEditableField(test, 'prerequisite', <AlertCircle />, 'text-amber-500')}
 
-                                                {testColumnSettings.stepsText && (
-                                                    <div>
-                                                        <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
-                                                            <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
-                                                                <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                                                    {testColumnSettings.stepsText && (
+                                                        <div>
+                                                            <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
+                                                                <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
+                                                                    <FileSpreadsheet className="w-3.5 h-3.5 text-slate-500" />
+                                                                </div>
+                                                                {COLUMN_LABELS.stepsText}
+                                                            </h4>
+                                                            <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
+                                                                {test.stepsText || 'N/A'}
                                                             </div>
-                                                            {COLUMN_LABELS.stepsText}
-                                                        </h4>
-                                                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                            {test.stepsText || 'N/A'}
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    )}
+                                                </div>
 
-                                            {/* Coluna Direita */}
-                                            <div className="space-y-6">
-                                                {renderComplexEditableField(test, 'description', <FileSpreadsheet />, 'text-indigo-500')}
-                                                {renderComplexEditableField(test, 'acceptanceCriteria', <CheckCircle2 />, 'text-emerald-500')}
+                                                {/* Coluna Direita */}
+                                                <div className="space-y-6">
+                                                    {renderComplexEditableField(test, 'description', <FileSpreadsheet />, 'text-indigo-500')}
+                                                    {renderComplexEditableField(test, 'acceptanceCriteria', <CheckCircle2 />, 'text-emerald-500')}
 
-                                                {testColumnSettings.observation && (
-                                                    <div>
-                                                        <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
-                                                            <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
-                                                                <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
+                                                    {testColumnSettings.observation && (
+                                                        <div>
+                                                            <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
+                                                                <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
+                                                                    <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
+                                                                </div>
+                                                                {COLUMN_LABELS.observation}
+                                                            </h4>
+                                                            <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
+                                                                {test.observation || 'N/A'}
                                                             </div>
-                                                            {COLUMN_LABELS.observation}
-                                                        </h4>
-                                                        <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                            {test.observation || 'N/A'}
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                            
+                                            <div className="px-5 py-3 bg-red-50/50 border-t border-red-100 flex justify-end">
+                                                <button 
+                                                    onClick={(e) => handleDeleteTest(test.id, e)}
+                                                    className="px-4 py-2 text-xs font-bold text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-2 shadow-sm"
+                                                >
+                                                    Excluir Registro
+                                                </button>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             );
@@ -1253,6 +1320,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 onClear={clearFilters}
                 filterOptions={filterOptions}
                 initialFilters={filterState}
+            />
+
+            <ManualTestModal 
+                isOpen={isManualModalOpen}
+                onClose={() => setIsManualModalOpen(false)}
+                onSave={handleCreateTest}
             />
         </div>
     );

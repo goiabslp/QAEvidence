@@ -7,8 +7,8 @@ interface HeaderProps {
   onLogout?: () => void;
   showAdminPanel?: boolean;
   onToggleAdminPanel?: () => void;
-  activeModule?: 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS';
-  onMenuNavigate?: (module: 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS', resetToNewTicket?: boolean) => void;
+  activeModule?: 'HOME' | 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS';
+  onMenuNavigate?: (module: 'HOME' | 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS', resetToNewTicket?: boolean) => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggleAdminPanel, activeModule, onMenuNavigate }) => {
@@ -98,7 +98,13 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggl
                 )}
               </div>
             )}
-            <div className="flex items-center gap-2">
+            <div 
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => {
+                if (onMenuNavigate) onMenuNavigate('HOME');
+              }}
+              title="Ir para a Tela Inicial"
+            >
               <div className="bg-indigo-500/10 p-1.5 rounded-lg border border-indigo-500/20">
                 <ClipboardCheck className="h-5 w-5 text-indigo-400" />
               </div>
