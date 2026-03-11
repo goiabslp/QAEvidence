@@ -93,8 +93,30 @@ const TestManagement: React.FC<TestManagementProps> = ({
     const [isUpdatingBatch, setIsUpdatingBatch] = useState(false);
 
     // Filter State
-    const [filterState, setFilterState] = useState<FilterState>(INITIAL_FILTER_STATE);
+    const [filterState, setFilterState] = useState<FilterState>(() => {
+        if (user?.testFilters) return user.testFilters;
+        return INITIAL_FILTER_STATE;
+    });
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+
+    // Sync from user prop on load if it becomes available later
+    useEffect(() => {
+        if (user?.testFilters) {
+            setFilterState(user.testFilters);
+        }
+    }, [user?.testFilters]);
+
+    // Save filters helper
+    const saveFiltersToDatabase = async (filters: FilterState) => {
+        if (!user?.id) return;
+        try {
+            await supabase.from('profiles').update({
+                test_filters_state: filters
+            }).eq('id', user.id);
+        } catch (err) {
+            console.error('Error saving filters:', err);
+        }
+    };
 
     // Pagination State
     const [visibleCount, setVisibleCount] = useState(50);
@@ -551,6 +573,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
     const clearFilters = () => {
         setFilterState(INITIAL_FILTER_STATE);
+        saveFiltersToDatabase(INITIAL_FILTER_STATE);
     };
 
     const filteredTests = useMemo(() => {
@@ -1237,6 +1260,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 onClose={() => setIsFilterPanelOpen(false)}
                 onApply={(filters) => {
                     setFilterState(filters);
+                    saveFiltersToDatabase(filters);
                     setIsFilterPanelOpen(false);
                 }}
                 onClear={clearFilters}

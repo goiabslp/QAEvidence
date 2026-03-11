@@ -284,6 +284,7 @@ const App: React.FC = () => {
               acronym,
               full_name,
               test_column_settings,
+              test_filters_state,
               daily_goal,
               is_daily_goal_auto,
               last_active_date,
@@ -331,6 +332,7 @@ const App: React.FC = () => {
               isActive: true, // Assuming active by default in this implementation
               showEasterEgg: true,
               testColumnSettings: profile.test_column_settings,
+              testFilters: profile.test_filters_state,
               dailyGoal: updatedDailyGoal,
               isDailyGoalAuto: isAuto,
               lastActiveDate: todayDateString

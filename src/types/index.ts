@@ -48,6 +48,7 @@ export interface User {
   isActive?: boolean; // Control access
   showEasterEgg?: boolean; // Control Bug appearance
   testColumnSettings?: TestColumnSettings; // Configurações de coluna de teste
+  testFilters?: FilterState; // Filtros fixos da tela de testes
   dailyGoal?: number; // Meta diária de testes
   isDailyGoalAuto?: boolean; // Se a meta diária se aplica automaticamente
   lastActiveDate?: string; // Data do último login/uso do sistema
