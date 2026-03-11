@@ -57,6 +57,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [sheetName, setSheetName] = useState('Gestão de Testes');
 
     // Inline Edit State
     const [editState, setEditState] = useState<{
@@ -210,8 +211,16 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 if (error) throw error;
                 
                 if (data) {
+                    // Extract Sheet Name if available
+                    const settingsRecord = data.find((item: any) => item.module === 'SYSTEM_SETTINGS');
+                    if (settingsRecord) {
+                        setSheetName(settingsRecord.steps_text || 'Gestão de Testes');
+                    }
+
                     // Map snake_case to camelCase
-                    const mappedTests = data.map((item: any) => ({
+                    const mappedTests = data
+                        .filter((item: any) => item.module !== 'SYSTEM_SETTINGS')
+                        .map((item: any) => ({
                         id: item.id,
                         stepsText: item.steps_text,
                         browser: item.browser,
@@ -262,6 +271,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 (payload) => {
                     const updatedRecord = payload.new;
                     
+                    if (updatedRecord.module === 'SYSTEM_SETTINGS') {
+                        setSheetName(updatedRecord.steps_text || 'Gestão de Testes');
+                        return;
+                    }
+
                     setTests(currentTests => {
                         const exists = currentTests.some(t => t.id === updatedRecord.id);
 
@@ -783,7 +797,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                                Gestão de Testes
+                                {sheetName}
                             </h2>
                             <p className="text-sm text-slate-500">
                                 {filteredTests.length > 0 

@@ -59,6 +59,10 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [hasLoadedTests, setHasLoadedTests] = useState(false);
+    const [pendingRecords, setPendingRecords] = useState<any[] | null>(null);
+    const [newSheetName, setNewSheetName] = useState('');
+    const [currentSheetName, setCurrentSheetName] = useState('Gestão de Testes');
+    const SETTINGS_RECORD_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 
     // --- Column Visibility State ---
     const [settings, setSettings] = useState<TestColumnSettings>(() => {
@@ -81,11 +85,18 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                 
                 if (error) throw error;
 
-                const hasRecords = !!count && count > 0;
+                const settingsRecord = data?.find(r => r.module === 'SYSTEM_SETTINGS');
+                if (settingsRecord) {
+                    setCurrentSheetName(settingsRecord.steps_text || 'Gestão de Testes');
+                }
+
+                // Filter out settings for the test list
+                const actualData = data?.filter(r => r.module !== 'SYSTEM_SETTINGS') || [];
+                const hasRecords = actualData.length > 0;
                 setHasLoadedTests(hasRecords);
 
-                if (hasRecords && data) {
-                    const mapped = data.map(record => ({
+                if (hasRecords) {
+                    const mapped = actualData.map(record => ({
                         id: record.id,
                         stepsText: record.steps_text,
                         browser: record.browser,
@@ -236,64 +247,119 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                     created_by: user.id
                 }));
 
-                await supabase.from('excel_test_records').delete().neq('created_by', '00000000-0000-0000-0000-000000000000');
-
-                const { error: insertError } = await supabase
-                    .from('excel_test_records')
-                    .insert(records);
-
-                if (insertError) throw insertError;
-
-                setHasLoadedTests(true);
-                alert(`${records.length} registro(s) importados com sucesso.`);
-                
-                // Reload dashboard data
-                const { data: newData } = await supabase.from('excel_test_records').select('*');
-                if (newData) {
-                    setTestRecords(newData.map(record => ({
-                        id: record.id,
-                        stepsText: record.steps_text,
-                        browser: record.browser,
-                        bank: record.bank,
-                        backoffice: record.backoffice,
-                        mobile: record.mobile,
-                        analyst: record.analyst,
-                        automated: record.automated,
-                        bcsCode: record.bcs_code,
-                        useCase: record.use_case,
-                        minimum: record.minimum,
-                        priority: record.priority,
-                        testId: record.test_id,
-                        module: record.module,
-                        objective: record.objective,
-                        estimatedTime: record.estimated_time,
-                        prerequisite: record.prerequisite,
-                        description: record.description,
-                        acceptanceCriteria: record.acceptance_criteria,
-                        result: record.result,
-                        errorStatus: record.error_status,
-                        observation: record.observation,
-                        gap: record.gap,
-                        importedOrder: record.imported_order,
-                        createdBy: record.created_by
-                    })) as ExcelTestRecord[]);
-                }
+                setPendingRecords(records);
+                setNewSheetName('');
+                setError(null);
             } catch (err: any) {
                 console.error("Erro ao processar planilha:", err);
-                setError(err.message || "Ocorreu um erro ao processar o arquivo. Verifique se é um arquivo Excel válido.");
+                setError(err.message || "Ocorreu um erro ao processar o arquivo.");
             } finally {
                 setIsLoading(false);
-                if (fileInputRef.current) fileInputRef.current.value = '';
             }
-        };
-
-        reader.onerror = () => {
-            setError("Erro ao ler o arquivo.");
-            setIsLoading(false);
         };
 
         reader.readAsArrayBuffer(file);
     };
+
+    const confirmImport = async () => {
+        if (!pendingRecords || !newSheetName.trim()) {
+            alert("Por favor, preencha o nome da planilha.");
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // Delete old tests (keep settings)
+            await supabase.from('excel_test_records')
+                .delete()
+                .neq('module', 'SYSTEM_SETTINGS');
+
+            // Insert new tests
+            const { error: insertError } = await supabase
+                .from('excel_test_records')
+                .insert(pendingRecords);
+
+            if (insertError) throw insertError;
+
+            // Save/Update sheet name magic record
+            const { error: settingsError } = await supabase
+                .from('excel_test_records')
+                .upsert({
+                    id: SETTINGS_RECORD_ID,
+                    module: 'SYSTEM_SETTINGS',
+                    steps_text: newSheetName,
+                    created_by: user.id
+                });
+
+            if (settingsError) throw settingsError;
+
+            setCurrentSheetName(newSheetName);
+            setHasLoadedTests(true);
+            setPendingRecords(null);
+            alert(`${pendingRecords.length} registro(s) importados com sucesso.`);
+            
+            // Reload dashboard data
+            const { data: newData } = await supabase.from('excel_test_records').select('*');
+            if (newData) {
+                setTestRecords(newData.filter(r => r.module !== 'SYSTEM_SETTINGS').map(record => ({
+                    id: record.id,
+                    stepsText: record.steps_text,
+                    browser: record.browser,
+                    bank: record.bank,
+                    backoffice: record.backoffice,
+                    mobile: record.mobile,
+                    analyst: record.analyst,
+                    automated: record.automated,
+                    bcsCode: record.bcs_code,
+                    useCase: record.use_case,
+                    minimum: record.minimum,
+                    priority: record.priority,
+                    testId: record.test_id,
+                    module: record.module,
+                    objective: record.objective,
+                    estimatedTime: record.estimated_time,
+                    prerequisite: record.prerequisite,
+                    description: record.description,
+                    acceptanceCriteria: record.acceptance_criteria,
+                    result: record.result,
+                    errorStatus: record.error_status,
+                    observation: record.observation,
+                    gap: record.gap,
+                    importedOrder: record.imported_order,
+                    createdBy: record.created_by
+                })) as ExcelTestRecord[]);
+            }
+        } catch (err: any) {
+            console.error("Erro ao finalizar importação:", err);
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleUpdateSheetName = async (name: string) => {
+        if (!name.trim()) return;
+        setIsLoading(true);
+        try {
+            const { error } = await supabase
+                .from('excel_test_records')
+                .upsert({
+                    id: SETTINGS_RECORD_ID,
+                    module: 'SYSTEM_SETTINGS',
+                    steps_text: name,
+                    created_by: user.id
+                });
+            if (error) throw error;
+            setCurrentSheetName(name);
+        } catch (err) {
+            console.error("Erro ao atualizar nome da planilha:", err);
+            alert("Erro ao atualizar nome.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     const triggerFileInput = () => {
         if (fileInputRef.current) {
@@ -305,7 +371,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
         if (window.confirm("Limpar TODOS os testes importados em toda a plataforma?")) {
             setIsLoading(true);
             try {
-                await supabase.from('excel_test_records').delete().neq('created_by', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('excel_test_records').delete().neq('module', 'SYSTEM_SETTINGS');
                 setHasLoadedTests(false);
                 setTestRecords([]);
                 setError(null);
@@ -410,25 +476,82 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, onUpdateSett
                                     <div>
                                         <h4 className="font-bold text-slate-800 mb-1">Importação Mestra</h4>
                                         <p className="text-sm text-slate-500 leading-relaxed mb-4">
-                                            Faça upload de um arquivo `.xlsx` contendo os casos. O sistema mapeará automaticamente as colunas de A até V. Esta ação tornará os registros disponíveis para todos os usuários imediatamente.
+                                            Faça upload de um arquivo `.xlsx` contendo os casos. O sistema mapeará automaticamente as colunas de A até V.
                                         </p>
-                                        <input
-                                            type="file"
-                                            accept=".xlsx, .xls"
-                                            className="hidden"
-                                            ref={fileInputRef}
-                                            onChange={handleFileUpload}
-                                        />
-                                        <button
-                                            onClick={triggerFileInput}
-                                            disabled={isLoading}
-                                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
-                                        >
-                                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                            {isLoading ? 'Importando e Processando...' : 'Selecionar Arquivo'}
-                                        </button>
+                                        
+                                        {!pendingRecords ? (
+                                            <>
+                                                <input
+                                                    type="file"
+                                                    accept=".xlsx, .xls"
+                                                    className="hidden"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                />
+                                                <button
+                                                    onClick={triggerFileInput}
+                                                    disabled={isLoading}
+                                                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                                                >
+                                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                                    {isLoading ? 'Lendo Arquivo...' : 'Selecionar Planilha'}
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                                <div className="p-4 bg-white border-2 border-indigo-100 rounded-xl shadow-inner">
+                                                    <label className="text-xs font-black text-indigo-600 uppercase mb-2 block tracking-wider">Nome da Planilha (Obrigatório)</label>
+                                                    <input 
+                                                        type="text"
+                                                        value={newSheetName}
+                                                        onChange={(e) => setNewSheetName(e.target.value)}
+                                                        placeholder="Ex: Sprint 42 - Core"
+                                                        className="w-full px-4 py-2 text-sm font-bold text-slate-700 bg-indigo-50/30 border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={confirmImport}
+                                                        disabled={isLoading || !newSheetName.trim()}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
+                                                    >
+                                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                                        Confirmar Importação
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setPendingRecords(null)}
+                                                        disabled={isLoading}
+                                                        className="px-6 py-3 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
+
+                                {/* Section to Edit Current Sheet Name */}
+                                {hasLoadedTests && !pendingRecords && (
+                                    <div className="p-6 bg-indigo-50/30 border border-indigo-100 rounded-2xl flex items-start gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-white border border-indigo-100 flex items-center justify-center shrink-0">
+                                            <FileSpreadsheet className="w-6 h-6 text-indigo-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-slate-800 mb-1">Nome Atual da Planilha</h4>
+                                            <div className="flex gap-2 mt-3">
+                                                <input 
+                                                    type="text"
+                                                    defaultValue={currentSheetName}
+                                                    onBlur={(e) => handleUpdateSheetName(e.target.value)}
+                                                    className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 mt-2 italic">A alteração reflete imediatamente na listagem de testes para todos.</p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {error && (
                                     <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-800">
