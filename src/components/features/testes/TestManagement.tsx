@@ -489,7 +489,9 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 test.useCase,
                 test.priority,
                 test.analyst,
-                test.result
+                test.result,
+                test.backoffice,
+                test.minimum
             ];
             const matchesSearch = !searchTerm.trim() || searchableFields.some(field => 
                 String(field || '').toLowerCase().includes(searchLower)

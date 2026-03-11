@@ -1,7 +1,148 @@
 import React from 'react';
-import { X, Filter, RefreshCw, Check, ChevronDown } from 'lucide-react';
+import { X, Filter, RefreshCw, Check, ChevronDown, Tag } from 'lucide-react';
 import { FilterState, TestColumnKey } from '../../../types';
 import { COLUMN_LABELS } from './TestSettings';
+
+// Helper for semantic colors
+const getSemanticStyle = (field: string, value: string) => {
+    if (field === 'priority') {
+        if (value.toLowerCase().includes('alta')) return 'bg-red-50 text-red-700 border-red-200';
+        if (value.toLowerCase().includes('baixa')) return 'bg-blue-50 text-blue-700 border-blue-200';
+        if (value.toLowerCase().includes('média')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+    if (field === 'minimum') {
+        if (value === 'Sim') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        if (value === 'Não') return 'bg-orange-50 text-orange-700 border-orange-200';
+    }
+    if (field === 'result') {
+        if (value === 'Sucesso') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        if (value === 'Erro') return 'bg-red-50 text-red-700 border-red-200';
+        if (value === 'Em Andamento') return 'bg-blue-50 text-blue-700 border-blue-200';
+        if (value === 'Impedimento') return 'bg-purple-50 text-purple-700 border-purple-200';
+    }
+    return 'bg-slate-50 text-slate-700 border-slate-200';
+};
+
+interface FilterDropdownProps {
+    field: keyof FilterState;
+    options: string[];
+    selectedValues: string[];
+    onToggle: (field: keyof FilterState, value: string) => void;
+    onClear: (field: keyof FilterState) => void;
+    isMulti: boolean;
+}
+
+const FilterDropdown: React.FC<FilterDropdownProps> = ({
+    field,
+    options,
+    selectedValues,
+    onToggle,
+    onClear,
+    isMulti
+}) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
+    const label = COLUMN_LABELS[field as TestColumnKey] || field;
+
+    React.useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="group/field relative" ref={dropdownRef}>
+            <div className="flex items-center justify-between mb-2.5 px-1">
+                <h4 className="text-[11px] font-black text-slate-400 group-hover/field:text-indigo-500 transition-colors uppercase tracking-[0.15em] flex items-center gap-2">
+                    {label}
+                    {selectedValues.length > 0 && (
+                        <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-bold border border-indigo-100">
+                            {selectedValues.length}
+                        </span>
+                    )}
+                </h4>
+                {selectedValues.length > 0 && (
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear(field);
+                        }}
+                        className="text-[9px] font-black text-slate-300 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-1"
+                    >
+                        Limpar
+                    </button>
+                )}
+            </div>
+
+            <div 
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full bg-white border-2 rounded-2xl p-2.5 transition-all cursor-pointer flex flex-wrap gap-1.5 items-center min-h-[52px] ${
+                    isOpen ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-slate-100 hover:border-slate-300'
+                }`}
+            >
+                {selectedValues.length === 0 ? (
+                    <span className="text-sm font-semibold text-slate-400 pl-2">Selecione opções...</span>
+                ) : (
+                    selectedValues.map(val => (
+                        <span 
+                            key={val}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 animate-in zoom-in-95 duration-150 ${getSemanticStyle(field, val)}`}
+                        >
+                            {val}
+                            <div 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggle(field, val);
+                                }}
+                                className="hover:bg-black/5 rounded-full p-0.5"
+                            >
+                                <X className="w-3 h-3" />
+                            </div>
+                        </span>
+                    ))
+                )}
+                <div className="ml-auto text-slate-400 px-1">
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+            </div>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="max-h-60 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                        {options.length === 0 ? (
+                            <div className="py-8 text-center">
+                                <Tag className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                <p className="text-xs font-bold text-slate-400">Sem opções disponíveis</p>
+                            </div>
+                        ) : (
+                            options.map(option => {
+                                const isSelected = selectedValues.includes(option);
+                                return (
+                                    <div
+                                        key={option}
+                                        onClick={() => onToggle(field, option)}
+                                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
+                                            isSelected 
+                                                ? 'bg-indigo-50 text-indigo-700 font-bold' 
+                                                : 'hover:bg-slate-50 text-slate-600 font-semibold'
+                                        }`}
+                                    >
+                                        <span className="text-sm">{option || '(Vazio)'}</span>
+                                        {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 interface TestFilterModalProps {
     isOpen: boolean;
@@ -30,18 +171,6 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
 
     if (!isOpen) return null;
 
-    const toggleFilter = (field: keyof FilterState, value: string) => {
-        setPendingFilters(prev => {
-            const current = [...prev[field]];
-            const index = current.indexOf(value);
-            if (index > -1) {
-                current.splice(index, 1);
-            } else {
-                current.push(value);
-            }
-            return { ...prev, [field]: current };
-        });
-    };
 
     const hasFilters = (Object.keys(pendingFilters) as Array<keyof FilterState>).some(key => pendingFilters[key].length > 0);
 
@@ -80,96 +209,32 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                            {(Object.keys(filterOptions) as Array<keyof FilterState>).map((field) => {
-                                const isMulti = !['priority', 'minimum'].includes(field);
-                                const currentValues = pendingFilters[field];
-                                const label = COLUMN_LABELS[field as TestColumnKey] || field;
-
-                                return (
-                                    <div key={field} className="group/field relative">
-                                        <div className="flex items-center justify-between mb-2.5">
-                                            <h4 className="text-[11px] font-black text-slate-400 group-hover/field:text-indigo-500 transition-colors uppercase tracking-[0.15em] flex items-center gap-2">
-                                                {label}
-                                                {currentValues.length > 0 && (
-                                                    <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[9px] font-bold border border-indigo-100">
-                                                        {currentValues.length}
-                                                    </span>
-                                                )}
-                                            </h4>
-                                            {currentValues.length > 0 && (
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setPendingFilters(prev => ({ ...prev, [field]: [] }));
-                                                    }}
-                                                    className="text-[9px] font-black text-slate-300 hover:text-red-500 uppercase tracking-widest transition-colors"
-                                                >
-                                                    Limpar
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <div className="relative">
-                                            <select
-                                                multiple={isMulti}
-                                                value={isMulti ? currentValues : (currentValues[0] || '')}
-                                                onChange={(e) => {
-                                                    const target = e.target as HTMLSelectElement;
-                                                    if (isMulti) {
-                                                        const values = Array.from(target.selectedOptions).map(opt => opt.value);
-                                                        setPendingFilters(prev => ({ ...prev, [field]: values }));
-                                                    } else {
-                                                        setPendingFilters(prev => ({ ...prev, [field]: target.value ? [target.value] : [] }));
-                                                    }
-                                                }}
-                                                className={`w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 focus:bg-white transition-all appearance-none cursor-pointer ${isMulti ? 'min-h-[120px] py-2' : ''}`}
-                                            >
-                                                {!isMulti && <option value="">Selecione uma opção...</option>}
-                                                {filterOptions[field].map(value => {
-                                                    let customStyle = '';
-                                                    if (field === 'priority') {
-                                                        if (value.toLowerCase().includes('alta')) customStyle = 'text-red-600';
-                                                        if (value.toLowerCase().includes('baixa')) customStyle = 'text-blue-600';
-                                                        if (value.toLowerCase().includes('média')) customStyle = 'text-emerald-600';
-                                                    }
-                                                    if (field === 'minimum') {
-                                                        if (value === 'Sim') customStyle = 'text-emerald-600';
-                                                        if (value === 'Não') customStyle = 'text-orange-600';
-                                                    }
-                                                    if (field === 'result') {
-                                                        if (value === 'Sucesso') customStyle = 'text-emerald-600';
-                                                        if (value === 'Erro') customStyle = 'text-red-600';
-                                                        if (value === 'Em Andamento') customStyle = 'text-blue-600';
-                                                        if (value === 'Impedimento') customStyle = 'text-purple-600';
-                                                    }
-
-                                                    return (
-                                                        <option 
-                                                            key={value} 
-                                                            value={value}
-                                                            className={`py-2 px-3 font-bold ${customStyle}`}
-                                                        >
-                                                            {value || '(Vazio)'}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
+                            {(Object.keys(filterOptions) as Array<keyof FilterState>).map((field) => (
+                                <FilterDropdown
+                                    key={field}
+                                    field={field}
+                                    options={filterOptions[field]}
+                                    selectedValues={pendingFilters[field]}
+                                    isMulti={!['priority', 'minimum'].includes(field)}
+                                    onToggle={(f, v) => {
+                                        const isMulti = !['priority', 'minimum'].includes(f);
+                                        setPendingFilters(prev => {
+                                            const current = [...prev[f]];
+                                            const index = current.indexOf(v);
                                             
-                                            {!isMulti && (
-                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                                    <ChevronDown className="w-4 h-4" />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {isMulti && (
-                                            <p className="mt-2 text-[10px] text-slate-400 font-medium italic">
-                                                Hold Ctrl (or Cmd) to select multiple items
-                                            </p>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                            if (isMulti) {
+                                                if (index > -1) current.splice(index, 1);
+                                                else current.push(v);
+                                            } else {
+                                                if (index > -1) return { ...prev, [f]: [] };
+                                                else return { ...prev, [f]: [v] };
+                                            }
+                                            return { ...prev, [f]: current };
+                                        });
+                                    }}
+                                    onClear={(f) => setPendingFilters(prev => ({ ...prev, [f]: [] }))}
+                                />
+                            ))}
                         </div>
                     </div>
                 </div>
