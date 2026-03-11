@@ -34,6 +34,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggl
             {user && !showAdminPanel && (
               <div className="relative">
                 <button
+                  id="main-menu-button"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center focus:outline-none"
                   aria-label="Menu Principal"
