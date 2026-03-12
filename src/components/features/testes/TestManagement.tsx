@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw, Filter, X } from 'lucide-react';
+import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw, Filter, X, Loader2, Trash2 } from 'lucide-react';
 import { ExcelTestRecord, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER, TestColumnKey } from '../../../types';
 import { COLUMN_LABELS } from './TestSettings';
 import ConfirmEditModal from './ConfirmEditModal';
@@ -101,6 +101,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
     });
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
     const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [pageSize] = useState(50);
+    const [isLoadingTests, setIsLoadingTests] = useState(false);
 
     const handleCreateTest = async (testData: Partial<ExcelTestRecord>) => {
         if (!user) return;
@@ -146,6 +152,28 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }
     };
 
+    const clearTests = async () => {
+        if (!user || user.role !== 'ADMIN') return;
+        if (!window.confirm("ATENÇÃO: Isso excluirá TODOS os testes importados da base de dados global para todos os usuários. Deseja continuar?")) {
+            return;
+        }
+
+        setIsLoadingTests(true);
+        try {
+            const { error } = await supabase
+                .from('excel_test_records')
+                .delete()
+                .neq('module', 'SYSTEM_SETTINGS');
+
+            if (error) throw error;
+        } catch (err) {
+            console.error("Erro ao limpar base:", err);
+            alert("Erro ao limpar base de dados.");
+        } finally {
+            setIsLoadingTests(false);
+        }
+    };
+
     // Sync from user prop on load if it becomes available later
     useEffect(() => {
         if (user?.testFilters) {
@@ -165,8 +193,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }
     };
 
-    // Pagination State
-    const [visibleCount, setVisibleCount] = useState(50);
+
 
     // Fetch analysts list
     useEffect(() => {
@@ -191,70 +218,107 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
     // Reset pagination when filters change
     useEffect(() => {
-        setVisibleCount(50);
+        setCurrentPage(1);
+        setSelectedIds(new Set()); // Clear selection on filter/search change
     }, [searchTerm, filterState]);
 
-    // Load tests from Supabase
-    useEffect(() => {
-        const fetchTests = async () => {
-            if (!user) return;
-            try {
-                const { data, error } = await supabase
-                    .from('excel_test_records')
-                    .select('*')
-                    .order('module', { ascending: true })
-                    .order('use_case', { ascending: true })
-                    .order('priority', { ascending: true })
-                    .order('tag_id', { ascending: true });
+    // Load tests from Supabase with server-side pagination and filtering
+    const fetchTests = async () => {
+        if (!user) return;
+        setIsLoadingTests(true);
+        try {
+            let query = supabase
+                .from('excel_test_records')
+                .select('*', { count: 'exact' })
+                .neq('module', 'SYSTEM_SETTINGS');
 
-
-                if (error) throw error;
-                
-                if (data) {
-                    // Extract Sheet Name if available
-                    const settingsRecord = data.find((item: any) => item.module === 'SYSTEM_SETTINGS');
-                    if (settingsRecord) {
-                        setSheetName(settingsRecord.steps_text || 'Gestão de Testes');
-                    }
-
-                    // Map snake_case to camelCase
-                    const mappedTests = data
-                        .filter((item: any) => item.module !== 'SYSTEM_SETTINGS')
-                        .map((item: any) => ({
-                        id: item.id,
-                        stepsText: item.steps_text,
-                        browser: item.browser,
-                        bank: item.bank,
-                        backoffice: item.backoffice,
-                        mobile: item.mobile,
-                        analyst: item.analyst,
-                        automated: item.automated,
-                        bcsCode: item.bcs_code,
-                        useCase: item.use_case,
-                        minimum: item.minimum,
-                        priority: item.priority,
-                        testId: item.test_id,
-                        module: item.module,
-                        objective: item.objective,
-                        estimatedTime: item.estimated_time,
-                        prerequisite: item.prerequisite,
-                        description: item.description,
-                        acceptanceCriteria: item.acceptance_criteria,
-                        result: item.result,
-                        errorStatus: item.error_status,
-                        observation: item.observation,
-                        gap: item.gap,
-                        tagId: item.tag_id
-                    }));
-                    setTests(mappedTests);
-                }
-            } catch (error) {
-                console.error('Error fetching tests:', error);
+            // Apply Search filter
+            if (searchTerm.trim()) {
+                const searchLower = `%${searchTerm.toLowerCase()}%`;
+                // Supabase doesn't support easy multi-column OR search across many fields via standard API easily without raw SQL or a dedicated filter string
+                // But we can use .or() for common fields
+                query = query.or(`test_id.ilike.${searchLower},module.ilike.${searchLower},use_case.ilike.${searchLower},analyst.ilike.${searchLower},backoffice.ilike.${searchLower},tag_id.ilike.${searchLower}`);
             }
-        };
 
+            // Apply Advanced filters
+            if (filterState.backoffice.length > 0) query = query.in('backoffice', filterState.backoffice);
+            if (filterState.priority.length > 0) query = query.in('priority', filterState.priority);
+            if (filterState.minimum.length > 0) query = query.in('minimum', filterState.minimum);
+            if (filterState.module.length > 0) query = query.in('module', filterState.module);
+            if (filterState.useCase.length > 0) query = query.in('use_case', filterState.useCase);
+            if (filterState.analyst.length > 0) query = query.in('analyst', filterState.analyst);
+            if (filterState.result.length > 0) query = query.in('result', filterState.result);
+
+            // Sorting (matching the logic requested before)
+            query = query
+                .order('use_case', { ascending: true })
+                .order('module', { ascending: true })
+                .order('priority', { ascending: true }) // Note: DB sorting might differ from custom weight sorting but ilike order is usually fine
+                .order('tag_id', { ascending: true });
+
+            // Pagination
+            const from = (currentPage - 1) * pageSize;
+            const to = from + pageSize - 1;
+            
+            const { data, count, error } = await query.range(from, to);
+
+            if (error) throw error;
+            
+            if (data) {
+                // Map snake_case to camelCase
+                const mappedTests = data.map((item: any) => ({
+                    id: item.id,
+                    stepsText: item.steps_text,
+                    browser: item.browser,
+                    bank: item.bank,
+                    backoffice: item.backoffice,
+                    mobile: item.mobile,
+                    analyst: item.analyst,
+                    automated: item.automated,
+                    bcsCode: item.bcs_code,
+                    useCase: item.use_case,
+                    minimum: item.minimum,
+                    priority: item.priority,
+                    testId: item.test_id,
+                    module: item.module,
+                    objective: item.objective,
+                    estimatedTime: item.estimated_time,
+                    prerequisite: item.prerequisite,
+                    description: item.description,
+                    acceptanceCriteria: item.acceptance_criteria,
+                    result: item.result,
+                    errorStatus: item.error_status,
+                    observation: item.observation,
+                    gap: item.gap,
+                    tagId: item.tag_id
+                })) as ExcelTestRecord[];
+                
+                setTests(mappedTests);
+                if (count !== null) setTotalCount(count);
+
+                // Fetch sheet name (separate one-off query if needed, or get from a specific setting record)
+                if (currentPage === 1 && !searchTerm.trim()) {
+                    const { data: settingsData } = await supabase
+                        .from('excel_test_records')
+                        .select('steps_text')
+                        .eq('module', 'SYSTEM_SETTINGS')
+                        .maybeSingle();
+                    
+                    if (settingsData) {
+                        setSheetName(settingsData.steps_text || 'Gestão de Testes');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching tests:', error);
+        } finally {
+            setIsLoadingTests(false);
+        }
+    };
+
+    useEffect(() => {
         fetchTests();
-    }, [user, isMetricsModalOpen]); // Reload if modal closes in case there were updates
+    }, [user, currentPage, filterState, searchTerm, isMetricsModalOpen]);
 
     // Realtime Subscription
     useEffect(() => {
@@ -430,10 +494,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
     };
 
     const toggleSelectAll = () => {
-        if (selectedIds.size === filteredTests.length && filteredTests.length > 0) {
+        if (selectedIds.size === tests.length && tests.length > 0) {
             setSelectedIds(new Set());
         } else {
-            setSelectedIds(new Set(filteredTests.map(t => t.id)));
+            setSelectedIds(new Set(tests.map(t => t.id)));
         }
     };
 
@@ -569,37 +633,68 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }
     };
 
-    const filterOptions = useMemo(() => {
-        const options = {
-            backoffice: new Set<string>(),
-            priority: new Set<string>(),
-            minimum: new Set<string>(),
-            module: new Set<string>(),
-            useCase: new Set<string>(),
-            analyst: new Set<string>(),
-            result: new Set<string>()
-        };
+    const totalPages = Math.ceil(totalCount / pageSize);
 
-        tests.forEach(test => {
-            if (test.backoffice) options.backoffice.add(test.backoffice);
-            if (test.priority) options.priority.add(test.priority);
-            if (test.minimum) options.minimum.add(test.minimum);
-            if (test.module) options.module.add(test.module);
-            if (test.useCase) options.useCase.add(test.useCase);
-            if (test.analyst) options.analyst.add(test.analyst);
-            if (test.result) options.result.add(test.result);
-        });
+    // We need filter options for the modal. With 30k records, we can't calculate them from the 50 visible ones.
+    const [filterOptions, setFilterOptions] = useState({
+        backoffice: [] as string[],
+        priority: [] as string[],
+        minimum: [] as string[],
+        module: [] as string[],
+        useCase: [] as string[],
+        analyst: [] as string[],
+        result: [] as string[]
+    });
 
-        return {
-            backoffice: Array.from(options.backoffice).sort(),
-            priority: Array.from(options.priority).sort(),
-            minimum: Array.from(options.minimum).sort(),
-            module: Array.from(options.module).sort(),
-            useCase: Array.from(options.useCase).sort(),
-            analyst: Array.from(options.analyst).sort(),
-            result: Array.from(options.result).sort()
+    // Fetch filter options only once
+    useEffect(() => {
+        const fetchFilterOptions = async () => {
+            if (!user) return;
+            try {
+                // Fetch a sample of recent records to populate filter suggestions
+                const { data } = await supabase
+                    .from('excel_test_records')
+                    .select('backoffice, priority, minimum, module, use_case, analyst, result')
+                    .neq('module', 'SYSTEM_SETTINGS')
+                    .limit(1000); 
+
+                if (data) {
+                    const options = {
+                        backoffice: new Set<string>(),
+                        priority: new Set<string>(),
+                        minimum: new Set<string>(),
+                        module: new Set<string>(),
+                        useCase: new Set<string>(),
+                        analyst: new Set<string>(),
+                        result: new Set<string>()
+                    };
+
+                    data.forEach(item => {
+                        if (item.backoffice) options.backoffice.add(item.backoffice);
+                        if (item.priority) options.priority.add(item.priority);
+                        if (item.minimum) options.minimum.add(item.minimum);
+                        if (item.module) options.module.add(item.module);
+                        if (item.use_case) options.useCase.add(item.use_case);
+                        if (item.analyst) options.analyst.add(item.analyst);
+                        if (item.result) options.result.add(item.result);
+                    });
+
+                    setFilterOptions({
+                        backoffice: Array.from(options.backoffice).sort(),
+                        priority: Array.from(options.priority).sort(),
+                        minimum: Array.from(options.minimum).sort(),
+                        module: Array.from(options.module).sort(),
+                        useCase: Array.from(options.useCase).sort(),
+                        analyst: Array.from(options.analyst).sort(),
+                        result: Array.from(options.result).sort()
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching filter options:', err);
+            }
         };
-    }, [tests]);
+        fetchFilterOptions();
+    }, [user]);
 
     const activeFilterCount = useMemo(() => {
         return (Object.keys(filterState) as Array<keyof FilterState>).reduce((acc, key) => acc + filterState[key].length, 0);
@@ -619,78 +714,19 @@ const TestManagement: React.FC<TestManagementProps> = ({
     };
 
     const clearFilters = () => {
-        setFilterState(INITIAL_FILTER_STATE);
-        saveFiltersToDatabase(INITIAL_FILTER_STATE);
+        const reset = {
+            backoffice: [],
+            priority: [],
+            minimum: [],
+            module: [],
+            useCase: [],
+            analyst: [],
+            result: []
+        };
+        setFilterState(reset);
+        saveFiltersToDatabase(reset);
+        setCurrentPage(1);
     };
-
-    const filteredTests = useMemo(() => {
-        let result = tests.filter(test => {
-            // Search filter
-            const searchLower = searchTerm.toLowerCase();
-            const searchableFields = [
-                test.testId,
-                test.module,
-                test.useCase,
-                test.priority,
-                test.analyst,
-                test.result,
-                test.backoffice,
-                test.minimum
-            ];
-            const matchesSearch = !searchTerm.trim() || searchableFields.some(field => 
-                String(field || '').toLowerCase().includes(searchLower)
-            );
-
-            if (!matchesSearch) return false;
-
-            // Advanced filters
-            const matchesBackoffice = filterState.backoffice.length === 0 || filterState.backoffice.includes(test.backoffice || '');
-            const matchesPriority = filterState.priority.length === 0 || filterState.priority.includes(test.priority || '');
-            const matchesMinimum = filterState.minimum.length === 0 || filterState.minimum.includes(test.minimum || '');
-            const matchesModule = filterState.module.length === 0 || filterState.module.includes(test.module || '');
-            const matchesUseCase = filterState.useCase.length === 0 || filterState.useCase.includes(test.useCase || '');
-            const matchesAnalyst = filterState.analyst.length === 0 || filterState.analyst.includes(test.analyst || '');
-            const matchesResult = filterState.result.length === 0 || filterState.result.includes(test.result || '');
-
-            return matchesBackoffice && matchesPriority && matchesMinimum && 
-                   matchesModule && matchesUseCase && matchesAnalyst && matchesResult;
-        });
-
-        // Apply Default Sorting
-        // 1. Use Case (A-Z)
-        // 2. Module (A-Z)
-        // 3. Minimum (Sim > Não)
-        // 4. Priority (Alta > Média > Baixa)
-        // 5. TAG ID (Numeric extraction)
-        return result.sort((a, b) => {
-            // Use Case
-            const useCaseSort = (a.useCase || '').localeCompare(b.useCase || '');
-            if (useCaseSort !== 0) return useCaseSort;
-
-            // Module
-            const moduleSort = (a.module || '').localeCompare(b.module || '');
-            if (moduleSort !== 0) return moduleSort;
-
-            // Minimum (Sim > Não)
-            const minA = getMinimumWeight(a.minimum || '');
-            const minB = getMinimumWeight(b.minimum || '');
-            if (minA !== minB) return minB - minA;
-
-            // Priority (Alta > Média > Baixa)
-            const pA = getPriorityWeight(a.priority || '');
-            const pB = getPriorityWeight(b.priority || '');
-            if (pA !== pB) return pB - pA;
-
-            // TAG ID (QA-XXXXX)
-            const idA = extractTestIdNumber(a.testId || '');
-            const idB = extractTestIdNumber(b.testId || '');
-            return idA - idB;
-        });
-    }, [tests, searchTerm, filterState]);
-
-    const visibleTests = useMemo(() => {
-        return filteredTests.slice(0, visibleCount);
-    }, [filteredTests, visibleCount]);
 
     const toggleExpand = (id: string) => {
         setExpandedId(prev => prev === id ? null : id);
@@ -800,8 +836,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 {sheetName}
                             </h2>
                             <p className="text-sm text-slate-500">
-                                {filteredTests.length > 0 
-                                    ? `Exibindo ${visibleTests.length} de ${filteredTests.length} casos de teste.` 
+                                {totalCount > 0 
+                                    ? `Exibindo ${tests.length} de ${totalCount} casos de teste.` 
                                     : 'Nenhum teste encontrado.'
                                 }
                             </p>
@@ -815,7 +851,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 type="text"
                                 placeholder="Pesquisar por TAG, ID, Módulo, Analista..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
                             />
                         </div>
@@ -829,6 +868,17 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         >
                             <span className="leading-none">+</span>
                         </button>
+
+                        {user?.role === 'ADMIN' && (
+                            <button
+                                onClick={clearTests}
+                                disabled={isLoadingTests}
+                                className="flex items-center justify-center px-4 py-2 text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm group"
+                                title="Limpar Base Global"
+                            >
+                                {isLoadingTests ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                        )}
 
                         <div className="relative">
                             <button
@@ -926,36 +976,18 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         </button>
                     </div>
                 </div>
-
-                {/* Barra de Pesquisa Mobile */}
-                <div className="md:hidden pb-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input 
-                            type="text"
-                            placeholder="Pesquisar testes..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none shadow-sm"
-                        />
-                    </div>
-                </div>
-
-                {/* Estado Zero */}
-                {filteredTests.length === 0 && (
-                    <div className="text-center py-16 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                        <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-slate-700">{searchTerm ? 'Nenhum resultado para sua busca' : 'Nenhum teste carregado'}</h3>
-                        <p className="text-slate-500 max-w-md mx-auto mt-2 text-sm">
-                            {searchTerm ? 'Tente buscar por TAG ID, Módulo ou Status diferente.' : 'Utilize o botão Configurações no canto superior direito para acessar as ferramentas administrativas e importar sua planilha.'}
-                        </p>
+                {/* Estado Zero / Loading */}
+                {isLoadingTests && tests.length === 0 && (
+                    <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-slate-900 mb-1">Carregando testes...</h3>
+                        <p className="text-slate-500">Buscando os registros no servidor.</p>
                     </div>
                 )}
-
                 {/* Lista de Testes */}
-                {filteredTests.length > 0 && (
+                {totalCount > 0 && (
                     <>
-                        <div className="space-y-3">
+                        <div className={`space-y-3 ${isLoadingTests ? 'opacity-50 pointer-events-none' : ''} transition-opacity duration-300`}>
                         {/* Batch Selection Header */}
                         <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 mb-4 sticky top-12 z-40 shadow-sm">
                             <div className="flex items-center gap-3">
@@ -964,19 +996,19 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                     className="flex items-center gap-2 group"
                                 >
                                     <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
-                                        selectedIds.size === filteredTests.length && filteredTests.length > 0
+                                        selectedIds.size === tests.length && tests.length > 0
                                             ? 'bg-indigo-600 border-indigo-600 text-white' 
                                             : 'bg-white border-slate-300 group-hover:border-indigo-400'
                                     }`}>
-                                        {selectedIds.size === filteredTests.length && filteredTests.length > 0 && (
+                                        {selectedIds.size === tests.length && tests.length > 0 && (
                                             <CheckCircle2 className="w-3.5 h-3.5" />
                                         )}
-                                        {selectedIds.size > 0 && selectedIds.size < filteredTests.length && (
+                                        {selectedIds.size > 0 && selectedIds.size < tests.length && (
                                             <div className="w-2 h-0.5 bg-indigo-500 rounded-full" />
                                         )}
                                     </div>
                                     <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        {selectedIds.size === filteredTests.length && filteredTests.length > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
+                                        {selectedIds.size === tests.length && tests.length > 0 ? 'Desmarcar Página' : 'Selecionar Página'}
                                     </span>
                                 </button>
                                 {selectedIds.size > 0 && (
@@ -989,10 +1021,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 )}
                             </div>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                {filteredTests.length} total
+                                {totalCount} registros totais
                             </p>
                         </div>
-                        {visibleTests.map((test) => {
+                        {tests.map((test) => {
                             const isExpanded = expandedId === test.id;
 
                             // Determine active header fields to adjust grid columns
@@ -1283,21 +1315,58 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         })}
                     </div>
 
-                    {/* Load More Button */}
-                        {visibleCount < filteredTests.length && (
-                            <div className="mt-8 flex justify-center">
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="mt-12 flex flex-col items-center gap-6">
+                            <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => setVisibleCount(prev => prev + 50)}
-                                    className="group flex items-center gap-3 px-8 py-3 bg-white border-2 border-slate-200 rounded-2xl text-slate-600 font-bold hover:border-indigo-500 hover:text-indigo-600 hover:shadow-lg transition-all active:scale-95"
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1 || isLoadingTests}
+                                    className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-indigo-500 hover:text-indigo-600 disabled:opacity-50 disabled:hover:border-slate-200 disabled:hover:text-slate-600 transition-all active:scale-95"
                                 >
-                                    <RefreshCw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                                    Carregar mais itens
-                                    <span className="ml-2 px-2 py-0.5 bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-400 text-[10px] rounded-full transition-colors">
-                                        {filteredTests.length - visibleCount} restantes
-                                    </span>
+                                    Anterior
+                                </button>
+                                
+                                <div className="flex items-center gap-1">
+                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                        // Show pages around current page
+                                        let pageNum = currentPage;
+                                        if (currentPage <= 3) pageNum = i + 1;
+                                        else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                        else pageNum = currentPage - 2 + i;
+
+                                        if (pageNum < 1 || pageNum > totalPages) return null;
+
+                                        return (
+                                            <button
+                                                key={pageNum}
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                disabled={isLoadingTests}
+                                                className={`w-10 h-10 flex items-center justify-center rounded-xl font-bold text-sm transition-all ${
+                                                    currentPage === pageNum 
+                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                                                        : 'bg-white text-slate-500 border border-slate-200 hover:border-indigo-300'
+                                                }`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={currentPage === totalPages || isLoadingTests}
+                                    className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-indigo-500 hover:text-indigo-600 disabled:opacity-50 disabled:hover:border-slate-200 disabled:hover:text-slate-600 transition-all active:scale-95"
+                                >
+                                    Próximo
                                 </button>
                             </div>
-                        )}
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Página {currentPage} de {totalPages} • Total de {totalCount} registros
+                            </div>
+                        </div>
+                    )}
                     </>
                 )}
             </div>
@@ -1324,6 +1393,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 onApply={(filters) => {
                     setFilterState(filters);
                     saveFiltersToDatabase(filters);
+                    setCurrentPage(1); // Reset to first page when filtering
                     setIsFilterPanelOpen(false);
                 }}
                 onClear={clearFilters}

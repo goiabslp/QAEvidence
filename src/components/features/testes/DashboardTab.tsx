@@ -785,8 +785,9 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
 
                 {/* 5. MÍNIMOS TAB */}
                 {activeSubTab === 'Mínimos' && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Global Metrics Strip */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                             <StatCard label="Total Mínimos" value={stats.minimumsMetrics.total} icon={Target} color="text-indigo" />
                             <StatCard label="Concluídos" value={stats.minimumsMetrics.success} icon={CheckCheck} color="text-emerald" />
                             <StatCard label="Em Andamento" value={stats.minimumsMetrics.inProgress} icon={Activity} color="text-blue" />
@@ -794,108 +795,121 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
                             <StatCard label="Restantes" value={stats.minimumsMetrics.remaining} icon={Timer} color="text-red" />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
-                                <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs mb-8 flex items-center gap-2">
-                                    <Layers className="w-5 h-5 text-indigo-500" /> Mínimos por Módulo
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            {/* Modules List - Compact */}
+                            <div className="lg:col-span-4 bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col">
+                                <h4 className="font-black text-slate-700 uppercase tracking-widest text-[10px] mb-4 flex items-center gap-2">
+                                    <Layers className="w-4 h-4 text-indigo-500" /> Mínimos por Módulo
                                 </h4>
-                                <div className="space-y-6 max-h-[500px] overflow-y-auto custom-scrollbar pr-4">
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                                     {stats.minimumsMetrics.byModule.map(m => (
-                                        <div key={m.name} className="p-6 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
-                                            <ProgressItem 
-                                                label={m.name} 
-                                                value={m.success} 
-                                                total={m.total} 
-                                                progress={m.progress} 
-                                                color="bg-emerald-500" 
-                                            />
+                                        <div key={m.name} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[10px] font-black text-slate-800 truncate pr-2">{m.name}</span>
+                                                <span className="text-[10px] font-black text-indigo-600">{m.progress}%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-white rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${m.progress}%` }} />
+                                            </div>
                                         </div>
                                     ))}
                                     {stats.minimumsMetrics.byModule.length === 0 && (
                                         <div className="py-20 text-center text-slate-400">
-                                            <Target className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                            <p className="font-bold">Nenhum teste mínimo definido.</p>
+                                            <Target className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                            <p className="text-xs font-bold">Nenhum teste mínimo definido.</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
                             
-                            <div className="bg-slate-900 p-12 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden flex flex-col items-center justify-center text-center group">
+                            {/* Global Summary - Compact */}
+                            <div className="lg:col-span-8 bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden flex flex-col items-center justify-center text-center group">
                                 <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-[100px] -mr-40 -mt-40 group-hover:bg-indigo-500/20 transition-all duration-700" />
                                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] -ml-32 -mb-32 group-hover:bg-emerald-500/20 transition-all duration-700" />
                                 
-                                <div className="relative z-10 space-y-10 w-full max-w-sm">
-                                    <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto border border-white/10 shadow-2xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
-                                        <PieChart className="w-12 h-12 text-indigo-400" />
+                                <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-around gap-8">
+                                    <div className="flex flex-col items-center space-y-4">
+                                        <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 shadow-2xl backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
+                                            <PieChart className="w-8 h-8 text-indigo-400" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white text-lg font-black tracking-tight">Progresso Global</h4>
+                                            <p className="text-slate-500 text-[8px] font-bold uppercase tracking-[0.2em]">Cenário Crítico</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <h4 className="text-white text-3xl font-black tracking-tight leading-tight">Progresso Global de Mínimos</h4>
-                                        <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.2em]">Cenário Crítico Consolidado</p>
+
+                                    <div className="flex flex-col items-center">
+                                        <div className="text-7xl font-black text-white tracking-tighter leading-none mb-4">
+                                            {stats.minimumsMetrics.total > 0 ? Math.round((stats.minimumsMetrics.success / stats.minimumsMetrics.total) * 100) : 0}<span className="text-3xl text-indigo-500 ml-1">%</span>
+                                        </div>
+                                        <div className="w-48 h-3 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/10">
+                                            <div 
+                                                className="h-full bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(99,102,241,0.5)]" 
+                                                style={{ width: `${stats.minimumsMetrics.total > 0 ? Math.round((stats.minimumsMetrics.success / stats.minimumsMetrics.total) * 100) : 0}%` }} 
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="text-8xl font-black text-white tracking-tighter">
-                                        {stats.minimumsMetrics.total > 0 ? Math.round((stats.minimumsMetrics.success / stats.minimumsMetrics.total) * 100) : 0}<span className="text-4xl text-indigo-500 ml-1">%</span>
-                                    </div>
-                                    <div className="w-full h-5 bg-white/5 rounded-full overflow-hidden p-1 border border-white/10">
-                                        <div 
-                                            className="h-full bg-indigo-500 rounded-full transition-all duration-1000 shadow-[0_0_20px_rgba(99,102,241,0.5)]" 
-                                            style={{ width: `${stats.minimumsMetrics.total > 0 ? Math.round((stats.minimumsMetrics.success / stats.minimumsMetrics.total) * 100) : 0}%` }} 
-                                        />
+
+                                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-4 md:pt-0">
+                                        <div className="flex flex-col items-start border-l border-slate-800 pl-4">
+                                            <span className="text-[8px] font-black text-slate-500 uppercase">OK</span>
+                                            <span className="text-xl font-black text-white">{stats.minimumsMetrics.success}</span>
+                                        </div>
+                                        <div className="flex flex-col items-start border-l border-slate-800 pl-4">
+                                            <span className="text-[8px] font-black text-slate-500 uppercase">REST</span>
+                                            <span className="text-xl font-black text-red-400">{stats.minimumsMetrics.remaining}</span>
+                                        </div>
+                                        <div className="flex flex-col items-start border-l border-slate-800 pl-4 col-span-2">
+                                            <span className="text-[8px] font-black text-slate-500 uppercase">VOLUME TOTAL</span>
+                                            <span className="text-xl font-black text-indigo-400">{stats.minimumsMetrics.total}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Minimums by Backoffice Grid */}
-                        <div className="space-y-6">
+                        {/* Minimums by Backoffice Grid - Compact but Prominent */}
+                        <div className="space-y-4 pt-2">
                             <div className="flex items-center gap-3">
-                                <div className="h-px bg-slate-200 flex-1" />
-                                <h4 className="font-black text-slate-500 uppercase tracking-widest text-[10px] whitespace-nowrap px-4 py-1.5 bg-white border border-slate-200 rounded-full shadow-sm flex items-center gap-2">
-                                    <BarChart3 className="w-3.5 h-3.5 text-indigo-500" /> Progresso de Mínimos por Backoffice
+                                <h4 className="font-black text-slate-800 uppercase tracking-[0.15em] text-[11px] whitespace-nowrap px-4 py-1.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-2">
+                                    <BarChart3 className="w-4 h-4 text-indigo-500" /> Progresso Mínimos por Backoffice
                                 </h4>
                                 <div className="h-px bg-slate-200 flex-1" />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
                                 {stats.minimumsMetrics.byBackoffice.map(bo => (
-                                    <div key={bo.name} className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:shadow-lg hover:border-indigo-200 transition-all flex flex-col group h-full">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <h5 className="font-black text-slate-800 text-lg line-clamp-1 pr-4" title={bo.name}>{bo.name}</h5>
-                                            <div className="p-2 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                                                <Target className="w-4 h-4" />
+                                    <div key={bo.name} className="bg-white rounded-[1.5rem] border border-slate-200 shadow-sm p-4 hover:shadow-lg hover:border-indigo-300 transition-all flex flex-col group relative overflow-hidden">
+                                        <div className="flex justify-between items-start mb-4 relative z-10">
+                                            <h5 className="font-black text-slate-800 text-sm line-clamp-1 pr-2 uppercase" title={bo.name}>{bo.name}</h5>
+                                            <div className="text-indigo-600 font-black text-[12px] bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">
+                                                {bo.progress}%
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-2 mb-6">
-                                            <div className="bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50 flex flex-col items-center">
-                                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">OK</span>
-                                                <span className="text-sm font-black text-emerald-700">{bo.success}</span>
+                                        <div className="grid grid-cols-2 gap-2 mb-4 relative z-10">
+                                            <div className="bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50 flex flex-col">
+                                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">CONCLUÍDO</span>
+                                                <span className="text-xl font-black text-emerald-800 leading-none mt-1">{bo.success}</span>
                                             </div>
-                                            <div className="bg-blue-50/50 p-2 rounded-xl border border-blue-100/50 flex flex-col items-center">
-                                                <span className="text-[8px] font-black text-blue-500 uppercase tracking-tighter">AND</span>
-                                                <span className="text-sm font-black text-blue-700">{bo.inProgress}</span>
+                                            <div className="bg-slate-900 p-2 rounded-xl border border-slate-800 flex flex-col col-span-1">
+                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">TOTAL</span>
+                                                <span className="text-xl font-black text-white leading-none mt-1">{bo.total}</span>
                                             </div>
-                                            <div className="bg-slate-50/80 p-2 rounded-xl border border-slate-100 flex flex-col items-center">
-                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">PEN</span>
-                                                <span className="text-sm font-black text-slate-700">{bo.pending}</span>
+                                            <div className="bg-blue-50/50 px-2 py-1.5 rounded-lg border border-blue-100/30 flex justify-between items-center col-span-1">
+                                                <span className="text-[7px] font-black text-blue-500 uppercase">AND</span>
+                                                <span className="text-xs font-black text-blue-700">{bo.inProgress}</span>
                                             </div>
-                                            <div className="bg-red-50/50 p-2 rounded-xl border border-red-100/50 flex flex-col items-center">
-                                                <span className="text-[8px] font-black text-red-500 uppercase tracking-tighter">REST</span>
-                                                <span className="text-sm font-black text-red-700">{bo.remaining}</span>
-                                            </div>
-                                            <div className="bg-slate-900 p-2 rounded-xl border border-slate-800 flex flex-col items-center col-span-2">
-                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter">TESTES MÍNIMOS</span>
-                                                <span className="text-sm font-black text-white">{bo.total}</span>
+                                            <div className="bg-slate-50/80 px-2 py-1.5 rounded-lg border border-slate-200 flex justify-between items-center col-span-1">
+                                                <span className="text-[7px] font-black text-slate-400 uppercase">PEN</span>
+                                                <span className="text-xs font-black text-slate-700">{bo.pending}</span>
                                             </div>
                                         </div>
 
-                                        <div className="mt-auto space-y-2">
-                                            <div className="flex justify-between items-end">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Atingimento</span>
-                                                <span className="text-sm font-black text-indigo-600">{bo.progress}%</span>
-                                            </div>
+                                        <div className="mt-auto relative z-10">
                                             <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden p-0.5 shadow-inner">
                                                 <div 
-                                                    className={`h-full ${bo.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-600'} rounded-full transition-all duration-1000 shadow-sm`} 
+                                                    className={`h-full ${bo.progress === 100 ? 'bg-emerald-500' : 'bg-indigo-600'} rounded-full transition-all duration-1000`} 
                                                     style={{ width: `${bo.progress}%` }} 
                                                 />
                                             </div>

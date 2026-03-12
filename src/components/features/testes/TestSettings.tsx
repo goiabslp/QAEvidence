@@ -84,28 +84,82 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         };
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [importStatus, setImportStatus] = useState<{
+        active: boolean;
+        progress: number;
+        message: string;
+        finished: boolean;
+    }>({
+        active: false,
+        progress: 0,
+        message: '',
+        finished: false
+    });
 
     // Initial check + fetch for Dashboards
     useEffect(() => {
-        const fetchAllData = async () => {
-            setIsLoadingRecords(true);
+        const checkRecords = async () => {
             try {
-                const { data, count, error } = await supabase
+                const { count, error } = await supabase
                     .from('excel_test_records')
-                    .select('*', { count: 'exact' });
+                    .select('*', { count: 'exact', head: true })
+                    .neq('module', 'SYSTEM_SETTINGS');
                 
                 if (error) throw error;
+                setHasLoadedTests((count || 0) > 0);
+            } catch (err) {
+                console.error("Erro no check inicial:", err);
+            }
+        };
 
-                const settingsRecord = data?.find(r => r.module === 'SYSTEM_SETTINGS');
+        const fetchAllData = async () => {
+            if (activeTab !== 'DASHBOARD' && activeTab !== 'GOALS') return;
+            if (testRecords.length > 0) return; // Already loaded
+
+            setIsLoadingRecords(true);
+            try {
+                let allFetchedData: any[] = [];
+                let from = 0;
+                const PAGE_SIZE = 1000;
+                let hasMore = true;
+
+                while (hasMore) {
+                    const { data, error } = await supabase
+                        .from('excel_test_records')
+                        .select('*')
+                        .range(from, from + PAGE_SIZE - 1)
+                        .order('imported_order', { ascending: true });
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        allFetchedData = [...allFetchedData, ...data];
+                        from += PAGE_SIZE;
+                        if (data.length < PAGE_SIZE) {
+                            hasMore = false;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+
+                const settingsRecord = allFetchedData.find(r => r.module === 'SYSTEM_SETTINGS');
                 if (settingsRecord) {
                     setCurrentSheetName(settingsRecord.steps_text || 'Gestão de Testes');
+                } else {
+                    // Fallback check if settings record wasn't in the chunks (unlikely given it's a small table usually)
+                     const { data: sData } = await supabase
+                        .from('excel_test_records')
+                        .select('steps_text')
+                        .eq('module', 'SYSTEM_SETTINGS')
+                        .maybeSingle();
+                    if (sData) setCurrentSheetName(sData.steps_text);
                 }
 
                 // Filter out settings for the test list
-                const actualData = data?.filter(r => r.module !== 'SYSTEM_SETTINGS') || [];
+                const actualData = allFetchedData.filter(r => r.module !== 'SYSTEM_SETTINGS');
                 const hasRecords = actualData.length > 0;
-                setHasLoadedTests(hasRecords);
-
+                
                 if (hasRecords) {
                     const mapped = actualData.map(record => ({
                         id: record.id,
@@ -144,8 +198,11 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                 setIsLoadingRecords(false);
             }
         };
+
+        checkRecords();
         fetchAllData();
-    }, []);
+    }, [activeTab]); // Run on tab change for lazy loading
+
 
     const handleToggleColumn = (key: TestColumnKey) => {
         setSettings(prev => ({
@@ -194,12 +251,18 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setIsLoading(true);
+        setImportStatus({
+            active: true,
+            progress: 5,
+            message: 'Carregando arquivo...',
+            finished: false
+        });
         setError(null);
 
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
+                setImportStatus(prev => ({ ...prev, progress: 10, message: 'Lendo os dados da planilha...' }));
                 const data = new Uint8Array(event.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
                 
@@ -214,6 +277,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                     throw new Error("Estrutura da planilha incompatível. Ela precisa conter as colunas de A até V.");
                 }
                 
+                setImportStatus(prev => ({ ...prev, progress: 30, message: 'Organizando as informações...' }));
                 const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, defval: '' });
                 
                 if (jsonData.length === 0) {
@@ -258,12 +322,15 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                     created_by: user.id
                 }));
 
-                setPendingRecords(records);
-                setNewSheetName('');
-                setError(null);
+                setImportStatus(prev => ({ ...prev, progress: 50, message: 'Preparação concluída!' }));
+                
+                // Automatically trigger the import process
+                await confirmImport(records);
+
             } catch (err: any) {
                 console.error("Erro ao processar planilha:", err);
                 setError(err.message || "Ocorreu um erro ao processar o arquivo.");
+                setImportStatus(prev => ({ ...prev, active: false }));
             } finally {
                 setIsLoading(false);
             }
@@ -272,26 +339,75 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         reader.readAsArrayBuffer(file);
     };
 
-    const confirmImport = async () => {
-        if (!pendingRecords || !newSheetName.trim()) {
-            alert("Por favor, preencha o nome da planilha.");
-            return;
-        }
+    const confirmImport = async (records: any[]) => {
+        setImportStatus({
+            active: true,
+            progress: 50,
+            message: 'Iniciando importação...',
+            finished: false
+        });
 
-        setIsLoading(true);
         try {
+            // Simulated progress while preparing
+            setImportStatus(prev => ({ ...prev, progress: 55, message: 'Validando registros...' }));
+            
             // Delete old tests (keep settings)
             await supabase.from('excel_test_records')
                 .delete()
                 .neq('module', 'SYSTEM_SETTINGS');
 
-            // Insert new tests
-            const { error: insertError } = await supabase
-                .from('excel_test_records')
-                .insert(pendingRecords);
+            setImportStatus(prev => ({ ...prev, progress: 60, message: 'Iniciando gravação em lotes...' }));
 
-            if (insertError) throw insertError;
+            // Batch insertion logic for large amounts of records
+            const BATCH_SIZE = 1000;
+            const totalRecords = records.length;
+            const totalBatches = Math.ceil(totalRecords / BATCH_SIZE);
 
+            for (let i = 0; i < totalRecords; i += BATCH_SIZE) {
+                const chunk = records.slice(i, i + BATCH_SIZE);
+                const currentBatch = Math.floor(i / BATCH_SIZE) + 1;
+                
+                // Update progress based on batches (from 60% to 90%)
+                const batchProgress = 60 + Math.floor((currentBatch / totalBatches) * 30);
+                setImportStatus(prev => ({ 
+                    ...prev, 
+                    progress: batchProgress, 
+                    message: `Importando lote ${currentBatch} de ${totalBatches}... (${totalRecords} registros)` 
+                }));
+
+                const { error: insertError } = await supabase
+                    .from('excel_test_records')
+                    .insert(chunk);
+
+                if (insertError) throw insertError;
+            }
+            
+            setImportStatus(prev => ({ 
+                ...prev, 
+                progress: 100, 
+                message: 'Importação de dados concluída com sucesso!', 
+                finished: true 
+            }));
+            
+            setHasLoadedTests(true);
+            setPendingRecords(null);
+
+        } catch (err: any) {
+            console.error("Erro ao finalizar importação:", err);
+            setError(err.message);
+            setImportStatus(prev => ({ ...prev, active: false }));
+            alert("Erro na importação: " + err.message);
+        } finally {
+            setIsLoading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const saveImportName = async () => {
+        if (!newSheetName.trim()) return;
+
+        setIsLoading(true);
+        try {
             // Save/Update sheet name magic record
             const { error: settingsError } = await supabase
                 .from('excel_test_records')
@@ -305,9 +421,6 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
             if (settingsError) throw settingsError;
 
             setCurrentSheetName(newSheetName);
-            setHasLoadedTests(true);
-            setPendingRecords(null);
-            alert(`${pendingRecords.length} registro(s) importados com sucesso.`);
             
             // Reload dashboard data
             const { data: newData } = await supabase.from('excel_test_records').select('*');
@@ -340,12 +453,16 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                     createdBy: record.created_by
                 })) as ExcelTestRecord[]);
             }
+
+            // Close modal
+            setImportStatus(prev => ({ ...prev, active: false }));
+            setNewSheetName('');
+
         } catch (err: any) {
-            console.error("Erro ao finalizar importação:", err);
-            setError(err.message);
+            console.error("Erro ao salvar nome da planilha:", err);
+            alert("Erro ao salvar nome: " + err.message);
         } finally {
             setIsLoading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -490,7 +607,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                             Faça upload de um arquivo `.xlsx` contendo os casos. O sistema mapeará automaticamente as colunas de A até V.
                                         </p>
                                         
-                                        {!pendingRecords ? (
+                                        {!hasLoadedTests && !pendingRecords && (
                                             <>
                                                 <input
                                                     type="file"
@@ -505,39 +622,28 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
                                                 >
                                                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                                                    {isLoading ? 'Lendo Arquivo...' : 'Selecionar Planilha'}
+                                                    {isLoading ? 'Importando...' : 'Selecionar Planilha'}
                                                 </button>
                                             </>
-                                        ) : (
-                                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                                                <div className="p-4 bg-white border-2 border-indigo-100 rounded-xl shadow-inner">
-                                                    <label className="text-xs font-black text-indigo-600 uppercase mb-2 block tracking-wider">Nome da Planilha (Obrigatório)</label>
-                                                    <input 
-                                                        type="text"
-                                                        value={newSheetName}
-                                                        onChange={(e) => setNewSheetName(e.target.value)}
-                                                        placeholder="Ex: Sprint 42 - Core"
-                                                        className="w-full px-4 py-2 text-sm font-bold text-slate-700 bg-indigo-50/30 border border-indigo-100 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={confirmImport}
-                                                        disabled={isLoading || !newSheetName.trim()}
-                                                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
-                                                    >
-                                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                                        Confirmar Importação
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setPendingRecords(null)}
-                                                        disabled={isLoading}
-                                                        className="px-6 py-3 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                </div>
+                                        )}
+                                        {hasLoadedTests && (
+                                            <div className="flex flex-col gap-4">
+                                                 <input
+                                                    type="file"
+                                                    accept=".xlsx, .xls"
+                                                    className="hidden"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                />
+                                                <button
+                                                    onClick={triggerFileInput}
+                                                    disabled={isLoading}
+                                                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50"
+                                                >
+                                                    <Upload className="w-4 h-4" />
+                                                    Importar Nova Planilha
+                                                </button>
+                                                <p className="text-[10px] text-slate-400 font-medium">Isso substituirá todos os dados atuais.</p>
                                             </div>
                                         )}
                                     </div>
@@ -584,7 +690,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                             onClick={clearTests}
                                             className="flex items-center justify-center gap-2 px-6 py-3 font-bold text-red-600 bg-white border border-red-200 hover:bg-red-100 rounded-xl transition-colors shadow-sm"
                                         >
-                                            Limpar Bando de Testes Global
+                                            Limpar Banco de Testes Global
                                         </button>
                                     </div>
                                 )}
@@ -709,8 +815,92 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                         )}
                     </>
                 )}
-
             </div>
+
+            {/* Import Loading Modal */}
+            {importStatus.active && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-8 pb-4 text-center">
+                            <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto mb-6 relative">
+                                {importStatus.finished ? (
+                                    <div className="w-full h-full bg-emerald-500 rounded-3xl flex items-center justify-center animate-in zoom-in duration-500">
+                                        <Check className="w-10 h-10 text-white" />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center border-4 border-white shadow-sm">
+                                            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            
+                            <h3 className={`text-2xl font-black tracking-tight mb-2 ${importStatus.finished ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                {importStatus.finished ? 'Importação Concluída!' : 'Processando Arquivo'}
+                            </h3>
+                            <p className="text-slate-500 text-sm font-medium px-4">
+                                {importStatus.message}
+                            </p>
+                        </div>
+
+                        <div className="px-10 pb-10">
+                            {!importStatus.finished ? (
+                                <>
+                                    <div className="mt-8 mb-2 flex justify-between items-end">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status da Operação</span>
+                                        <span className="text-lg font-black text-indigo-600">
+                                            {importStatus.progress}%
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden p-1 shadow-inner group">
+                                        <div 
+                                            className="h-full rounded-full transition-all duration-700 shadow-sm relative bg-indigo-600 shadow-indigo-200"
+                                            style={{ width: `${importStatus.progress}%` }}
+                                        >
+                                            <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex items-center justify-center gap-2 py-3 px-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="flex gap-1">
+                                            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                            <div className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" />
+                                        </div>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Não feche esta janela</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="mt-6 space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+                                    <div className="p-5 bg-indigo-50 border-2 border-indigo-100 rounded-3xl">
+                                        <label className="text-[10px] font-black text-indigo-600 uppercase mb-2 block tracking-widest">Nome da Planilha (Obrigatório)</label>
+                                        <input 
+                                            type="text"
+                                            value={newSheetName}
+                                            onChange={(e) => setNewSheetName(e.target.value)}
+                                            placeholder="Ex: Planilha de Testes - Versão 2.0"
+                                            className="w-full px-4 py-3 text-sm font-bold text-slate-700 bg-white border border-indigo-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm"
+                                            autoFocus
+                                            onKeyDown={(e) => { if (e.key === 'Enter') saveImportName(); }}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={saveImportName}
+                                        disabled={isLoading || !newSheetName.trim()}
+                                        className="w-full flex items-center justify-center gap-3 px-6 py-4 font-black text-white bg-indigo-600 rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:shadow-none hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                                        Concluir e Salvar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
