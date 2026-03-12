@@ -24,57 +24,80 @@ const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, 
     const [isSavingGoal, setIsSavingGoal] = useState(false);
     const [goalSaveSuccess, setGoalSaveSuccess] = useState(false);
 
+    const fetchMetrics = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            // Determine today's date range (in local/Brazil time or just simple start/end of current date)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const startOfDay = today.toISOString();
+            
+            const endOfDayDate = new Date(today);
+            endOfDayDate.setHours(23, 59, 59, 999);
+            const endOfDay = endOfDayDate.toISOString();
+
+            // Count tests executed by the user today
+            const { data, error } = await supabase
+                .from('excel_test_records')
+                .select('result, updated_at')
+                .eq('analyst', user.acronym)
+                .gte('updated_at', startOfDay)
+                .lte('updated_at', endOfDay);
+
+            if (error) throw error;
+
+            // Process metrics
+            const counts = {
+                emAndamento: 0,
+                sucesso: 0,
+                erro: 0,
+                impedimento: 0
+            };
+
+            (data || []).forEach((item: any) => {
+                const status = (item.result || '').toLowerCase();
+                if (status.includes('pendente')) counts.emAndamento++;
+                else if (status.includes('sucesso')) counts.sucesso++;
+                else if (status.includes('falha') || status.includes('erro')) counts.erro++;
+                else if (status.includes('impedimento') || status.includes('andamento') && !status.includes('em')) counts.impedimento++;
+                else if (status.includes('andamento')) counts.emAndamento++;
+            });
+
+            setMetrics(counts);
+        } catch (error) {
+            console.error('Erro ao buscar métricas:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!isOpen || !user) return;
+        fetchMetrics();
+    }, [isOpen, user]);
+
+    // Realtime subscription for metrics
     useEffect(() => {
         if (!isOpen || !user) return;
 
-        const fetchMetrics = async () => {
-            setIsLoading(true);
-            try {
-                // Determine today's date range (in local/Brazil time or just simple start/end of current date)
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const startOfDay = today.toISOString();
-                
-                const endOfDayDate = new Date(today);
-                endOfDayDate.setHours(23, 59, 59, 999);
-                const endOfDay = endOfDayDate.toISOString();
+        const channel = supabase.channel('daily_metrics_changes')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'excel_test_records'
+                },
+                () => {
+                    fetchMetrics();
+                }
+            )
+            .subscribe();
 
-                // Count tests executed by the user today
-                const { data, error } = await supabase
-                    .from('excel_test_records')
-                    .select('result, updated_at')
-                    .eq('analyst', user.acronym)
-                    .gte('updated_at', startOfDay)
-                    .lte('updated_at', endOfDay);
-
-                if (error) throw error;
-
-                // Process metrics
-                const counts = {
-                    emAndamento: 0,
-                    sucesso: 0,
-                    erro: 0,
-                    impedimento: 0
-                };
-
-                (data || []).forEach((item: any) => {
-                    const status = (item.result || '').toLowerCase();
-                    if (status.includes('pendente')) counts.emAndamento++;
-                    else if (status.includes('sucesso')) counts.sucesso++;
-                    else if (status.includes('falha') || status.includes('erro')) counts.erro++;
-                    else if (status.includes('impedimento') || status.includes('andamento') && !status.includes('em')) counts.impedimento++;
-                    else if (status.includes('andamento')) counts.emAndamento++;
-                });
-
-                setMetrics(counts);
-            } catch (error) {
-                console.error('Erro ao buscar métricas:', error);
-            } finally {
-                setIsLoading(false);
-            }
+        return () => {
+            supabase.removeChannel(channel);
         };
-
-        fetchMetrics();
     }, [isOpen, user]);
 
     if (!isOpen) return null;

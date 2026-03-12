@@ -323,54 +323,63 @@ const TestManagement: React.FC<TestManagementProps> = ({
             .on(
                 'postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: '*',
                     schema: 'public',
                     table: 'excel_test_records'
                 },
                 (payload) => {
-                    const updatedRecord = payload.new;
-                    
-                    if (updatedRecord.module === 'SYSTEM_SETTINGS') {
-                        setSheetName(updatedRecord.steps_text || 'Gestão de Testes');
+                    if (payload.eventType === 'DELETE') {
+                        setTests(currentTests => currentTests.filter(t => t.id !== payload.old.id));
                         return;
                     }
 
-                    setTests(currentTests => {
-                        const exists = currentTests.some(t => t.id === updatedRecord.id);
+                    const record = payload.new;
+                    
+                    if (record.module === 'SYSTEM_SETTINGS') {
+                        setSheetName(record.steps_text || 'Gestão de Testes');
+                        return;
+                    }
 
-                        const mappedTest = {
-                            id: updatedRecord.id,
-                                stepsText: updatedRecord.steps_text,
-                                browser: updatedRecord.browser,
-                                bank: updatedRecord.bank,
-                                backoffice: updatedRecord.backoffice,
-                                mobile: updatedRecord.mobile,
-                                analyst: updatedRecord.analyst,
-                                automated: updatedRecord.automated,
-                                bcsCode: updatedRecord.bcs_code,
-                                useCase: updatedRecord.use_case,
-                                minimum: updatedRecord.minimum,
-                                priority: updatedRecord.priority,
-                                testId: updatedRecord.test_id,
-                                module: updatedRecord.module,
-                                objective: updatedRecord.objective,
-                                estimatedTime: updatedRecord.estimated_time,
-                                prerequisite: updatedRecord.prerequisite,
-                                description: updatedRecord.description,
-                                acceptanceCriteria: updatedRecord.acceptance_criteria,
-                                result: updatedRecord.result,
-                                errorStatus: updatedRecord.error_status,
-                                observation: updatedRecord.observation,
-                                gap: updatedRecord.gap,
-                                tagId: updatedRecord.tag_id
-                            };
+                    const mappedTest = {
+                        id: record.id,
+                        stepsText: record.steps_text,
+                        browser: record.browser,
+                        bank: record.bank,
+                        backoffice: record.backoffice,
+                        mobile: record.mobile,
+                        analyst: record.analyst,
+                        automated: record.automated,
+                        bcsCode: record.bcs_code,
+                        useCase: record.use_case,
+                        minimum: record.minimum,
+                        priority: record.priority,
+                        testId: record.test_id,
+                        module: record.module,
+                        objective: record.objective,
+                        estimatedTime: record.estimated_time,
+                        prerequisite: record.prerequisite,
+                        description: record.description,
+                        acceptanceCriteria: record.acceptance_criteria,
+                        result: record.result,
+                        errorStatus: record.error_status,
+                        observation: record.observation,
+                        gap: record.gap,
+                        tagId: record.tag_id
+                    };
 
-                        if (exists) {
-                            return currentTests.map(t => t.id === mappedTest.id ? mappedTest : t);
-                        } else {
-                            return [...currentTests, mappedTest];
-                        }
-                    });
+                    if (payload.eventType === 'INSERT') {
+                        // For INSERT, we might want to check filters, but for simplicity
+                        // we add it and let the next fetch or manual refresh handle strict filtering
+                        setTests(currentTests => [mappedTest, ...currentTests]);
+                    } else if (payload.eventType === 'UPDATE') {
+                        setTests(currentTests => {
+                            const exists = currentTests.some(t => t.id === mappedTest.id);
+                            if (exists) {
+                                return currentTests.map(t => t.id === mappedTest.id ? mappedTest : t);
+                            }
+                            return currentTests;
+                        });
+                    }
                 }
             )
             .subscribe();
