@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw, Filter, X, Loader2, Trash2 } from 'lucide-react';
+import { Beaker, Settings, ChevronDown, ChevronUp, AlertCircle, FileSpreadsheet, CheckCircle2, ShieldAlert, Activity, Search, Target, RefreshCw, Filter, X, Loader2, MessageSquare } from 'lucide-react';
 import { ExcelTestRecord, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER, TestColumnKey } from '../../../types';
 import { COLUMN_LABELS } from './TestSettings';
 import ConfirmEditModal from './ConfirmEditModal';
@@ -8,8 +8,9 @@ import TestFilterModal from './TestFilterModal';
 import ManualTestModal from './ManualTestModal';
 import { User } from '../../../types';
 import { supabase } from '@/services/supabaseClient';
-import { FilterState, INITIAL_FILTER_STATE } from '../../../types';
+import { FilterState, INITIAL_FILTER_STATE, StructuredObservation } from '../../../types';
 import ModernSelect from '../../common/ModernSelect';
+import TestObservationModal from './TestObservationModal';
 
 // Fields that cannot be edited per user requirements
 const NON_EDITABLE_FIELDS: TestColumnKey[] = [
@@ -108,6 +109,21 @@ const TestManagement: React.FC<TestManagementProps> = ({
     const [pageSize] = useState(50);
     const [isLoadingTests, setIsLoadingTests] = useState(false);
 
+    // Observation Modal State
+    const [observationModal, setObservationModal] = useState<{
+        isOpen: boolean;
+        testId: string | null;
+        initialValue: string;
+        isMandatory: boolean;
+        status: string;
+    }>({
+        isOpen: false,
+        testId: null,
+        initialValue: '',
+        isMandatory: false,
+        status: ''
+    });
+
     const handleCreateTest = async (testData: Partial<ExcelTestRecord>) => {
         if (!user) return;
         try {
@@ -152,27 +168,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }
     };
 
-    const clearTests = async () => {
-        if (!user || user.role !== 'ADMIN') return;
-        if (!window.confirm("ATENÇÃO: Isso excluirá TODOS os testes importados da base de dados global para todos os usuários. Deseja continuar?")) {
-            return;
-        }
-
-        setIsLoadingTests(true);
-        try {
-            const { error } = await supabase
-                .from('excel_test_records')
-                .delete()
-                .neq('module', 'SYSTEM_SETTINGS');
-
-            if (error) throw error;
-        } catch (err) {
-            console.error("Erro ao limpar base:", err);
-            alert("Erro ao limpar base de dados.");
-        } finally {
-            setIsLoadingTests(false);
-        }
-    };
 
     // Sync from user prop on load if it becomes available later
     useEffect(() => {
@@ -398,6 +393,19 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 : t
         ));
 
+        // If status is Erro or Impedimento, we need a mandatory observation
+        if (newResult === 'Erro' || newResult === 'Impedimento') {
+            const test = tests.find(t => t.id === testId);
+            setObservationModal({
+                isOpen: true,
+                testId,
+                initialValue: test?.observation || '',
+                isMandatory: true,
+                status: newResult
+            });
+            return;
+        }
+
         // Save to Supabase
         try {
             const { error } = await supabase
@@ -413,6 +421,62 @@ const TestManagement: React.FC<TestManagementProps> = ({
         } catch (error) {
             console.error('Error updating test result:', error);
             // Could revert UI here on fail
+        }
+    };
+
+    const handleSaveObservation = async (observationText: string) => {
+        if (!user || !observationModal.testId) return;
+
+        const testId = observationModal.testId;
+        const newResult = observationModal.status || tests.find(t => t.id === testId)?.result || 'Pendente';
+        const isPending = newResult === 'Pendente';
+        const newAnalyst = isPending ? '' : user.acronym;
+
+        // Create structured observation
+        const newObs: StructuredObservation = {
+            text: observationText,
+            userAcronym: user.acronym,
+            userName: user.name,
+            timestamp: new Date().toISOString()
+        };
+
+        // Fetch current observation to append if it's already structured
+        let currentObs: any[] = [];
+        const test = tests.find(t => t.id === testId);
+        if (test?.observation?.startsWith('[') && test?.observation?.endsWith(']')) {
+            try {
+                currentObs = JSON.parse(test.observation);
+            } catch (e) {}
+        }
+
+        const updatedObs = [...currentObs, newObs];
+        const serializedObs = JSON.stringify(updatedObs);
+
+        // Optimistic UI update
+        setTests(prev => prev.map(t => 
+            t.id === testId 
+                ? { ...t, result: newResult, analyst: newAnalyst, observation: serializedObs } 
+                : t
+        ));
+
+        // Save to Supabase
+        try {
+            const { error } = await supabase
+                .from('excel_test_records')
+                .update({ 
+                    result: newResult,
+                    analyst: newAnalyst,
+                    observation: serializedObs,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', testId);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error saving observation:', error);
+            alert('Erro ao salvar observação.');
+        } finally {
+            setObservationModal(prev => ({ ...prev, isOpen: false }));
         }
     };
 
@@ -869,16 +933,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             <span className="leading-none">+</span>
                         </button>
 
-                        {user?.role === 'ADMIN' && (
-                            <button
-                                onClick={clearTests}
-                                disabled={isLoadingTests}
-                                className="flex items-center justify-center px-4 py-2 text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-600 hover:text-white transition-all shadow-sm group"
-                                title="Limpar Base Global"
-                            >
-                                {isLoadingTests ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            </button>
-                        )}
 
                         <div className="relative">
                             <button
@@ -1285,15 +1339,42 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                                     {renderComplexEditableField(test, 'acceptanceCriteria', <CheckCircle2 />, 'text-emerald-500')}
 
                                                     {testColumnSettings.observation && (
-                                                        <div>
+                                                        <div className="space-y-4">
                                                             <h4 className="text-sm font-black text-slate-700 flex items-center gap-2 mb-2 uppercase tracking-wide">
                                                                 <div className="p-1 rounded-md bg-white shadow-sm border border-slate-100">
-                                                                    <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
+                                                                    <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
                                                                 </div>
                                                                 {COLUMN_LABELS.observation}
                                                             </h4>
-                                                            <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">
-                                                                {test.observation || 'N/A'}
+                                                            <div className="space-y-3">
+                                                                {(() => {
+                                                                    if (!test.observation) return <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-400 italic shadow-sm">Nenhuma observação registrada.</div>;
+                                                                    
+                                                                    if (test.observation.startsWith('[') && test.observation.endsWith(']')) {
+                                                                        try {
+                                                                            const history = JSON.parse(test.observation) as StructuredObservation[];
+                                                                            return history.map((obs, idx) => (
+                                                                                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                                                                                    <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <div className="w-6 h-6 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-black text-indigo-600 border border-indigo-100">
+                                                                                                {obs.userAcronym}
+                                                                                            </div>
+                                                                                            <span className="text-[10px] font-black text-slate-700 uppercase">{obs.userName}</span>
+                                                                                        </div>
+                                                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                                                            {new Date(obs.timestamp).toLocaleString('pt-BR')}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{obs.text}</p>
+                                                                                </div>
+                                                                            )).reverse();
+                                                                        } catch (e) {
+                                                                            return <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">{test.observation}</div>;
+                                                                        }
+                                                                    }
+                                                                    return <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-600 shadow-sm whitespace-pre-wrap">{test.observation}</div>;
+                                                                })()}
                                                             </div>
                                                         </div>
                                                     )}
@@ -1301,12 +1382,30 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                             </div>
                                             
                                             <div className="px-5 py-3 bg-red-50/50 border-t border-red-100 flex justify-end">
-                                                <button 
-                                                    onClick={(e) => handleDeleteTest(test.id, e)}
-                                                    className="px-4 py-2 text-xs font-bold text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-2 shadow-sm"
-                                                >
-                                                    Excluir Registro
-                                                </button>
+                                                <div className="flex gap-3">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setObservationModal({
+                                                                isOpen: true,
+                                                                testId: test.id,
+                                                                initialValue: test.observation || '',
+                                                                isMandatory: false,
+                                                                status: test.result
+                                                            });
+                                                        }}
+                                                        className="px-4 py-2 text-xs font-bold text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 transition-colors flex items-center gap-2 shadow-sm"
+                                                    >
+                                                        <MessageSquare className="w-3.5 h-3.5" />
+                                                        Observação
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => handleDeleteTest(test.id, e)}
+                                                        className="px-4 py-2 text-xs font-bold text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-2 shadow-sm"
+                                                    >
+                                                        Excluir Registro
+                                                    </button>
+                                                </div>
                                             </div>
                                         </>
                                     )}
@@ -1405,6 +1504,17 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 isOpen={isManualModalOpen}
                 onClose={() => setIsManualModalOpen(false)}
                 onSave={handleCreateTest}
+            />
+
+            <TestObservationModal 
+                isOpen={observationModal.isOpen}
+                onClose={() => setObservationModal(prev => ({ ...prev, isOpen: false }))}
+                onSave={handleSaveObservation}
+                initialValue={observationModal.initialValue}
+                isMandatory={observationModal.isMandatory}
+                status={observationModal.status}
+                userAcronym={user?.acronym || '--'}
+                userName={user?.name || '--'}
             />
         </div>
     );

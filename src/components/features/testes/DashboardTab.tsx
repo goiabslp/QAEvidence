@@ -6,6 +6,7 @@ import {
     XCircle, Timer, BarChart3, PieChart, Activity 
 } from 'lucide-react';
 import ModernSelect from '../../common/ModernSelect';
+import { fetchProductionLogs, ProductionLog } from '../../../services/productionService';
 
 interface DashboardTabProps {
     testRecords: ExcelTestRecord[];
@@ -18,20 +19,35 @@ type SubTabType = 'Analista' | 'Prioridade' | 'Módulos' | 'Mínimos' | 'Backoff
 const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allRecords }) => {
     const [activeSubTab, setActiveSubTab] = useState<SubTabType>('Analista');
     const [selectedAnalyst, setSelectedAnalyst] = useState<string>('');
+    const [productionHistory, setProductionHistory] = useState<ProductionLog[]>([]);
+
+    // --- FETCH PRODUCTION LOGS ---
+    React.useEffect(() => {
+        const loadLogs = async () => {
+            if (activeSubTab === 'Analista') {
+                const logs = await fetchProductionLogs(selectedAnalyst);
+                setProductionHistory(logs);
+            }
+        };
+        loadLogs();
+    }, [selectedAnalyst, activeSubTab, testRecords]); // Refresh when testRecords change to catch real-time updates
 
     // --- ANALYST OPTIONS ---
     const availableAnalysts = useMemo(() => {
         // Return active users as analysts, sorted by acronym
         return allUsers
             .filter(u => u.isActive !== false)
-            .map(u => u.acronym)
-            .sort();
+            .map(u => ({
+                value: u.acronym,
+                label: `${u.acronym}, ${u.name}`
+            }))
+            .sort((a, b) => a.value.localeCompare(b.value));
     }, [allUsers]);
 
     // Auto-select first analyst if none selected
     React.useEffect(() => {
         if (!selectedAnalyst && availableAnalysts.length > 0) {
-            setSelectedAnalyst(availableAnalysts[0]);
+            setSelectedAnalyst(availableAnalysts[0].value);
         }
     }, [availableAnalysts, selectedAnalyst]);
 
@@ -79,6 +95,31 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
                 id: t.testId,
                 module: t.module,
                 status: t.result
+            })),
+            dailyProduction: Object.entries(
+                productionHistory.reduce((acc, curr) => {
+                    const dateObj = new Date(curr.created_at);
+                    const date = dateObj.toLocaleDateString('pt-BR');
+                    // Get day of week in Portuguese, capitalized
+                    const dayOfWeek = dateObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+                    const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+                    
+                    if (!acc[date]) {
+                        acc[date] = { count: 0, dayOfWeek: capitalizedDay };
+                    }
+                    acc[date].count += 1;
+                    return acc;
+                }, {} as Record<string, { count: number; dayOfWeek: string }>)
+            )
+            .sort((a, b) => {
+                const dateA = new Date(a[0].split('/').reverse().join('-')).getTime();
+                const dateB = new Date(b[0].split('/').reverse().join('-')).getTime();
+                return dateB - dateA;
+            })
+            .map(([date, data]) => ({ 
+                date, 
+                count: (data as { count: number; dayOfWeek: string }).count, 
+                dayOfWeek: (data as { count: number; dayOfWeek: string }).dayOfWeek 
             }))
         };
 
@@ -201,7 +242,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
 
     // UI Helper Components
     const StatCard = ({ label, value, icon: Icon, color, subValue }: { label: string, value: number | string, icon: any, color: string, subValue?: string }) => (
-        <div className={`bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm flex flex-col group hover:shadow-xl hover:shadow-slate-200/50 transition-all border-b-4 hover:border-b-${color === 'text-slate' ? 'slate' : color.split('-')[1]}-500`}>
+        <div className={`bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm flex flex-col group hover:shadow-xl hover:shadow-slate-200/50 transition-all border-b-4 hover:border-b-${color === 'text-slate' ? 'slate' : color.split('-')[1]}-500 will-change-transform`}>
             <div className="flex justify-between items-start mb-4">
                 <div className={`p-3 rounded-2xl bg-${color === 'text-slate' ? 'slate' : color.split('-')[1]}-50 text-${color === 'text-slate' ? 'slate' : color.split('-')[1]}-600 group-hover:scale-110 transition-transform`}>
                     <Icon className="w-5 h-5" />
@@ -265,13 +306,14 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
                                 </h3>
                                 <p className="text-sm text-slate-500 mt-1">Filtre por analista para visualizar métricas individuais detalhadas.</p>
                             </div>
-                            <div className="min-w-[240px]">
+                            <div className="min-w-[320px]">
                                 <ModernSelect 
                                     value={selectedAnalyst}
                                     field="analyst"
                                     options={availableAnalysts}
                                     onChange={setSelectedAnalyst}
                                     placeholder="Escolha um analista..."
+                                    variant="filter" // Use filter variant for better horizontal space management
                                 />
                             </div>
                         </div>
@@ -296,7 +338,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
                                             {/* Tests by Module */}
                                             <div className="space-y-4">
                                                 <h5 className="text-xs font-bold text-slate-500 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Testes por Módulo</h5>
-                                                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2 text-sm">
+                                                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2 text-sm scroll-smooth">
                                                     {Object.entries(stats.analystMetrics.byModule).map(([mod, count]) => (
                                                         <div key={mod} className="flex justify-between p-2 rounded-lg bg-slate-50 font-bold text-slate-600">
                                                             <span className="truncate mr-2">{mod}</span>
@@ -355,7 +397,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
                                             <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs">Atualmente com Analista</h4>
                                             <span className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">{stats.analystMetrics.currentTests.length} TESTES</span>
                                         </div>
-                                        <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                                        <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 scroll-smooth">
                                             {stats.analystMetrics.currentTests.map(t => (
                                                 <div key={t.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group hover:border-indigo-200 transition-all">
                                                     <div className="min-w-0">
@@ -376,6 +418,49 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ testRecords, allUsers, allR
                                                 <div className="py-20 text-center text-slate-400">
                                                     <CheckCheck className="w-10 h-10 mx-auto mb-3 opacity-20" />
                                                     <p className="font-bold text-sm">Todos os testes concluídos!</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Daily Production Card */}
+                                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h4 className="font-black text-slate-700 uppercase tracking-widest text-xs">Produção Diária</h4>
+                                            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                                                <Activity className="w-4 h-4" />
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-4 tracking-tighter">Histórico de Testes Executados</p>
+                                        <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 scroll-smooth">
+                                            {stats.analystMetrics.dailyProduction.map((item, idx) => {
+                                                const isToday = item.date === new Date().toLocaleDateString('pt-BR');
+                                                return (
+                                                    <div 
+                                                        key={idx} 
+                                                        className="flex justify-between items-center p-4 rounded-2xl bg-slate-50 border border-slate-100 group hover:border-indigo-200 transition-all"
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-bold text-slate-700">{item.dayOfWeek} — {item.date}</span>
+                                                                {isToday && (
+                                                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-full border border-emerald-200 uppercase">
+                                                                        Hoje
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-black text-indigo-600">{item.count}</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">testes</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {stats.analystMetrics.dailyProduction.length === 0 && (
+                                                <div className="py-20 text-center text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                                    <Timer className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                                                    <p className="font-bold text-sm">Nenhuma atividade registrada</p>
                                                 </div>
                                             )}
                                         </div>

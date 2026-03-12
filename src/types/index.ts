@@ -220,6 +220,8 @@ export interface ExcelTestRecord {
   errorStatus: string; // T -> Status Erro
   observation: string; // U -> Observação
   gap: string; // V -> GAP
+  created_at?: string;
+  updated_at?: string;
 }
 export interface FilterState {
   backoffice: string[];
@@ -240,3 +242,10 @@ export const INITIAL_FILTER_STATE: FilterState = {
   analyst: [],
   result: []
 };
+
+export interface StructuredObservation {
+  text: string;
+  userAcronym: string;
+  userName: string;
+  timestamp: string;
+}
