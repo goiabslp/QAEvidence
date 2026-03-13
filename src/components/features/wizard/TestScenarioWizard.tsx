@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestStep, TicketPriority } from '@/types';
-import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard, ArrowUp, ArrowDown, Loader2, Square, Save } from 'lucide-react';
 import { WizardTriggerContext } from '@/App';
 import ImageEditor from '@/components/common/ImageEditor';
 
@@ -29,6 +29,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
 
     // Image Editor State
     const [editorImageSrc, setEditorImageSrc] = useState<string | null>(null);
+    const [editorInitialTool, setEditorInitialTool] = useState<'CROP' | 'BOX'>('CROP');
     const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -129,6 +130,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
         setPreReqInput('');
         setIsPreReqExpanded(false);
         setEditorImageSrc(null);
+        setEditorInitialTool('CROP');
         setEditingStepIndex(null);
     };
 
@@ -185,6 +187,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
             reader.onloadend = () => {
                 const src = reader.result as string;
                 setEditorImageSrc(src);
+                setEditorInitialTool('CROP'); // Default to crop for new uploads
                 setEditingStepIndex(index);
             };
             reader.readAsDataURL(file);
@@ -202,6 +205,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                     reader.onload = (e) => {
                         if (e.target?.result) {
                             setEditorImageSrc(e.target.result as string);
+                            setEditorInitialTool('CROP'); // Default to crop for pasted images
                             setEditingStepIndex(index);
                         }
                     };
@@ -223,18 +227,21 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
             setSteps(newSteps);
         }
         setEditorImageSrc(null);
+        setEditorInitialTool('CROP');
         setEditingStepIndex(null);
     };
 
     const handleEditorCancel = () => {
         setEditorImageSrc(null);
+        setEditorInitialTool('CROP');
         setEditingStepIndex(null);
     };
 
-    const handleEditExistingImage = (index: number) => {
+    const handleEditExistingImage = (index: number, initialTool: 'CROP' | 'BOX' = 'CROP') => {
         const currentImg = steps[index].imageUrl;
         if (currentImg) {
             setEditorImageSrc(currentImg);
+            setEditorInitialTool(initialTool);
             setEditingStepIndex(index);
         }
     };
@@ -387,6 +394,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
             {editorImageSrc && (
                 <ImageEditor
                     imageSrc={editorImageSrc}
+                    initialTool={editorInitialTool}
                     onSave={handleEditorSave}
                     onCancel={handleEditorCancel}
                 />
@@ -620,22 +628,38 @@ E seleciono a opção Aprovar;`}
                                                         </button>
 
                                                         {step.imageUrl && (
-                                                            <>
+                                                            <div className="flex items-center gap-2">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => handleEditExistingImage(index)}
-                                                                    className="text-indigo-600 hover:text-indigo-800 text-xs font-semibold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors border border-indigo-100"
+                                                                    onClick={() => handleEditExistingImage(index, 'CROP')}
+                                                                    className="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all border border-indigo-100 shadow-sm"
                                                                 >
-                                                                    <Crop className="w-3 h-3" /> Editar
+                                                                    <Crop className="w-3.5 h-3.5" /> Cortar
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleEditExistingImage(index, 'BOX')}
+                                                                    className="text-red-600 hover:text-red-800 text-xs font-bold flex items-center gap-1.5 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all border border-red-100 shadow-sm"
+                                                                >
+                                                                    <Square className="w-3.5 h-3.5" /> Destacar
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleSave}
+                                                                    className="text-emerald-600 hover:text-emerald-800 text-xs font-bold flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-all border border-emerald-100 shadow-sm"
+                                                                    title="Salvar alterações do caso"
+                                                                >
+                                                                    <Save className="w-3.5 h-3.5" /> Salvar
                                                                 </button>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleRemoveStepImage(index)}
-                                                                    className="text-red-500 text-xs hover:text-red-700 font-medium ml-1 px-2"
+                                                                    className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg transition-colors"
+                                                                    title="Remover Imagem"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </button>
-                                                            </>
+                                                            </div>
                                                         )}
                                                     </div>
 

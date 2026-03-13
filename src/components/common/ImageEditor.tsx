@@ -1,18 +1,20 @@
 
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, Crop, Square, Undo, RotateCcw, Save, ZoomIn } from 'lucide-react';
 
 interface ImageEditorProps {
   imageSrc: string;
   onSave: (editedImageSrc: string) => void;
   onCancel: () => void;
+  initialTool?: Tool;
 }
 
 type Tool = 'CROP' | 'BOX';
 
-const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel }) => {
+const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, initialTool }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [tool, setTool] = useState<Tool>('CROP');
+  const [tool, setTool] = useState<Tool>(initialTool || 'CROP');
   
   // History Management for Undo
   const [history, setHistory] = useState<string[]>([]);
@@ -235,8 +237,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
     onSave(history[historyStep]);
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-sm flex flex-col animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-sm flex flex-col animate-fade-in">
         {/* Toolbar */}
         <div className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 shadow-lg">
             <div className="flex items-center gap-4">
@@ -344,7 +346,8 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel })
         <div className="bg-slate-900 text-slate-500 text-xs text-center py-2 border-t border-slate-800">
              {tool === 'CROP' ? 'Arraste para selecionar a área de corte.' : 'Arraste para desenhar um destaque vermelho.'}
         </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

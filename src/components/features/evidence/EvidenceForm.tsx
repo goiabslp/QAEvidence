@@ -3,7 +3,7 @@ import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority, TicketS
 import { PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '@/constants';
 import TestScenarioWizard from '../wizard/TestScenarioWizard';
 import CustomDatePicker from '@/components/common/CustomDatePicker';
-import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles, Code, Brain, HelpCircle } from 'lucide-react';
+import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles, Code, Brain, HelpCircle, Square, Save } from 'lucide-react';
 import { WizardTriggerContext } from '@/App';
 import ImageEditor from '@/components/common/ImageEditor';
 
@@ -74,6 +74,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
 
   // IMAGE EDITOR & UPLOAD STATE FOR BLOCKAGE
   const [editorImageSrc, setEditorImageSrc] = useState<string | null>(null);
+  const [editorInitialTool, setEditorInitialTool] = useState<'CROP' | 'BOX'>('CROP');
   const [editingImageIndex, setEditingImageIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -257,6 +258,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
     reader.onload = (e) => {
       if (e.target?.result) {
         setEditorImageSrc(e.target.result as string);
+        setEditorInitialTool('CROP');
         setEditingImageIndex(null);
       }
     };
@@ -287,6 +289,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
           reader.onload = (e) => {
             if (e.target?.result) {
               setEditorImageSrc(e.target.result as string);
+              setEditorInitialTool('CROP');
               setEditingImageIndex(null);
             }
           };
@@ -315,14 +318,15 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
 
   const handleEditorCancel = () => {
     setEditorImageSrc(null);
+    setEditorInitialTool('CROP');
     setEditingImageIndex(null);
   };
 
-  const handleEditImage = (index: number) => {
+  const handleEditImage = (index: number, initialTool: 'CROP' | 'BOX' = 'CROP') => {
     setEditorImageSrc(blockageImages[index]);
+    setEditorInitialTool(initialTool);
     setEditingImageIndex(index);
   };
-
   const handleRemoveImage = (index: number) => {
     setBlockageImages(blockageImages.filter((_, i) => i !== index));
   };
@@ -383,6 +387,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
       {editorImageSrc && (
         <ImageEditor
           imageSrc={editorImageSrc}
+          initialTool={editorInitialTool}
           onSave={handleEditorSave}
           onCancel={handleEditorCancel}
         />
@@ -827,8 +832,9 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
                             <div key={index} className="relative h-48 bg-slate-100 rounded-2xl border border-slate-200 group overflow-hidden shadow-sm hover:shadow-md transition-all">
                               <img src={src} alt={`Impedimento ${index + 1}`} className="w-full h-full object-cover" />
                               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
-                                <button type="button" onClick={() => handleEditImage(index)} className="p-2 bg-white/20 hover:bg-white text-white hover:text-indigo-600 rounded-lg transition-colors"><Crop className="w-4 h-4" /></button>
-                                <button type="button" onClick={() => handleRemoveImage(index)} className="p-2 bg-white/20 hover:bg-white text-white hover:text-rose-600 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => handleEditImage(index, 'CROP')} className="p-2 bg-white/20 hover:bg-white text-white hover:text-indigo-600 rounded-lg transition-colors" title="Cortar"><Crop className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => handleEditImage(index, 'BOX')} className="p-2 bg-white/20 hover:bg-white text-white hover:text-red-600 rounded-lg transition-colors" title="Destacar"><Square className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => handleRemoveImage(index)} className="p-2 bg-white/20 hover:bg-white text-white hover:text-slate-600 rounded-lg transition-colors" title="Remover"><Trash2 className="w-4 h-4" /></button>
                               </div>
                             </div>
                           ))}
