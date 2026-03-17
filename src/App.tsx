@@ -31,6 +31,7 @@ import TestSettings from '@/components/features/testes/TestSettings';
 import { supabase } from '@/services/supabaseClient';
 import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase } from '@/utils/supabaseEvidenceService';
 import ValidationModal from './components/common/ValidationModal';
+import DiscardChangesModal from './components/common/DiscardChangesModal';
 
 declare const html2pdf: any;
 
@@ -246,7 +247,11 @@ const App: React.FC = () => {
   const [confirmationMode, setConfirmationMode] = useState<'PDF' | 'SAVE'>('PDF');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaveSuccess, setIsSaveSuccess] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const [savedTicketInfo, setSavedTicketInfo] = useState<TicketInfo | null>(null);
+  const [savedEvidences, setSavedEvidences] = useState<EvidenceItem[]>([]);
+  const [ticketInfoVersion, setTicketInfoVersion] = useState(0); // To trigger isDirty memo
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<{ type: 'MODULE' | 'CLOSE', module?: any, reset?: boolean } | null>(null);
 
   // State for Ticket Deletion
   const [ticketToDelete, setTicketToDelete] = useState<ArchivedTicket | null>(null);
@@ -271,6 +276,23 @@ const App: React.FC = () => {
   }, []);
 
   // --- PERSISTENCE & INITIALIZATION ---
+  // Calculate dirty state
+  const isDirty = useMemo(() => {
+    // If no analyst yet (pure initial state), not dirty
+    if (!currentUser && !savedTicketInfo) return false;
+
+    const currentInfo = formTicketInfoRef.current;
+    
+    // Deep comparison using JSON.stringify (safe for these small objects)
+    const itemsChanged = JSON.stringify(evidences) !== JSON.stringify(savedEvidences);
+    
+    // For TicketInfo, we ignore small formatting differences in ID/Title if needed, 
+    // but mostly we care about the raw object values.
+    const infoChanged = JSON.stringify(currentInfo) !== JSON.stringify(savedTicketInfo);
+
+    return itemsChanged || infoChanged;
+  }, [evidences, savedEvidences, savedTicketInfo, ticketInfoVersion, currentUser]);
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
@@ -351,6 +373,7 @@ const App: React.FC = () => {
               isDailyGoalAuto: isAuto,
               lastActiveDate: todayDateString
             });
+            setSavedTicketInfo(getDefaultTicketInfo(profile.acronym));
           }
         }
       } catch (error) {
@@ -441,6 +464,8 @@ const App: React.FC = () => {
     setEvidences([]); // Clear current workspace
     setEditingTicketInfo(null);
     setEditingHistoryId(null);
+    setSavedTicketInfo(null);
+    setSavedEvidences([]);
     setShowAdminPanel(false);
     setAdminTab('users');
   };
@@ -545,7 +570,6 @@ const App: React.FC = () => {
 
   const handleDeleteEvidence = (id: string) => {
     setEvidences(evidences.filter(e => e.id !== id));
-    setIsDirty(true);
   };
 
   const handleDeleteScenario = (scenarioNum: number) => {
@@ -560,7 +584,6 @@ const App: React.FC = () => {
       // Remove items that match the scenario number
       return Number(e.testCaseDetails.scenarioNumber) !== Number(scenarioNum);
     }));
-    setIsDirty(true);
   };
 
   const handleAddCase = (originId: string) => {
@@ -596,7 +619,6 @@ const App: React.FC = () => {
       evidenceId: item.id,
       existingDetails: item.testCaseDetails
     });
-    setIsDirty(true);
   };
 
   const handleCancelEdit = () => {
@@ -606,17 +628,9 @@ const App: React.FC = () => {
       }
     }
 
-    setEvidences([]);
-    setWizardTrigger(null);
-
-    // Reset to default state with current user as analyst
-    if (currentUser) {
-      setEditingTicketInfo(getDefaultTicketInfo(currentUser.acronym));
-    } else {
-      setEditingTicketInfo(null);
-    }
-
     setEditingHistoryId(null);
+    setSavedTicketInfo(currentUser ? getDefaultTicketInfo(currentUser.acronym) : null);
+    setSavedEvidences([]);
     setPdfError(null);
     formTicketInfoRef.current = null; // Explicitly clear the form reference
 
@@ -649,8 +663,9 @@ const App: React.FC = () => {
     setEditingHistoryId(ticket.id);
     setEvidences(ticket.items);
     setEditingTicketInfo(ticket.ticketInfo);
+    setSavedTicketInfo(ticket.ticketInfo);
+    setSavedEvidences(ticket.items);
     formTicketInfoRef.current = ticket.ticketInfo;
-    setIsDirty(true);
     setWizardTrigger(null);
     setPdfError(null);
     setShowAdminPanel(false);
@@ -809,7 +824,8 @@ const App: React.FC = () => {
         console.log('Evidence saved successfully to Supabase');
 
         // Mark as clean after successful save
-        setIsDirty(false);
+        setSavedTicketInfo(finalTicketInfo);
+        setSavedEvidences(consistentEvidences);
 
         return;
       } else {
@@ -827,20 +843,28 @@ const App: React.FC = () => {
 
   const handleCloseEvidence = () => {
     if (isDirty) {
-      if (!window.confirm('Existem alterações que podem não ter sido salvas. Deseja realmente fechar e perder o progresso atual?')) {
-        return;
-      }
+      setPendingNavigation({ type: 'CLOSE' });
+      setShowDiscardModal(true);
+      return;
     }
+    
+    executeCloseEvidence();
+  };
 
+  const executeCloseEvidence = () => {
     // Reset Workspace
     setEvidences([]);
     setWizardTrigger(null);
     setEditingHistoryId(null);
     if (currentUser) {
-      setEditingTicketInfo(getDefaultTicketInfo(currentUser.acronym));
+      const defaultInfo = getDefaultTicketInfo(currentUser.acronym);
+      setEditingTicketInfo(defaultInfo);
+      setSavedTicketInfo(defaultInfo);
+    } else {
+      setSavedTicketInfo(null);
     }
+    setSavedEvidences([]);
     formTicketInfoRef.current = null;
-    setIsDirty(false);
     setIsTicketFormOpen(false);
     setFormKey(prev => prev + 1);
 
@@ -1015,7 +1039,12 @@ const App: React.FC = () => {
               Comece criando um novo registro de evidência de teste ou selecione um do histórico abaixo.
             </p>
             <button
-              onClick={() => setIsTicketFormOpen(true)}
+              onClick={() => {
+                setIsTicketFormOpen(true);
+                const info = editingTicketInfo || defaultTicketInfo;
+                setSavedTicketInfo(info);
+                setSavedEvidences([]);
+              }}
               className="group relative overflow-hidden rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 px-8 py-4 text-white shadow-xl shadow-indigo-900/20 transition-all duration-300 hover:shadow-indigo-900/40 hover:-translate-y-1 active:scale-95"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
@@ -1043,12 +1072,8 @@ const App: React.FC = () => {
               invalidFields={invalidFields}
               onTicketInfoChange={(info) => {
                 formTicketInfoRef.current = info;
+                setTicketInfoVersion(prev => prev + 1);
                 if (pdfError) setPdfError(null);
-
-                // Mark as dirty if any relevant field has content
-                if (info.ticketId || info.ticketTitle || info.sprint || info.requester) {
-                  setIsDirty(true);
-                }
               }}
               onEditCase={handleEditCase}
               disabled={isGeneratingPdf || isSaving}
@@ -1122,13 +1147,15 @@ const App: React.FC = () => {
         activeModule={activeModule}
         onMenuNavigate={(module, resetToNewTicket) => {
           if (isDirty) {
-            if (!window.confirm('Existem alterações que podem não ter sido salvas. Deseja realmente sair desta tela?')) {
-              return;
-            }
+            setPendingNavigation({ type: 'MODULE', module, reset: resetToNewTicket });
+            setShowDiscardModal(true);
+            return;
           }
           setActiveModule(module);
           if (resetToNewTicket) {
             setIsTicketFormOpen(false);
+            setSavedTicketInfo(currentUser ? getDefaultTicketInfo(currentUser.acronym) : null);
+            setSavedEvidences([]);
           }
         }}
       />
@@ -1241,6 +1268,27 @@ const App: React.FC = () => {
           ticketToDelete={ticketToDelete}
           setTicketToDelete={setTicketToDelete}
           handleConfirmDelete={handleConfirmDelete}
+        />
+
+        <DiscardChangesModal
+          isOpen={showDiscardModal}
+          onClose={() => setShowDiscardModal(false)}
+          onConfirm={() => {
+            setShowDiscardModal(false);
+            if (pendingNavigation) {
+              if (pendingNavigation.type === 'CLOSE') {
+                executeCloseEvidence();
+              } else if (pendingNavigation.type === 'MODULE') {
+                setActiveModule(pendingNavigation.module);
+                if (pendingNavigation.reset) {
+                  setIsTicketFormOpen(false);
+                  setSavedTicketInfo(currentUser ? getDefaultTicketInfo(currentUser.acronym) : null);
+                  setSavedEvidences([]);
+                }
+              }
+              setPendingNavigation(null);
+            }
+          }}
         />
 
       </main>
