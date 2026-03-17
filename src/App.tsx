@@ -272,6 +272,19 @@ const App: React.FC = () => {
 
   // --- PERSISTENCE & INITIALIZATION ---
   useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  useEffect(() => {
     // Check active sessions and sets the user
     const checkUser = async () => {
       try {
@@ -795,10 +808,8 @@ const App: React.FC = () => {
 
         console.log('Evidence saved successfully to Supabase');
 
-        // --- REVERT TO EXPECTED BEHAVIOR: CLEAR WORKSPACE ---
-        // The user expects the evidence to close and clear after saving.
-        // If we don't do this, they accidentally edit the saved record instead of creating a new one.
-        handleCloseEvidence();
+        // Mark as clean after successful save
+        setIsDirty(false);
 
         return;
       } else {
@@ -815,9 +826,7 @@ const App: React.FC = () => {
   };
 
   const handleCloseEvidence = () => {
-    const hasData = evidences.length > 0;
-
-    if (hasData) {
+    if (isDirty) {
       if (!window.confirm('Existem alterações que podem não ter sido salvas. Deseja realmente fechar e perder o progresso atual?')) {
         return;
       }
@@ -1112,6 +1121,11 @@ const App: React.FC = () => {
         }}
         activeModule={activeModule}
         onMenuNavigate={(module, resetToNewTicket) => {
+          if (isDirty) {
+            if (!window.confirm('Existem alterações que podem não ter sido salvas. Deseja realmente sair desta tela?')) {
+              return;
+            }
+          }
           setActiveModule(module);
           if (resetToNewTicket) {
             setIsTicketFormOpen(false);
