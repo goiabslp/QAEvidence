@@ -412,11 +412,13 @@ const App: React.FC = () => {
   const getDefaultTicketInfo = (userAcronym: string): TicketInfo => ({
     sprint: '',
     ticketId: '',
+    isImprovement: false,
     ticketTitle: '',
     ticketSummary: '',
     clientSystem: '',
     requester: '',
     priority: TicketPriority.MEDIUM,
+    errorOrigin: '',
     ticketStatus: TicketStatus.PENDING,
     analyst: userAcronym,
     requestDate: '',
@@ -424,7 +426,9 @@ const App: React.FC = () => {
     environmentVersion: '',
     evidenceDate: getBrazilDateString(),
     ticketDescription: '',
-    solution: ''
+    solution: '',
+    blockageReason: undefined,
+    blockageImageUrls: undefined
   });
 
   // Memoized default ticket info to prevent EvidenceForm from resetting on re-renders
