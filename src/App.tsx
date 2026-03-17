@@ -422,7 +422,7 @@ const App: React.FC = () => {
     requestDate: '',
     environment: '',
     environmentVersion: '',
-    evidenceDate: '',
+    evidenceDate: getBrazilDateString(),
     ticketDescription: '',
     solution: ''
   });

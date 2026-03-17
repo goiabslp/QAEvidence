@@ -6,6 +6,7 @@ import CustomDatePicker from '@/components/common/CustomDatePicker';
 import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles, Code, Brain, HelpCircle, Square, Save } from 'lucide-react';
 import { WizardTriggerContext } from '@/App';
 import ImageEditor from '@/components/common/ImageEditor';
+import { getBrazilDateString } from '@/utils/dateUtils';
 
 interface EvidenceFormProps {
   onSubmit: (evidence: Omit<EvidenceItem, 'id' | 'timestamp' | 'createdBy'>) => void;
@@ -22,14 +23,6 @@ interface EvidenceFormProps {
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
 
-const getBrazilDateString = () => {
-  const date = new Date();
-  const brazilDate = new Date(date.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  const y = brazilDate.getFullYear();
-  const m = String(brazilDate.getMonth() + 1).padStart(2, '0');
-  const d = String(brazilDate.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
 
 const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
   onSubmit,
@@ -178,6 +171,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
     blockageReason: ticketStatus === TicketStatus.BLOCKED ? blockageReason : undefined,
     blockageImageUrls: ticketStatus === TicketStatus.BLOCKED ? blockageImages : undefined
   };
+
 
   useEffect(() => {
     if (onTicketInfoChange) {
