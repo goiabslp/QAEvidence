@@ -71,7 +71,8 @@ export const saveEvidenceToSupabase = async (ticket: ArchivedTicket): Promise<bo
                 pre_requisite: safeString(item.testCaseDetails?.preRequisite),
                 condition: safeString(item.testCaseDetails?.condition),
                 expected_result: safeString(item.testCaseDetails?.expectedResult),
-                failure_reason: safeString(item.testCaseDetails?.failureReason)
+                failure_reason: safeString(item.testCaseDetails?.failureReason),
+                steps: item.testCaseDetails?.steps || []
             };
 
             const { error: caseError } = await supabase.from('evidence_cases').upsert(caseData);
@@ -172,7 +173,7 @@ export const fetchEvidencesFromSupabase = async (): Promise<ArchivedTicket[]> =>
                         condition: c.condition || '',
                         expectedResult: c.expected_result || '',
                         failureReason: c.failure_reason || undefined,
-                        steps: [] // Will be loaded on demand
+                        steps: c.steps || []
                     };
                 }
 
