@@ -116,110 +116,149 @@ const CaseItem = React.memo(({
 
     return (
         <div className="group transition-colors hover:bg-slate-50/50">
-            <div
-                className={`px-5 flex items-center gap-3 cursor-pointer ${readOnly ? 'py-3' : 'py-4'}`}
-                onClick={() => toggleCaseDetails(evidence.id)}
-            >
-                <div className={`text-slate-300 transition-transform duration-200 flex-shrink-0 ${isCaseOpen ? 'rotate-90 text-indigo-500' : ''}`}>
-                    <ChevronRight className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-                    <div className="sm:col-span-1 flex items-center justify-center sm:justify-start">
-                        <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
-                            Caso <span className="text-slate-900 text-sm">#{testCaseDetails?.caseNumber}</span>
-                        </span>
+            <div className="break-inside-avoid">
+                <div
+                    className={`px-5 flex items-center gap-3 cursor-pointer ${readOnly ? 'py-3' : 'py-4'}`}
+                    onClick={() => toggleCaseDetails(evidence.id)}
+                >
+                    <div className={`text-slate-300 transition-transform duration-200 flex-shrink-0 ${isCaseOpen ? 'rotate-90 text-indigo-500' : ''}`}>
+                        <ChevronRight className="w-5 h-5" />
                     </div>
-                    <div className="sm:col-span-2 flex justify-start">
-                        <span className={`w-full flex items-center justify-center px-2 py-1 rounded-md text-[10px] font-bold border shadow-sm uppercase tracking-wide truncate ${StatusConfig.color}`}>
-                            <StatusIcon className="w-3 h-3 mr-1.5 flex-shrink-0" />
-                            {StatusConfig.label}
-                        </span>
-                    </div>
-                    <div className="sm:col-span-2 flex justify-start">
-                        <span className="w-full text-center font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 truncate" title="ID do Caso">
-                            {testCaseDetails?.caseId}
-                        </span>
-                    </div>
-                    <div className="sm:col-span-6 flex flex-col justify-center min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                            <Monitor className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                            <span className="text-xs font-bold text-slate-700 truncate" title={`Tela: ${testCaseDetails?.screen}`}>
-                                {testCaseDetails?.screen || '-'}
+                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                        <div className="sm:col-span-1 flex items-center justify-center sm:justify-start">
+                            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">
+                                Caso <span className="text-slate-900 text-sm">#{testCaseDetails?.caseNumber}</span>
                             </span>
                         </div>
-                        <div className="flex items-center gap-1.5 pl-4">
-                            <p className="text-xs text-slate-500 truncate" title={testCaseDetails?.objective}>
-                                {testCaseDetails?.objective || 'Sem objetivo'}
-                            </p>
+                        <div className="sm:col-span-2 flex justify-start">
+                            <span className={`w-full flex items-center justify-center px-2 py-1 rounded-md text-[10px] font-bold border shadow-sm uppercase tracking-wide truncate ${StatusConfig.color}`}>
+                                <StatusIcon className="w-3 h-3 mr-1.5 flex-shrink-0" />
+                                {StatusConfig.label}
+                            </span>
                         </div>
-                    </div>
-                    {!readOnly && (
-                        <div className="sm:col-span-1 flex justify-end items-center gap-1">
-                            {hasSteps && (
-                                <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-full mr-1 border border-slate-100" title={`${testCaseDetails?.steps?.length} passos`}>
-                                    <ListChecks className="w-3 h-3" />
+                        <div className="sm:col-span-2 flex justify-start">
+                            <span className="w-full text-center font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 truncate" title="ID do Caso">
+                                {testCaseDetails?.caseId}
+                            </span>
+                        </div>
+                        <div className="sm:col-span-6 flex flex-col justify-center min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <Monitor className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span className="text-xs font-bold text-slate-700 truncate" title={`Tela: ${testCaseDetails?.screen}`}>
+                                    {testCaseDetails?.screen || '-'}
                                 </span>
-                            )}
-                            {onEditCase && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onEditCase(evidence.id); }}
-                                    className="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
-                                    title="Editar Caso"
-                                >
-                                    <Pencil className="w-4 h-4" />
-                                </button>
-                            )}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onDelete(evidence.id); }}
-                                className="text-slate-500 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                title="Excluir Caso"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-            {isCaseOpen && (
-                <div className={`px-12 pb-8 pt-2 bg-slate-50/30 text-sm border-b border-slate-100 ${readOnly ? '' : 'animate-fade-in'} scroll-smooth`}>
-                    {testCaseDetails?.failureReason && (testCaseDetails.result === 'Falha' || testCaseDetails.result === 'Impedimento') && (
-                        <div className={`mb-6 p-4 rounded-xl border ${evidence.status === TestStatus.FAIL
-                            ? 'bg-red-50 border-red-100 text-red-900'
-                            : 'bg-amber-50 border-amber-100 text-amber-900'
-                            }`}>
-                            <h4 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <AlertTriangle className="w-4 h-4" />
-                                Motivo do {testCaseDetails.result}
-                            </h4>
-                            <p className="leading-relaxed whitespace-pre-line font-medium">{testCaseDetails.failureReason}</p>
-                        </div>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 bg-white p-6 rounded-xl border border-slate-100 shadow-sm break-inside-avoid">
-                        <div className="space-y-4">
-                            <div>
-                                <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Pré-Requisito</span>
-                                <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.preRequisite || '-'}</p>
                             </div>
-                            <div className="w-full h-px bg-slate-100"></div>
-                            <div>
-                                <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Descrição do Teste</span>
-                                <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.condition || '-'}</p>
-                            </div>
-                        </div>
-                        <div className="space-y-4 border-l border-slate-100 pl-8">
-                            <div>
-                                <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Resultado Esperado</span>
-                                <p className="text-indigo-900 bg-indigo-50/50 p-3 rounded-lg border border-indigo-50 mt-1 leading-relaxed">
-                                    {testCaseDetails?.expectedResult || '-'}
+                            <div className="flex items-center gap-1.5 pl-4">
+                                <p className="text-xs text-slate-500 truncate" title={testCaseDetails?.objective}>
+                                    {testCaseDetails?.objective || 'Sem objetivo'}
                                 </p>
                             </div>
-                            <div className="flex items-center justify-between pt-2">
-                                <div className="flex items-center gap-3 text-xs text-slate-400">
-                                    <span className="flex items-center gap-1"><User className="w-3 h-3" /> {evidence.ticketInfo.analyst}</span>
-                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(evidence.ticketInfo.evidenceDate).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        {!readOnly && (
+                            <div className="sm:col-span-1 flex justify-end items-center gap-1">
+                                {hasSteps && (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-full mr-1 border border-slate-100" title={`${testCaseDetails?.steps?.length} passos`}>
+                                        <ListChecks className="w-3 h-3" />
+                                    </span>
+                                )}
+                                {onEditCase && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onEditCase(evidence.id); }}
+                                        className="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                                        title="Editar Caso"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onDelete(evidence.id); }}
+                                    className="text-slate-500 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                    title="Excluir Caso"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {isCaseOpen && (
+                    <div className={`px-12 pt-2 bg-slate-50/30 text-sm ${(!hasSteps || !(testCaseDetails?.steps)) ? 'pb-8 border-b border-slate-100' : 'pb-4'} ${readOnly ? '' : 'animate-fade-in'} scroll-smooth`}>
+                        {testCaseDetails?.failureReason && (testCaseDetails.result === 'Falha' || testCaseDetails.result === 'Impedimento') && (
+                            <div className={`mb-6 p-4 rounded-xl border ${evidence.status === TestStatus.FAIL
+                                ? 'bg-red-50 border-red-100 text-red-900'
+                                : 'bg-amber-50 border-amber-100 text-amber-900'
+                                }`}>
+                                <h4 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4" />
+                                    Motivo do {testCaseDetails.result}
+                                </h4>
+                                <p className="leading-relaxed whitespace-pre-line font-medium">{testCaseDetails.failureReason}</p>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                            <div className="space-y-4">
+                                <div>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Pré-Requisito</span>
+                                    <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.preRequisite || '-'}</p>
+                                </div>
+                                <div className="w-full h-px bg-slate-100"></div>
+                                <div>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Descrição do Teste</span>
+                                    <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.condition || '-'}</p>
                                 </div>
                             </div>
+                            <div className="space-y-4 border-l border-slate-100 pl-8">
+                                <div>
+                                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Resultado Esperado</span>
+                                    <p className="text-indigo-900 bg-indigo-50/50 p-3 rounded-lg border border-indigo-50 mt-1 leading-relaxed">
+                                        {testCaseDetails?.expectedResult || '-'}
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-between pt-2">
+                                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> {evidence.ticketInfo.analyst}</span>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(evidence.ticketInfo.evidenceDate).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Test Steps Rendering */}
+            {isCaseOpen && hasSteps && testCaseDetails?.steps && (
+                <div style={{ pageBreakBefore: 'always' }} className={`px-12 pb-8 pt-6 bg-slate-50/30 text-sm border-b border-slate-100 ${readOnly ? '' : 'animate-fade-in'}`}>
+                    <div className="border border-slate-200 rounded-xl bg-white shadow-sm">
+                        <h4 className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm font-bold text-slate-700 uppercase tracking-wider">
+                            <ListChecks className="w-4 h-4 text-slate-500" />
+                            Passos Executados ({testCaseDetails.steps.length})
+                        </h4>
+                        <div className="divide-y divide-slate-100">
+                            {testCaseDetails.steps.map((step, index) => (
+                                <div key={index} className="p-4 flex flex-col gap-4 hover:bg-slate-50/50 transition-colors break-inside-avoid">
+                                    <div className="w-full">
+                                        <div className="flex items-start gap-3">
+                                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex-shrink-0 mt-0.5 shadow-sm">
+                                                {step.stepNumber}
+                                            </span>
+                                            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                                                {step.description || 'Passo sem descrição.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {step.imageUrl && (
+                                        <div className="w-full mt-2">
+                                            <img 
+                                                src={step.imageUrl} 
+                                                alt={`Passo ${step.stepNumber}`} 
+                                                className="w-full h-auto rounded-lg border border-slate-200 shadow-sm object-contain"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>

@@ -572,7 +572,6 @@ const App: React.FC = () => {
       updatedHistory = ticketHistory.map(t => t.id === currentTicketId ? finalTicket : t);
     }
     setTicketHistory(updatedHistory);
-    localStorage.setItem('narnia_tickets', JSON.stringify(updatedHistory));
 
     setWizardTrigger(null);
     setPdfError(null);
@@ -924,8 +923,6 @@ const App: React.FC = () => {
 
       if (success) {
         setTicketHistory(updatedTicketHistory);
-        // Also update local storage as a fallback, although Supabase is main source now
-        localStorage.setItem('narnia_tickets', JSON.stringify(updatedTicketHistory));
 
         // Show success feedback
         setIsSaveSuccess(true);

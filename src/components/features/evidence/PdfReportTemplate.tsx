@@ -164,6 +164,22 @@ const PdfReportTemplate: React.FC<PdfReportTemplateProps> = ({
                                                                 <p className="text-indigo-800 whitespace-pre-line leading-relaxed">{details.expectedResult || '-'}</p>
                                                             </div>
                                                         </div>
+                                                        
+                                                        {/* Step Summary Column for PDF */}
+                                                        {details.steps && details.steps.length > 0 && (
+                                                            <div className="mt-3 bg-white border border-slate-100 rounded p-2">
+                                                                <span className="font-bold text-slate-700 block mb-1 uppercase text-[9px] tracking-wider">Passos Executados ({details.steps.length})</span>
+                                                                <ul className="list-decimal list-inside text-[9px] text-slate-600 space-y-0.5">
+                                                                    {details.steps.map((step, idx) => (
+                                                                        <li key={idx} className="truncate">
+                                                                            <span className="font-medium mr-1">{step.stepNumber}.</span> 
+                                                                            {step.description || 'Passo sem descrição.'}
+                                                                            {step.imageUrl && <span className="ml-1 text-slate-400 font-mono">(Imagem anexa)</span>}
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             </React.Fragment>
