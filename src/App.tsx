@@ -2,7 +2,7 @@
 
 
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import Header from './components/common/Header';
 import EvidenceForm from './components/features/evidence/EvidenceForm';
 import EvidenceList from './components/features/evidence/EvidenceList';
@@ -29,7 +29,7 @@ import DeleteTicketModal from '@/components/features/evidence/DeleteTicketModal'
 import TicketHistoryCarousel from '@/components/features/evidence/TicketHistoryCarousel';
 import TestSettings from '@/components/features/testes/TestSettings';
 import { supabase } from '@/services/supabaseClient';
-import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase } from '@/utils/supabaseEvidenceService';
+import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase, fetchEvidenceImages } from '@/utils/supabaseEvidenceService';
 import ValidationModal from './components/common/ValidationModal';
 import DiscardChangesModal from './components/common/DiscardChangesModal';
 
@@ -264,13 +264,21 @@ const App: React.FC = () => {
 
   // Define loadTickets in component scope so it can be called after deletion
   const loadTickets = React.useCallback(async () => {
+    console.log("Loading tickets from Supabase...");
     const sbTickets = await fetchEvidencesFromSupabase();
-    if (sbTickets) {
+    console.log("Tickets fetched from Supabase:", sbTickets);
+    
+    if (sbTickets && sbTickets.length > 0) {
       setTicketHistory(sbTickets);
-    } else {
+    } else if (sbTickets && sbTickets.length === 0) {
+      // If it's empty from Supabase, try local storage
       const storedTickets = localStorage.getItem('narnia_tickets');
       if (storedTickets) {
-        setTicketHistory(JSON.parse(storedTickets));
+        const parsed = JSON.parse(storedTickets);
+        console.log("Supabase empty, using local storage:", parsed.length);
+        setTicketHistory(parsed);
+      } else {
+        setTicketHistory([]);
       }
     }
   }, []);
@@ -571,10 +579,15 @@ const App: React.FC = () => {
 
     return { success: true };
   };
-
   const handleDeleteEvidence = (id: string) => {
     setEvidences(evidences.filter(e => e.id !== id));
   };
+
+  const handleTicketInfoChange = useCallback((info: TicketInfo) => {
+    formTicketInfoRef.current = info;
+    setTicketInfoVersion(prev => prev + 1);
+    if (pdfError) setPdfError(null);
+  }, [pdfError]);
 
   const handleDeleteScenario = (scenarioNum: number) => {
     if (!window.confirm(`Tem certeza que deseja excluir todo o Cenário #${scenarioNum} e seus casos de teste?\n\nEsta ação não pode ser desfeita.`)) {
@@ -657,13 +670,14 @@ const App: React.FC = () => {
   };
 
   // --- ARCHIVE / HISTORY HANDLERS ---
-  const handleOpenArchivedTicket = (ticket: ArchivedTicket) => {
+  const handleOpenArchivedTicket = async (ticket: ArchivedTicket) => {
     if (evidences.length > 0 && !editingHistoryId) {
       if (!window.confirm("Você tem dados na tela atual que não foram salvos. Deseja realmente descartá-los para carregar este histórico?")) {
         return;
       }
     }
 
+    // 1. Open form IMMEDIATELY with text data
     setEditingHistoryId(ticket.id);
     setEvidences(ticket.items);
     setEditingTicketInfo(ticket.ticketInfo);
@@ -673,11 +687,59 @@ const App: React.FC = () => {
     setWizardTrigger(null);
     setPdfError(null);
     setShowAdminPanel(false);
-    setActiveModule('TICKET'); // Switch to editor module
+    setActiveModule('TICKET');
     setIsTicketFormOpen(true);
     setFormKey(prev => prev + 1);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 2. Load images in background
+    console.log("Loading images in background for ticket:", ticket.id);
+    try {
+      const imagesData = await fetchEvidenceImages(ticket.id);
+      
+      // Only proceed if still editing the SAME ticket
+      if (formTicketInfoRef.current?.ticketId === ticket.ticketInfo.ticketId) {
+        const updatedItems = ticket.items.map((item: EvidenceItem) => {
+          const newItem = { ...item };
+          const caseImage = imagesData.find(img => img.image_type === 'case' && img.case_id === item.id);
+          if (caseImage) {
+            newItem.imageUrl = caseImage.image_data;
+          }
+
+          if (newItem.testCaseDetails && newItem.testCaseDetails.steps) {
+            newItem.testCaseDetails.steps = newItem.testCaseDetails.steps.map(step => {
+              const stepImage = imagesData.find(img => 
+                img.image_type === 'step' && 
+                img.case_id === item.id && 
+                img.step_number === step.stepNumber
+              );
+              if (stepImage) {
+                return { ...step, imageUrl: stepImage.image_data };
+              }
+              return step;
+            });
+          }
+          return newItem;
+        });
+
+        const updatedTicketInfo = { ...ticket.ticketInfo };
+        const blockageImages = imagesData
+          .filter(img => img.image_type === 'blockage')
+          .map(img => img.image_data);
+        
+        if (blockageImages.length > 0) {
+          updatedTicketInfo.blockageImageUrls = blockageImages;
+        }
+
+        setEvidences(updatedItems);
+        setEditingTicketInfo(updatedTicketInfo);
+        setSavedEvidences(updatedItems);
+        setSavedTicketInfo(updatedTicketInfo);
+      }
+    } catch (error) {
+      console.error("Error loading background images:", error);
+    }
   };
 
   const handleDeleteArchivedTicket = (ticketId: string) => {
@@ -687,26 +749,70 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDownloadArchivedPdf = (ticket: ArchivedTicket) => {
+  const handleDownloadArchivedPdf = async (ticket: ArchivedTicket) => {
     if (isGeneratingPdf) return;
     setIsGeneratingPdf(true);
-    setPrintingTicket(ticket);
 
-    setTimeout(() => {
-      executePdfGeneration({
-        isArchived: true,
-        reportRef,
-        currentUser,
-        printingTicket: ticket,
-        formTicketInfoRef: { current: ticket.ticketInfo },
-        evidences: ticket.items,
-        users,
-        setShowPdfModal,
-        setIsGeneratingPdf,
-        setPrintingTicket,
-        persistCurrentTicket
+    try {
+      // Lazy load images for PDF generation
+      const imagesData = await fetchEvidenceImages(ticket.id);
+      
+      // Create a deep copy
+      const ticketWithImages = JSON.parse(JSON.stringify(ticket));
+      
+      // Map blockage images
+      const blockageImages = imagesData
+        .filter(img => img.image_type === 'blockage')
+        .map(img => img.image_data);
+      
+      if (blockageImages.length > 0) {
+        ticketWithImages.ticketInfo.blockageImageUrls = blockageImages;
+      }
+
+      // Map case and step images
+      ticketWithImages.items = ticketWithImages.items.map((item: EvidenceItem) => {
+        const caseImage = imagesData.find(img => img.image_type === 'case' && img.case_id === item.id);
+        if (caseImage) {
+          item.imageUrl = caseImage.image_data;
+        }
+
+        const stepImages = imagesData
+          .filter(img => img.image_type === 'step' && img.case_id === item.id)
+          .sort((a, b) => (a.step_number || 0) - (b.step_number || 0));
+        
+        if (stepImages.length > 0 && item.testCaseDetails) {
+          item.testCaseDetails.steps = stepImages.map(img => ({
+            stepNumber: img.step_number || 0,
+            description: img.step_description || '',
+            imageUrl: img.image_data
+          }));
+        }
+
+        return item;
       });
-    }, 100);
+
+      setPrintingTicket(ticketWithImages);
+
+      setTimeout(() => {
+        executePdfGeneration({
+          isArchived: true,
+          reportRef,
+          currentUser,
+          printingTicket: ticketWithImages,
+          formTicketInfoRef: { current: ticketWithImages.ticketInfo },
+          evidences: ticketWithImages.items,
+          users,
+          setShowPdfModal,
+          setIsGeneratingPdf,
+          setPrintingTicket,
+          persistCurrentTicket
+        });
+      }, 100);
+    } catch (error) {
+      console.error("Error loading images for PDF:", error);
+      alert("Erro ao carregar as imagens para o PDF.");
+      setIsGeneratingPdf(false);
+    }
   };
 
   // --- VALIDATION & SAVING LOGIC ---
@@ -1074,11 +1180,7 @@ const App: React.FC = () => {
               onWizardSave={handleWizardSave}
               onClearTrigger={() => setWizardTrigger(null)}
               invalidFields={invalidFields}
-              onTicketInfoChange={(info) => {
-                formTicketInfoRef.current = info;
-                setTicketInfoVersion(prev => prev + 1);
-                if (pdfError) setPdfError(null);
-              }}
+              onTicketInfoChange={handleTicketInfoChange}
               onEditCase={handleEditCase}
               disabled={isGeneratingPdf || isSaving}
             />

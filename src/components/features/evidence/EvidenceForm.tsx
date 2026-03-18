@@ -94,36 +94,50 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
     getExpandedRows: () => Array.from(expandedHistoryRows)
   }));
 
+  const isInitializedRef = useRef(false);
+
   useEffect(() => {
     if (initialTicketInfo) {
-      setSprint(initialTicketInfo.sprint || '');
-      setTicketId(initialTicketInfo.ticketId || '');
-      setIsImprovement(initialTicketInfo.isImprovement || false);
-      setTicketTitle(initialTicketInfo.ticketTitle || '');
-      setTicketSummary(initialTicketInfo.ticketSummary || '');
-      setClientSystem(initialTicketInfo.clientSystem || '');
-      setRequester(initialTicketInfo.requester || '');
-      setAnalyst(initialTicketInfo.analyst || '');
-      setRequestDate(initialTicketInfo.requestDate || '');
-      setEnvironmentVersion(initialTicketInfo.environmentVersion || '');
-      setEvidenceDate(initialTicketInfo.evidenceDate || '');
-      setTicketDescription(initialTicketInfo.ticketDescription || '');
-      setSolution(initialTicketInfo.solution || '');
-      setPriority(initialTicketInfo.priority || TicketPriority.MEDIUM);
-      setErrorOrigin(initialTicketInfo.errorOrigin || '');
-      setTicketStatus(initialTicketInfo.ticketStatus || TicketStatus.PENDING);
-      setBlockageReason(initialTicketInfo.blockageReason || '');
-      setBlockageImages(initialTicketInfo.blockageImageUrls || []);
+      // If NOT already initialized or if initialTicketInfo has changed significantly (different ticket)
+      const isNewTicket = !isInitializedRef.current || (initialTicketInfo.ticketId && initialTicketInfo.ticketId !== ticketId);
+      
+      if (isNewTicket) {
+        setSprint(initialTicketInfo.sprint || '');
+        setTicketId(initialTicketInfo.ticketId || '');
+        setIsImprovement(initialTicketInfo.isImprovement || false);
+        setTicketTitle(initialTicketInfo.ticketTitle || '');
+        setTicketSummary(initialTicketInfo.ticketSummary || '');
+        setClientSystem(initialTicketInfo.clientSystem || '');
+        setRequester(initialTicketInfo.requester || '');
+        setAnalyst(initialTicketInfo.analyst || '');
+        setRequestDate(initialTicketInfo.requestDate || '');
+        setEnvironmentVersion(initialTicketInfo.environmentVersion || '');
+        setEvidenceDate(initialTicketInfo.evidenceDate || '');
+        setTicketDescription(initialTicketInfo.ticketDescription || '');
+        setSolution(initialTicketInfo.solution || '');
+        setPriority(initialTicketInfo.priority || TicketPriority.MEDIUM);
+        setErrorOrigin(initialTicketInfo.errorOrigin || '');
+        setTicketStatus(initialTicketInfo.ticketStatus || TicketStatus.PENDING);
+        setBlockageReason(initialTicketInfo.blockageReason || '');
+        setBlockageImages(initialTicketInfo.blockageImageUrls || []);
 
-      if (initialTicketInfo.environment) {
-        const envs = initialTicketInfo.environment.split(',').map(e => e.trim()).filter(Boolean);
-        setSelectedEnvs(envs);
+        if (initialTicketInfo.environment) {
+          const envs = initialTicketInfo.environment.split(',').map(e => e.trim()).filter(Boolean);
+          setSelectedEnvs(envs);
+        }
+
+        setIsTitleManuallyEdited(false);
+        isInitializedRef.current = true;
+      } else {
+        // If already initialized but blockageImageUrls arrived later (progressive load)
+        if (initialTicketInfo.blockageImageUrls && 
+            initialTicketInfo.blockageImageUrls.length > 0 && 
+            blockageImages.length === 0) {
+          setBlockageImages(initialTicketInfo.blockageImageUrls);
+        }
       }
-
-      setIsTitleManuallyEdited(false);
     }
-  }, [initialTicketInfo]);
-
+  }, [initialTicketInfo, ticketId, blockageImages.length]);
   useEffect(() => {
     if (wizardTrigger) {
       setIsTicketInfoExpanded(false);

@@ -3,6 +3,8 @@ import { ArchivedTicket, User, EvidenceItem, TestStatus, TicketPriority, TicketS
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '@/constants';
 import { Search, FileDown, ChevronDown, Calendar, Hash, FolderOpen, Trash2, ListChecks, Edit, Lock, Ban, History, Timer, Loader2, Check } from 'lucide-react';
 import EvidenceList from './EvidenceList';
+import { fetchEvidenceImages } from '@/utils/supabaseEvidenceService';
+
 
 declare const html2pdf: any;
 
@@ -19,6 +21,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     const [selectedSprint, setSelectedSprint] = useState<string>('ALL');
     const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
     const [printingTicketId, setPrintingTicketId] = useState<string | null>(null);
+    const [ticketWithLoadedImages, setTicketWithLoadedImages] = useState<ArchivedTicket | null>(null);
     const [permissionError, setPermissionError] = useState<boolean>(false);
 
     // Custom Dropdown State
@@ -116,89 +119,135 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
     const handleDownloadPdf = async (ticket: ArchivedTicket) => {
         setPrintingTicketId(ticket.id);
 
-        // Allow time for the hidden component to render with new props
-        setTimeout(() => {
-            if (printRef.current) {
-                const safeFilename = ticket.ticketInfo.ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
-
-                // Strict Margins for Header (35mm) and Footer (25mm)
-                // Left/Right margin 10mm
-                const opt = {
-                    margin: [35, 10, 25, 10],
-                    filename: `${safeFilename}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
-
-                html2pdf().set(opt).from(printRef.current).toPdf().get('pdf').then((pdf: any) => {
-                    const totalPages = pdf.internal.getNumberOfPages();
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-                    const user = users.find(u => u.acronym === ticket.createdBy);
-
-                    for (let i = 1; i <= totalPages; i++) {
-                        pdf.setPage(i);
-
-                        // --- HEADER (Top 0mm to 35mm) ---
-
-                        // Logo Box (Left)
-                        pdf.setFillColor(15, 23, 42); // slate-900
-                        pdf.rect(10, 10, 12, 12, 'F'); // x=10mm, y=10mm
-                        pdf.setTextColor(255, 255, 255);
-                        pdf.setFontSize(10);
-                        pdf.setFont("helvetica", "bold");
-                        pdf.text("QA", 11.5, 17.5);
-
-                        // Main Title
-                        pdf.setTextColor(15, 23, 42); // slate-900
-                        pdf.setFontSize(14);
-                        pdf.setFont("helvetica", "bold");
-                        pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 16);
-
-                        // Subtitle
-                        pdf.setFontSize(9);
-                        pdf.setTextColor(100, 116, 139); // slate-500
-                        pdf.setFont("helvetica", "normal");
-                        pdf.text("CONTROLE DE QUALIDADE NARNIA", 26, 21);
-
-                        // Ticket ID (Right)
-                        if (ticket.ticketInfo.ticketId) {
-                            pdf.setFontSize(16);
-                            pdf.setTextColor(15, 23, 42);
-                            pdf.setFont("helvetica", "bold");
-                            pdf.text(ticket.ticketInfo.ticketId, pageWidth - 10, 18, { align: 'right' });
-                        }
-
-                        // Horizontal Line Separator (at y=30mm)
-                        pdf.setDrawColor(15, 23, 42);
-                        pdf.setLineWidth(0.5);
-                        pdf.line(10, 30, pageWidth - 10, 30);
-
-
-                        // --- FOOTER (Bottom 25mm) ---
-
-                        // Footer Line Separator (at pageHeight - 15mm)
-                        const footerLineY = pageHeight - 15;
-                        pdf.setDrawColor(203, 213, 225); // slate-300
-                        pdf.setLineWidth(0.3);
-                        pdf.line(10, footerLineY, pageWidth - 10, footerLineY);
-
-                        // Left: Metadata
-                        pdf.setFontSize(8);
-                        pdf.setTextColor(100, 116, 139); // slate-500
-                        pdf.setFont("helvetica", "normal");
-                        pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} por ${user?.name || 'Sistema'}`, 10, pageHeight - 8);
-
-                        // Right: Page Number
-                        pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 8, { align: 'right' });
-                    }
-                }).save().then(() => {
-                    setPrintingTicketId(null);
-                });
+        try {
+            // Lazy load images for PDF generation
+            const imagesData = await fetchEvidenceImages(ticket.id);
+            
+            // Create a deep copy of the ticket and manually merge images
+            // This is safer than just using the ticket object which lacks images
+            const ticketWithImages = JSON.parse(JSON.stringify(ticket));
+            
+            // Map blockage images
+            const blockageImages = imagesData
+                .filter(img => img.image_type === 'blockage')
+                .map(img => img.image_data);
+            
+            if (blockageImages.length > 0) {
+                ticketWithImages.ticketInfo.blockageImageUrls = blockageImages;
             }
-        }, 800);
+
+            // Map case and step images
+            ticketWithImages.items = ticketWithImages.items.map((item: EvidenceItem) => {
+                const caseImage = imagesData.find(img => img.image_type === 'case' && img.case_id === item.id);
+                if (caseImage) {
+                    item.imageUrl = caseImage.image_data;
+                }
+
+                const stepImages = imagesData
+                    .filter(img => img.image_type === 'step' && img.case_id === item.id)
+                    .sort((a, b) => (a.step_number || 0) - (b.step_number || 0));
+                
+                if (stepImages.length > 0 && item.testCaseDetails) {
+                    item.testCaseDetails.steps = stepImages.map(img => ({
+                        stepNumber: img.step_number || 0,
+                        description: img.step_description || '',
+                        imageUrl: img.image_data
+                    }));
+                }
+
+                return item;
+            });
+
+            // Set the ticket with images to state so the PDF template can see it
+            setTicketWithLoadedImages(ticketWithImages);
+
+            // Wait a bit for React to render the hidden print container
+            setTimeout(() => {
+                if (printRef.current) {
+                    const safeFilename = ticket.ticketInfo.ticketTitle.replace(/[/\\?%*:|"<>]/g, '-');
+
+                    const opt = {
+                        margin: [35, 10, 25, 10],
+                        filename: `${safeFilename}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                    };
+
+                    html2pdf().set(opt).from(printRef.current).toPdf().get('pdf').then((pdf: any) => {
+                        const totalPages = pdf.internal.getNumberOfPages();
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        const user = users.find(u => u.acronym === ticket.createdBy);
+
+                        for (let i = 1; i <= totalPages; i++) {
+                            pdf.setPage(i);
+                            // --- HEADER (Top 0mm to 35mm) ---
+
+                            // Logo Box (Left)
+                            pdf.setFillColor(15, 23, 42); // slate-900
+                            pdf.rect(10, 10, 12, 12, 'F'); // x=10mm, y=10mm
+                            pdf.setTextColor(255, 255, 255);
+                            pdf.setFontSize(10);
+                            pdf.setFont("helvetica", "bold");
+                            pdf.text("QA", 11.5, 17.5);
+
+                            // Main Title
+                            pdf.setTextColor(15, 23, 42); // slate-900
+                            pdf.setFontSize(14);
+                            pdf.setFont("helvetica", "bold");
+                            pdf.text("RELATÓRIO DE EVIDÊNCIAS", 26, 16);
+
+                            // Subtitle
+                            pdf.setFontSize(9);
+                            pdf.setTextColor(100, 116, 139); // slate-500
+                            pdf.setFont("helvetica", "normal");
+                            pdf.text("CONTROLE DE QUALIDADE NARNIA", 26, 21);
+
+                            // Ticket ID (Right)
+                            if (ticket.ticketInfo.ticketId) {
+                                pdf.setFontSize(16);
+                                pdf.setTextColor(15, 23, 42);
+                                pdf.setFont("helvetica", "bold");
+                                pdf.text(ticket.ticketInfo.ticketId, pageWidth - 10, 18, { align: 'right' });
+                            }
+
+                            // Horizontal Line Separator (at y=30mm)
+                            pdf.setDrawColor(15, 23, 42);
+                            pdf.setLineWidth(0.5);
+                            pdf.line(10, 30, pageWidth - 10, 30);
+
+
+                            // --- FOOTER (Bottom 25mm) ---
+
+                            // Footer Line Separator (at pageHeight - 15mm)
+                            const footerLineY = pageHeight - 15;
+                            pdf.setDrawColor(203, 213, 225); // slate-300
+                            pdf.setLineWidth(0.3);
+                            pdf.line(10, footerLineY, pageWidth - 10, footerLineY);
+
+                            // Left: Metadata
+                            pdf.setFontSize(8);
+                            pdf.setTextColor(100, 116, 139); // slate-500
+                            pdf.setFont("helvetica", "normal");
+                            pdf.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} por ${user?.name || 'Sistema'}`, 10, pageHeight - 8);
+
+                            // Right: Page Number
+                            pdf.text(`Página ${i} de ${totalPages}`, pageWidth - 10, pageHeight - 8, { align: 'right' });
+                        }
+                    }).save().then(() => {
+                        setPrintingTicketId(null);
+                        setTicketWithLoadedImages(null); // Clear the state after printing
+                    });
+                }
+            }, 800);
+        } catch (error) {
+            console.error("Error loading images for PDF:", error);
+            alert("Erro ao carregar as imagens para o PDF.");
+            setPrintingTicketId(null);
+            setTicketWithLoadedImages(null); // Clear the state on error
+        }
     };
 
     const getUniqueTicketStatuses = (items: EvidenceItem[]) => {
@@ -226,7 +275,7 @@ const EvidenceManagement: React.FC<EvidenceManagementProps> = ({ tickets, users,
         return resultConfigs;
     };
 
-    const ticketToPrint = tickets.find(t => t.id === printingTicketId);
+    const ticketToPrint = ticketWithLoadedImages || tickets.find(t => t.id === printingTicketId);
 
     const pdfItems = useMemo(() => {
         if (!ticketToPrint) return [];

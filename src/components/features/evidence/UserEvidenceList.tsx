@@ -39,17 +39,25 @@ const UserEvidenceList: React.FC<UserEvidenceListProps> = ({
 
     // Filter only current user tickets and search term
     const filteredTickets = useMemo(() => {
-        return tickets
-            .filter(t => t.createdBy === currentUser.acronym)
+        console.log("Filtering tickets for user:", currentUser.acronym);
+        console.log("Total tickets to filter:", tickets.length);
+        const filtered = tickets
             .filter(t => {
                 const term = searchTerm.toLowerCase();
+                const ticketId = (t.ticketInfo.ticketId || '').toLowerCase();
+                const ticketTitle = (t.ticketInfo.ticketTitle || '').toLowerCase();
+                const sprint = (t.ticketInfo.sprint || '').toLowerCase();
+                
                 return (
-                    t.ticketInfo.ticketId.toLowerCase().includes(term) ||
-                    t.ticketInfo.ticketTitle.toLowerCase().includes(term) ||
-                    t.ticketInfo.sprint.toLowerCase().includes(term)
+                    ticketId.includes(term) ||
+                    ticketTitle.includes(term) ||
+                    sprint.includes(term)
                 );
             })
-            .sort((a, b) => (b.archivedAt || 0) - (a.archivedAt || 0));
+            .sort((a, b) => (Number(b.archivedAt) || 0) - (Number(a.archivedAt) || 0));
+        
+        console.log("Filtered tickets count (no user filter):", filtered.length);
+        return filtered;
     }, [tickets, currentUser.acronym, searchTerm]);
 
     return (

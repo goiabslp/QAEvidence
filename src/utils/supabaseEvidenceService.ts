@@ -123,7 +123,7 @@ export const fetchEvidencesFromSupabase = async (): Promise<ArchivedTicket[]> =>
           *
         ),
         evidence_images (
-          *
+          id, evidence_id, case_id, image_type
         )
       `)
             .order('archived_at', { ascending: false });
@@ -135,75 +135,59 @@ export const fetchEvidencesFromSupabase = async (): Promise<ArchivedTicket[]> =>
         const archivedTickets: ArchivedTicket[] = evidences.map((ev: any) => {
             // Reconstruct TicketInfo
             const ticketInfo: TicketInfo = {
-                ticketId: ev.ticket_id,
-                sprint: ev.sprint,
-                isImprovement: ev.is_improvement,
-                ticketTitle: ev.ticket_title,
-                ticketSummary: ev.ticket_summary,
-                clientSystem: ev.client_system,
-                requester: ev.requester,
-                analyst: ev.analyst,
-                requestDate: ev.request_date,
+                ticketId: safeString(ev.ticket_id),
+                sprint: safeString(ev.sprint),
+                isImprovement: Boolean(ev.is_improvement),
+                ticketTitle: safeString(ev.ticket_title),
+                ticketSummary: safeString(ev.ticket_summary),
+                clientSystem: safeString(ev.client_system),
+                requester: safeString(ev.requester),
+                analyst: safeString(ev.analyst),
+                requestDate: safeString(ev.request_date),
                 priority: (ev.priority as TicketPriority) || TicketPriority.MEDIUM,
-                errorOrigin: ev.error_origin,
+                errorOrigin: safeString(ev.error_origin),
                 ticketStatus: (ev.ticket_status as TicketStatus) || TicketStatus.PENDING,
-                environment: ev.environment,
-                environmentVersion: ev.environment_version,
-                evidenceDate: ev.evidence_date,
-                ticketDescription: ev.ticket_description,
-                solution: ev.solution,
+                environment: safeString(ev.environment),
+                environmentVersion: safeString(ev.environment_version),
+                evidenceDate: safeString(ev.evidence_date),
+                ticketDescription: safeString(ev.ticket_description),
+                solution: safeString(ev.solution),
                 blockageReason: ev.blockage_reason || undefined,
-                blockageImageUrls: ev.evidence_images
-                    ? ev.evidence_images.filter((img: any) => img.image_type === 'blockage').map((img: any) => img.image_data)
-                    : undefined
+                blockageImageUrls: [] // Images will be loaded on demand
             };
 
             // Reconstruct EvidenceItems
-            const items: EvidenceItem[] = (ev.evidence_cases || []).map((c: any) => {
+            const items: EvidenceItem[] = ev.evidence_cases.map((c: any) => {
                 let testCaseDetails: TestCaseDetails | undefined = undefined;
 
                 if (c.case_id) {
-                    // Find step images for this case
-                    const stepImages = ev.evidence_images
-                        ? ev.evidence_images.filter((img: any) => img.image_type === 'step' && img.case_id === c.id)
-                        : [];
-
-                    const steps = stepImages.map((img: any) => ({
-                        stepNumber: img.step_number,
-                        description: img.step_description,
-                        imageUrl: img.image_data
-                    }));
-
                     testCaseDetails = {
-                        scenarioNumber: c.scenario_number,
-                        caseNumber: c.case_number,
-                        caseId: c.case_id,
-                        screen: c.screen,
-                        result: c.result as 'Sucesso' | 'Falha' | 'Impedimento' | 'Pendente',
-                        objective: c.objective,
-                        preRequisite: c.pre_requisite,
-                        condition: c.condition,
-                        expectedResult: c.expected_result,
-                        failureReason: c.failure_reason,
-                        steps: steps.length > 0 ? steps : undefined
+                        scenarioNumber: c.scenario_number || 0,
+                        caseNumber: c.case_number || 0,
+                        caseId: c.case_id || '',
+                        screen: c.screen || '',
+                        result: (c.result as any) || 'Pendente',
+                        objective: c.objective || '',
+                        preRequisite: c.pre_requisite || '',
+                        condition: c.condition || '',
+                        expectedResult: c.expected_result || '',
+                        failureReason: c.failure_reason || undefined,
+                        steps: [] // Will be loaded on demand
                     };
                 }
 
-                const caseImage = ev.evidence_images
-                    ? ev.evidence_images.find((img: any) => img.image_type === 'case' && img.case_id === c.id)
-                    : null;
-
                 return {
                     id: c.id,
-                    title: c.title,
-                    description: c.description,
-                    imageUrl: caseImage ? caseImage.image_data : null,
-                    status: c.status as TestStatus,
-                    severity: c.severity as Severity,
-                    timestamp: c.created_at,
-                    ticketInfo: { ...ticketInfo }, // Duplicate ticketInfo for each item as per type structure
+                    title: c.title || '',
+                    description: c.description || '',
+                    imageUrl: null, // Will be loaded on demand
+                    status: (c.status as TestStatus) || TestStatus.PENDING,
+                    severity: (c.severity as Severity) || Severity.MEDIUM,
+                    timestamp: Number(c.created_at) || Date.now(),
+                    ticketInfo: { ...ticketInfo },
                     testCaseDetails,
-                    createdBy: ev.created_by
+                    createdBy: ev.created_by || '',
+                    images: [] // Will be loaded on demand
                 } as EvidenceItem;
             });
 
@@ -211,15 +195,60 @@ export const fetchEvidencesFromSupabase = async (): Promise<ArchivedTicket[]> =>
                 id: ev.id,
                 ticketInfo,
                 items,
-                archivedAt: ev.archived_at,
-                createdBy: ev.created_by
+                archivedAt: Number(ev.archived_at) || Date.now(),
+                createdBy: safeString(ev.created_by)
             };
         });
 
         return archivedTickets;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching evidences from Supabase:', error);
+        if (error.message) console.error('Error message:', error.message);
+        if (error.details) console.error('Error details:', error.details);
+        if (error.hint) console.error('Error hint:', error.hint);
         return [];
+    }
+};
+
+/**
+ * Fetches only the image data for a specific evidence ticket
+ * Used for lazy loading images when a ticket is opened
+ */
+export const fetchEvidenceImages = async (evidenceId: string) => {
+    try {
+        // Step 1: Fetch metadata only (no image_data) to avoid timeout
+        const { data: metadata, error: metadataError } = await supabase
+            .from('evidence_images')
+            .select('id, case_id, image_type, step_number, step_description')
+            .eq('evidence_id', evidenceId);
+
+        if (metadataError) throw metadataError;
+        if (!metadata || metadata.length === 0) return [];
+
+        // Step 2: Fetch image_data for each record individually in parallel
+        // We do this to avoid "statement timeout" on large combined payloads
+        const results = await Promise.all(metadata.map(async (meta) => {
+            const { data: imageData, error: imageError } = await supabase
+                .from('evidence_images')
+                .select('image_data')
+                .eq('id', meta.id)
+                .single();
+            
+            if (!imageError && imageData) {
+                return {
+                    ...meta,
+                    image_data: imageData.image_data
+                };
+            } else {
+                console.error(`Error fetching image data for ID ${meta.id}:`, imageError);
+                return { ...meta, image_data: null };
+            }
+        }));
+
+        return results;
+    } catch (error) {
+        console.error("Error fetching evidence images:", error);
+        throw error;
     }
 };
 export const deleteEvidenceFromSupabase = async (evidenceId: string): Promise<boolean> => {

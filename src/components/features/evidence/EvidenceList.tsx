@@ -369,11 +369,13 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, o
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-slate-400 flex-col gap-3">
-                  <div className="p-4 bg-white rounded-full shadow-sm">
-                    <FileText className="w-8 h-8 text-slate-300" />
+                <div className="flex items-center justify-center h-full text-slate-400 flex-col gap-3 bg-slate-50">
+                  <div className="p-4 bg-white rounded-full shadow-sm animate-pulse">
+                    <ImageIcon className="w-8 h-8 text-slate-200" />
                   </div>
-                  <span className="text-sm font-medium">Evidência Manual</span>
+                  <span className="text-xs font-medium text-slate-400">
+                    {readOnly ? 'Carregando ou sem imagem...' : 'Sem imagem anexada'}
+                  </span>
                 </div>
               )}
 
