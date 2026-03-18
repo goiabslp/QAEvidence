@@ -284,19 +284,53 @@ const App: React.FC = () => {
   }, []);
 
   // --- PERSISTENCE & INITIALIZATION ---
+  // Helper for deep equality ignoring key order
+  const isDeepEqual = (obj1: any, obj2: any): boolean => {
+    if (obj1 === obj2) return true;
+    if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) return false;
+    if (Array.isArray(obj1) !== Array.isArray(obj2)) return false;
+
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+
+    if (keys1.length !== keys2.length) return false;
+
+    for (let key of keys1) {
+      if (!keys2.includes(key)) return false;
+      if (!isDeepEqual(obj1[key], obj2[key])) return false;
+    }
+    return true;
+  };
+
   // Calculate dirty state
   const isDirty = useMemo(() => {
     // If no analyst yet (pure initial state), not dirty
     if (!currentUser && !savedTicketInfo) return false;
 
     const currentInfo = formTicketInfoRef.current;
+    if (!currentInfo) return false;
+
+    // If it's a completely NEW ticket (no saved state)
+    if (!savedTicketInfo && savedEvidences.length === 0) {
+      const hasMeaningfulText = Boolean(
+        currentInfo.ticketId || 
+        currentInfo.ticketTitle || 
+        currentInfo.requester || 
+        currentInfo.clientSystem || 
+        currentInfo.ticketDescription || 
+        currentInfo.solution || 
+        currentInfo.blockageReason ||
+        (currentInfo.blockageImageUrls && currentInfo.blockageImageUrls.length > 0)
+      );
+      const hasItems = evidences.length > 0;
+      return hasMeaningfulText || hasItems;
+    }
+
+    // For existing tickets, use order-independent deep comparison
+    const itemsChanged = !isDeepEqual(evidences, savedEvidences);
     
-    // Deep comparison using JSON.stringify (safe for these small objects)
-    const itemsChanged = JSON.stringify(evidences) !== JSON.stringify(savedEvidences);
-    
-    // For TicketInfo, we ignore small formatting differences in ID/Title if needed, 
-    // but mostly we care about the raw object values.
-    const infoChanged = JSON.stringify(currentInfo) !== JSON.stringify(savedTicketInfo);
+    // We only care about info changes if the info itself is structurally different
+    const infoChanged = !isDeepEqual(currentInfo, savedTicketInfo);
 
     return itemsChanged || infoChanged;
   }, [evidences, savedEvidences, savedTicketInfo, ticketInfoVersion, currentUser]);
