@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ClipboardCheck, LogOut, User as UserIcon, Shield, ShieldCheck, Menu, FileText, Bug, Clock, Beaker } from 'lucide-react';
+import { ClipboardCheck, LogOut, User as UserIcon, Shield, ShieldCheck, Menu, FileText, Bug, Clock, Beaker, Target } from 'lucide-react';
 import { User } from '@/types';
+import { useUserMetrics } from '@/hooks/useUserMetrics';
 
 interface HeaderProps {
   user?: User | null;
@@ -14,6 +15,9 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggleAdminPanel, activeModule, onMenuNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const { completedCount } = useUserMetrics(user?.acronym);
+  const remainingCount = user?.dailyGoal ? Math.max(0, user.dailyGoal - completedCount) : 0;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -116,14 +120,52 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggl
             </div>
           </div>
 
-          {/* Center: Greeting (Absolute Positioned) */}
-          {user && (
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none w-max">
-              <span className="text-xs sm:text-sm font-medium text-slate-400">
-                Olá, <span className="font-bold text-white">{user.name}</span>
-              </span>
-            </div>
-          )}
+          {/* Center: Greeting & Metrics */}
+          <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden lg:flex items-center gap-6 pointer-events-none">
+            {user && (
+              <div className="flex items-center gap-4 bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-700/50 backdrop-blur-sm shadow-inner pointer-events-auto group hover:bg-slate-800 transition-all duration-300">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter">Olá,</span>
+                  <span className="text-xs font-black text-white">{user.name.split(' ')[0]}</span>
+                </div>
+                
+                {user.dailyGoal !== undefined && user.dailyGoal > 0 && (
+                  <>
+                    <div className="w-px h-3 bg-slate-700"></div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 bg-indigo-500/10 rounded-md border border-indigo-500/20">
+                          <Target className="w-3 h-3 text-indigo-400" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-black text-slate-500 leading-none uppercase tracking-tighter">Meta Diária</span>
+                          <span className="text-[11px] font-black text-slate-200 leading-tight">
+                            {completedCount} / {user.dailyGoal}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end min-w-[70px]">
+                        <span className={`text-[10px] font-black tracking-tight ${
+                          remainingCount === 0 ? 'text-emerald-400' : 'text-amber-400'
+                        }`}>
+                          {remainingCount === 0 ? 'CONCLUÍDO! ✨' : `FALTAM ${remainingCount}`}
+                        </span>
+                        <div className="w-16 h-1 bg-slate-700 rounded-full mt-1 overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-1000 ease-out border-r border-white/10 ${
+                              remainingCount === 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-indigo-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (completedCount / user.dailyGoal) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Right Side: Profile & Actions */}
           <div className="flex items-center gap-3 z-10">

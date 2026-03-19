@@ -90,6 +90,7 @@ const App: React.FC = () => {
           acronym,
           full_name,
           is_active,
+          is_analyst,
           test_column_settings,
           daily_goal,
           is_daily_goal_auto,
@@ -113,6 +114,7 @@ const App: React.FC = () => {
             name: p.full_name,
             role: mapRoleFromDb(roleName),
             isActive: p.is_active !== false,
+            isAnalyst: p.is_analyst !== false, // Defaults to true if missing
             showEasterEgg: true, // Keeping default for now as requested by behavior consistency
             testColumnSettings: p.test_column_settings,
             dailyGoal: p.daily_goal !== null ? p.daily_goal : undefined,
@@ -146,6 +148,12 @@ const App: React.FC = () => {
       // Explicitly update profiles as a secondary safeguard to ensure correct names
       const { data: newProfile } = await supabase.from('profiles').select('id').eq('acronym', newUser.acronym.toUpperCase()).single();
       if (newProfile) {
+        // Set analyst status explicitly bypassing RLS
+        await supabase.rpc('set_user_analyst_status', { 
+          target_user_id: newProfile.id, 
+          analyst_status: newUser.isAnalyst !== false 
+        });
+
         await supabase.from('profiles').update({
           full_name: newUser.name,
           acronym: newUser.acronym.toUpperCase()
@@ -159,6 +167,19 @@ const App: React.FC = () => {
         } else {
           await supabase.from('user_roles').insert({ user_id: newProfile.id, role_name: roleStr });
         }
+      }
+
+      // Optimistic user insertion for instant UI
+      if (newProfile) {
+        setUsers(prev => [...prev, {
+          id: newProfile.id,
+          acronym: newUser.acronym.toUpperCase(),
+          name: newUser.name,
+          role: newUser.role,
+          isActive: true,
+          isAnalyst: newUser.isAnalyst !== false,
+          showEasterEgg: newUser.showEasterEgg !== false
+        }]);
       }
 
       // Give Supabase triggers a moment to finish assignments
@@ -184,11 +205,25 @@ const App: React.FC = () => {
 
       if (error) throw error;
 
+      // Update analyst status securely bypassing RLS
+      await supabase.rpc('set_user_analyst_status', { 
+        target_user_id: updatedUser.id, 
+        analyst_status: updatedUser.isAnalyst !== false 
+      });
+
       // Explicitly update profiles to prevent potential RPC swap bugs
-      await supabase.from('profiles').update({
+      const updateResult = await supabase.from('profiles').update({
         full_name: updatedUser.name,
         acronym: updatedUser.acronym.toUpperCase()
-      }).eq('id', updatedUser.id);
+      }).eq('id', updatedUser.id).select();
+
+      // If updateResult returns 0 rows, let's warn the user that RLS blocked it (or it didn't find the user).
+      if (updateResult.error) {
+        console.error('Error updating profile explicitly:', updateResult.error);
+      } else if (updateResult.data && updateResult.data.length === 0) {
+        console.warn('Profile update affected 0 rows. RLS might be blocking this action for Admins.');
+        // We might need to ask the user to configure RLS to allow Admins to update profiles.
+      }
 
       // Explicitly update or insert user_roles to bypass faulty RPC permission drop
       const roleStr = updatedUser.role === 'ADMIN' ? 'ADMINISTRADOR' : 'USER';
@@ -199,9 +234,19 @@ const App: React.FC = () => {
         await supabase.from('user_roles').insert({ user_id: updatedUser.id, role_name: roleStr });
       }
 
+      // Optimistic update for instant UI feedback
+      setUsers(prev => prev.map(u => u.id === updatedUser.id ? { 
+        ...u, 
+        name: updatedUser.name,
+        acronym: updatedUser.acronym.toUpperCase(),
+        isAnalyst: updatedUser.isAnalyst !== false,
+        isActive: updatedUser.isActive !== false,
+        role: updatedUser.role
+      } : u));
+
       // Give Supabase triggers a moment to finish assignments
       await new Promise(resolve => setTimeout(resolve, 1000));
-      // Reload from DB first to get the most accurate state
+      // Reload from DB to normalize state
       await loadUsersFromSupabase();
 
       if (currentUser?.id === updatedUser.id) {
@@ -220,7 +265,8 @@ const App: React.FC = () => {
             acronym: myData.acronym,
             name: myData.full_name,
             role: mapRoleFromDb(roleName),
-            isActive: myData.is_active !== false
+            isActive: myData.is_active !== false,
+            isAnalyst: myData.is_analyst !== false
           });
         }
       }

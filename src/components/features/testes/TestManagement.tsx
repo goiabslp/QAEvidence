@@ -11,6 +11,7 @@ import { supabase } from '@/services/supabaseClient';
 import { FilterState, INITIAL_FILTER_STATE, StructuredObservation } from '../../../types';
 import ModernSelect from '../../common/ModernSelect';
 import TestObservationModal from './TestObservationModal';
+import ActionMenuModal from './ActionMenuModal';
 
 // Fields that cannot be edited per user requirements
 const NON_EDITABLE_FIELDS: TestColumnKey[] = [
@@ -94,6 +95,17 @@ const TestManagement: React.FC<TestManagementProps> = ({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
     const [isUpdatingBatch, setIsUpdatingBatch] = useState(false);
+    const [batchEditState, setBatchEditState] = useState<{
+        isOpen: boolean;
+        field: TestColumnKey | null;
+        newValue: string;
+        isSaving: boolean;
+    }>({
+        isOpen: false,
+        field: null,
+        newValue: '',
+        isSaving: false
+    });
 
     // Filter State
     const [filterState, setFilterState] = useState<FilterState>(() => {
@@ -198,6 +210,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     .from('profiles')
                     .select('acronym, full_name')
                     .eq('is_active', true)
+                    .eq('is_analyst', true)
                     .order('acronym');
                 
                 if (error) throw error;
@@ -401,6 +414,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 ? { ...t, result: newResult, analyst: newAnalyst } 
                 : t
         ));
+        setAllFiltersData(prev => prev.map(t => 
+            t.id === testId 
+                ? { ...t, result: newResult, analyst: newAnalyst } 
+                : t
+        ));
 
         // If status is Erro or Impedimento, we need a mandatory observation
         if (newResult === 'Erro' || newResult === 'Impedimento') {
@@ -467,6 +485,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 ? { ...t, result: newResult, analyst: newAnalyst, observation: serializedObs } 
                 : t
         ));
+        setAllFiltersData(prev => prev.map(t => 
+            t.id === testId 
+                ? { ...t, result: newResult, analyst: newAnalyst } 
+                : t
+        ));
 
         // Save to Supabase
         try {
@@ -498,6 +521,17 @@ const TestManagement: React.FC<TestManagementProps> = ({
         
         // Optimistic UI update
         setTests(prev => prev.map(t => {
+            if (selectedIds.has(t.id)) {
+                const isPending = newResult === 'Pendente';
+                return { 
+                    ...t, 
+                    result: newResult, 
+                    analyst: isPending ? '' : acronym 
+                };
+            }
+            return t;
+        }));
+        setAllFiltersData(prev => prev.map(t => {
             if (selectedIds.has(t.id)) {
                 const isPending = newResult === 'Pendente';
                 return { 
@@ -543,6 +577,9 @@ const TestManagement: React.FC<TestManagementProps> = ({
         setTests(prev => prev.map(t => 
             selectedIds.has(t.id) ? { ...t, analyst: newAnalyst } : t
         ));
+        setAllFiltersData(prev => prev.map(t => 
+            selectedIds.has(t.id) ? { ...t, analyst: newAnalyst } : t
+        ));
 
         try {
             const updates = selectedIdArray.map(id => 
@@ -566,11 +603,87 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }
     };
 
+    const confirmBatchEdit = async () => {
+        if (!user || selectedIds.size === 0 || !batchEditState.field) return;
+        
+        setBatchEditState(prev => ({ ...prev, isSaving: true }));
+        const selectedIdArray = Array.from(selectedIds);
+        const fieldName = batchEditState.field;
+        const newValue = batchEditState.newValue;
+
+        // Optimistic UI update
+        setTests(prev => prev.map(t => 
+            selectedIds.has(t.id) ? { ...t, [fieldName]: newValue } : t
+        ));
+        const snakeField = fieldName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        setAllFiltersData(prev => prev.map(t => 
+            selectedIds.has(t.id) ? { ...t, [snakeField]: newValue } : t
+        ));
+
+        try {
+            const snakeField = fieldName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            
+            const updates = selectedIdArray.map(id => 
+                supabase
+                    .from('excel_test_records')
+                    .update({ 
+                        [snakeField]: newValue,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', id)
+            );
+
+            await Promise.all(updates);
+            setSelectedIds(new Set());
+            setBatchEditState({ isOpen: false, field: null, newValue: '', isSaving: false });
+        } catch (error) {
+            console.error('Error batch updating field:', error);
+            alert('Erro ao atualizar campos em lote.');
+            setBatchEditState(prev => ({ ...prev, isSaving: false }));
+        }
+    };
+
     const toggleSelectAll = () => {
         if (selectedIds.size === tests.length && tests.length > 0) {
             setSelectedIds(new Set());
         } else {
             setSelectedIds(new Set(tests.map(t => t.id)));
+        }
+    };
+
+    const handleSelectAllFiltered = () => {
+        if (!allFiltersData.length) return;
+
+        let filtered = allFiltersData;
+
+        // Apply Search filter
+        if (searchTerm.trim()) {
+            const searchLower = searchTerm.toLowerCase();
+            filtered = filtered.filter(item => 
+                (item.test_id && item.test_id.toLowerCase().includes(searchLower)) ||
+                (item.module && item.module.toLowerCase().includes(searchLower)) ||
+                (item.use_case && item.use_case.toLowerCase().includes(searchLower)) ||
+                (item.analyst && item.analyst.toLowerCase().includes(searchLower)) ||
+                (item.backoffice && item.backoffice.toLowerCase().includes(searchLower)) ||
+                (item.tag_id && item.tag_id.toLowerCase().includes(searchLower))
+            );
+        }
+
+        // Apply Advanced filters
+        if (filterState.backoffice.length > 0) filtered = filtered.filter(item => filterState.backoffice.includes(item.backoffice));
+        if (filterState.priority.length > 0) filtered = filtered.filter(item => filterState.priority.includes(item.priority));
+        if (filterState.minimum.length > 0) filtered = filtered.filter(item => filterState.minimum.includes(item.minimum));
+        if (filterState.module.length > 0) filtered = filtered.filter(item => filterState.module.includes(item.module));
+        if (filterState.useCase.length > 0) filtered = filtered.filter(item => filterState.useCase.includes(item.use_case));
+        if (filterState.analyst.length > 0) filtered = filtered.filter(item => filterState.analyst.includes(item.analyst));
+        if (filterState.result.length > 0) filtered = filtered.filter(item => filterState.result.includes(item.result));
+
+        const allIds = filtered.map(item => item.id);
+        
+        if (selectedIds.size === allIds.length && allIds.length > 0) {
+            setSelectedIds(new Set()); // Deselect all if they are all selected
+        } else {
+            setSelectedIds(new Set(allIds)); // Select all filtered
         }
     };
 
@@ -589,6 +702,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
         // Optimistic update
         setTests(prev => prev.map(t => t.id === testId ? { ...t, [field]: value } : t));
+        const snakeField = field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        setAllFiltersData(prev => prev.map(t => t.id === testId ? { ...t, [snakeField]: value } : t));
 
         try {
             const snakeField = field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -613,18 +728,31 @@ const TestManagement: React.FC<TestManagementProps> = ({
         if (['analyst', 'priority', 'minimum', 'result'].includes(key)) return;
 
         const oldValue = String((test as any)[key] || '');
-        const newValue = window.prompt(`Novo valor para ${COLUMN_LABELS[key]}:`, oldValue);
         
-        if (newValue !== null && newValue !== oldValue) {
-            setEditState({
-                isOpen: true,
-                testId: test.id,
-                field: key,
-                oldValue,
-                newValue,
-                isSaving: false
-            });
-        }
+        setEditState({
+            isOpen: true,
+            testId: test.id,
+            field: key,
+            oldValue,
+            newValue: oldValue, // Initialize with oldValue so user can edit it in the modal
+            isSaving: false
+        });
+    };
+
+    const initiateDoubleClickEdit = (test: ExcelTestRecord, key: TestColumnKey) => {
+        const allowedFields: TestColumnKey[] = ['module', 'priority', 'backoffice', 'useCase', 'minimum'];
+        if (!allowedFields.includes(key)) return;
+
+        const oldValue = String((test as any)[key] || '');
+        
+        setEditState({
+            isOpen: true,
+            testId: test.id,
+            field: key,
+            oldValue,
+            newValue: oldValue, // Initialize with oldValue so user can edit it in the modal
+            isSaving: false
+        });
     };
 
     const confirmEdit = async () => {
@@ -650,6 +778,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
             setTests(prev => prev.map(t => 
                 t.id === editState.testId 
                     ? { ...t, [editState.field!]: editState.newValue } 
+                    : t
+            ));
+            setAllFiltersData(prev => prev.map(t => 
+                t.id === editState.testId 
+                    ? { ...t, [snakeField]: editState.newValue } 
                     : t
             ));
 
@@ -698,6 +831,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     ? { ...t, [directEdit.field!]: directEdit.value } 
                     : t
             ));
+            setAllFiltersData(prev => prev.map(t => 
+                t.id === directEdit.testId 
+                    ? { ...t, [snakeField]: directEdit.value } 
+                    : t
+            ));
         } catch (err) {
             console.error('Error saving direct edit:', err);
         } finally {
@@ -708,65 +846,50 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
     const totalPages = Math.ceil(totalCount / pageSize);
 
-    // We need filter options for the modal. With 30k records, we can't calculate them from the 50 visible ones.
-    const [filterOptions, setFilterOptions] = useState({
-        backoffice: [] as string[],
-        priority: [] as string[],
-        minimum: [] as string[],
-        module: [] as string[],
-        useCase: [] as string[],
-        analyst: [] as string[],
-        result: [] as string[]
-    });
+    // We need complete filter options for the modal to do dynamic cross-filtering.
+    // Fetch all records' filterable columns in the background.
+    const [allFiltersData, setAllFiltersData] = useState<any[]>([]);
 
-    // Fetch filter options only once
     useEffect(() => {
-        const fetchFilterOptions = async () => {
+        const fetchAllFiltersData = async () => {
             if (!user) return;
             try {
-                // Fetch a sample of recent records to populate filter suggestions
-                const { data } = await supabase
-                    .from('excel_test_records')
-                    .select('backoffice, priority, minimum, module, use_case, analyst, result')
-                    .neq('module', 'SYSTEM_SETTINGS')
-                    .limit(1000); 
+                let allData: any[] = [];
+                let hasMore = true;
+                let from = 0;
+                const limit = 4999; // Request a large chunk, Supabase will cap it to its max_rows (usually 1000 or 3000)
 
-                if (data) {
-                    const options = {
-                        backoffice: new Set<string>(),
-                        priority: new Set<string>(),
-                        minimum: new Set<string>(),
-                        module: new Set<string>(),
-                        useCase: new Set<string>(),
-                        analyst: new Set<string>(),
-                        result: new Set<string>()
-                    };
+                while (hasMore) {
+                    const { data, error } = await supabase
+                        .from('excel_test_records')
+                        .select('id, test_id, tag_id, backoffice, priority, minimum, module, use_case, analyst, result')
+                        .neq('module', 'SYSTEM_SETTINGS')
+                        .range(from, from + limit);
 
-                    data.forEach(item => {
-                        if (item.backoffice) options.backoffice.add(item.backoffice);
-                        if (item.priority) options.priority.add(item.priority);
-                        if (item.minimum) options.minimum.add(item.minimum);
-                        if (item.module) options.module.add(item.module);
-                        if (item.use_case) options.useCase.add(item.use_case);
-                        if (item.analyst) options.analyst.add(item.analyst);
-                        if (item.result) options.result.add(item.result);
-                    });
+                    if (error) throw error;
 
-                    setFilterOptions({
-                        backoffice: Array.from(options.backoffice).sort(),
-                        priority: Array.from(options.priority).sort(),
-                        minimum: Array.from(options.minimum).sort(),
-                        module: Array.from(options.module).sort(),
-                        useCase: Array.from(options.useCase).sort(),
-                        analyst: Array.from(options.analyst).sort(),
-                        result: Array.from(options.result).sort()
-                    });
+                    if (data && data.length > 0) {
+                        allData = [...allData, ...data];
+                        from += data.length;
+                        
+                        // If the returned length is less than requested and not neatly a multiple of 1000
+                        // (which is a common max_rows), it's highly likely it's the last page.
+                        // But to be perfectly safe, we stop when it's 0 or strictly less than max_rows if we know it.
+                        // We'll just stop if data.length === 0 or if it returned less than 1000 (assuming 1000 is the min cap)
+                        if (data.length < 1000) {
+                            hasMore = false;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
                 }
+
+                setAllFiltersData(allData);
             } catch (err) {
-                console.error('Error fetching filter options:', err);
+                console.error('Error fetching all filters data:', err);
             }
         };
-        fetchFilterOptions();
+        fetchAllFiltersData();
     }, [user]);
 
     const activeFilterCount = useMemo(() => {
@@ -820,15 +943,22 @@ const TestManagement: React.FC<TestManagementProps> = ({
         const isEditable = !NON_EDITABLE_FIELDS.includes(key);
         // Fields that use direct select (no modal)
         const isSelectField = ['analyst', 'priority', 'minimum', 'result'].includes(key);
+        const isDoubleClickEditable = ['module', 'priority', 'backoffice', 'useCase', 'minimum'].includes(key);
 
         return (
             <div 
-                className={`flex flex-col group/field transition-all ${isEditable && !isSelectField ? 'cursor-pointer hover:bg-slate-50 p-1 -m-1 rounded' : 'p-1 -m-1'}`} 
+                className={`flex flex-col group/field transition-all ${(isEditable && !isSelectField) || isDoubleClickEditable ? 'cursor-pointer hover:bg-slate-50 p-1 -m-1 rounded' : 'p-1 -m-1'}`} 
                 key={key}
                 onClick={(e) => {
                     if (isEditable && !isSelectField) {
                         e.stopPropagation();
                         initiateEdit(test, key);
+                    }
+                }}
+                onDoubleClick={(e) => {
+                    if (isDoubleClickEditable) {
+                        e.stopPropagation();
+                        initiateDoubleClickEdit(test, key);
                     }
                 }}
             >
@@ -962,9 +1092,9 @@ const TestManagement: React.FC<TestManagementProps> = ({
                             </button>
                         </div>
 
-                        <div className="relative">
+                        <div>
                             <button
-                                onClick={() => setIsActionMenuOpen(!isActionMenuOpen)}
+                                onClick={() => setIsActionMenuOpen(true)}
                                 disabled={selectedIds.size === 0 || isUpdatingBatch}
                                 className={`flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-lg transition-all shadow-sm ${
                                     selectedIds.size > 0 
@@ -979,46 +1109,6 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                 )}
                                 Ação
                             </button>
-
-                            {isActionMenuOpen && (
-                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                    <div className="px-4 py-2 border-b border-slate-50 mb-1">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alterar Resultado</p>
-                                    </div>
-                                    {['Pendente', 'Em Andamento', 'Sucesso', 'Erro', 'Impedimento'].map(res => (
-                                        <button
-                                            key={res}
-                                            onClick={() => handleBatchResultChange(res)}
-                                            className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex items-center gap-2"
-                                        >
-                                            <div className={`w-2 h-2 rounded-full ${
-                                                res === 'Sucesso' ? 'bg-emerald-500' :
-                                                res === 'Erro' ? 'bg-red-500' :
-                                                res === 'Em Andamento' ? 'bg-blue-500' :
-                                                res === 'Impedimento' ? 'bg-purple-500' :
-                                                'bg-slate-300'
-                                            }`} />
-                                            {res}
-                                        </button>
-                                    ))}
-
-                                    <div className="px-4 py-2 border-b border-slate-50 my-1 mt-2">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transferir Analista</p>
-                                    </div>
-                                    <div className="max-h-48 overflow-y-auto">
-                                        {analysts.map(a => (
-                                            <button
-                                                key={a.acronym}
-                                                onClick={() => handleBatchAnalystChange(a.acronym)}
-                                                className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-                                                title={a.name}
-                                            >
-                                                {a.acronym} - {a.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         <button
@@ -1053,7 +1143,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         <div className={`space-y-3 ${isLoadingTests ? 'opacity-50 pointer-events-none' : ''} transition-opacity duration-300`}>
                         {/* Batch Selection Header */}
                         <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-xl border border-slate-200 mb-4 sticky top-12 z-40 shadow-sm">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-6">
                                 <button
                                     onClick={toggleSelectAll}
                                     className="flex items-center gap-2 group"
@@ -1074,18 +1164,34 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                         {selectedIds.size === tests.length && tests.length > 0 ? 'Desmarcar Página' : 'Selecionar Página'}
                                     </span>
                                 </button>
-                                {selectedIds.size > 0 && (
-                                    <div className="h-4 w-px bg-slate-200 mx-1" />
-                                )}
-                                {selectedIds.size > 0 && (
-                                    <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                                        {selectedIds.size} SELECIONADOS
+                                
+                                <button
+                                    onClick={handleSelectAllFiltered}
+                                    className="flex items-center gap-2 group"
+                                    title="Seleciona todos os registros que correspondem ao filtro atual em todas as páginas"
+                                >
+                                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
+                                        selectedIds.size === totalCount && totalCount > 0
+                                            ? 'bg-amber-500 border-amber-500 text-white' 
+                                            : 'bg-white border-slate-300 group-hover:border-amber-400'
+                                    }`}>
+                                        {selectedIds.size === totalCount && totalCount > 0 && (
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                        )}
+                                        {selectedIds.size > tests.length && selectedIds.size < totalCount && (
+                                            <div className="w-2 h-0.5 bg-amber-400 rounded-full" />
+                                        )}
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                        {selectedIds.size === totalCount && totalCount > 0 ? 'Desmarcar Todos' : 'Selecionar Todos'}
                                     </span>
-                                )}
+                                </button>
                             </div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                {totalCount} registros totais
-                            </p>
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white px-2 py-1 rounded border border-slate-200 shadow-sm flex items-center gap-3">
+                                <span className={selectedIds.size > 0 ? 'text-indigo-600 font-bold' : ''}>{selectedIds.size} SELECIONADOS</span>
+                                <span className="opacity-30">|</span>
+                                <span>{totalCount} REGISTROS TOTAIS</span>
+                            </div>
                         </div>
                         {tests.map((test) => {
                             const isExpanded = expandedId === test.id;
@@ -1114,6 +1220,15 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
                             return (
                                 <div key={test.id} className="border border-slate-200 rounded-xl overflow-visible bg-white shadow-sm hover:shadow transition-shadow relative z-0 hover:z-30 focus-within:z-30">
+                                    {/* Visual Status Bar */}
+                                    {test.result && test.result !== 'Pendente' && (
+                                        <div className={`absolute left-0 top-[-1px] bottom-[-1px] w-1.5 rounded-l-xl z-10 ${
+                                            test.result === 'Sucesso' ? 'bg-emerald-500' :
+                                            test.result === 'Erro' ? 'bg-red-500' :
+                                            test.result === 'Em Andamento' ? 'bg-blue-500' :
+                                            test.result === 'Impedimento' ? 'bg-purple-500' : ''
+                                        }`} />
+                                    )}
                                     {/* Cabeçalho do Card */}
                                     <div
                                         className="p-4 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -1492,7 +1607,19 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 fieldName={editState.field ? COLUMN_LABELS[editState.field] : ''}
                 oldValue={editState.oldValue}
                 newValue={editState.newValue}
+                onChangeNewValue={(val) => setEditState(prev => ({ ...prev, newValue: val }))}
                 isSaving={editState.isSaving}
+            />
+
+            <ConfirmEditModal 
+                isOpen={batchEditState.isOpen}
+                onClose={() => setBatchEditState(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmBatchEdit}
+                fieldName={batchEditState.field ? `${COLUMN_LABELS[batchEditState.field]} (${selectedIds.size} selecionados)` : ''}
+                oldValue="Lote"
+                newValue={batchEditState.newValue}
+                onChangeNewValue={(val) => setBatchEditState(prev => ({ ...prev, newValue: val }))}
+                isSaving={batchEditState.isSaving}
             />
 
             <TestFilterModal 
@@ -1505,7 +1632,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     setIsFilterPanelOpen(false);
                 }}
                 onClear={clearFilters}
-                filterOptions={filterOptions}
+                allFiltersData={allFiltersData}
                 initialFilters={filterState}
             />
 
@@ -1524,6 +1651,16 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 status={observationModal.status}
                 userAcronym={user?.acronym || '--'}
                 userName={user?.name || '--'}
+            />
+
+            <ActionMenuModal
+                isOpen={isActionMenuOpen}
+                onClose={() => setIsActionMenuOpen(false)}
+                selectedCount={selectedIds.size}
+                handleBatchResultChange={handleBatchResultChange}
+                handleBatchAnalystChange={handleBatchAnalystChange}
+                setBatchEditState={setBatchEditState}
+                analysts={analysts}
             />
         </div>
     );

@@ -45,8 +45,10 @@ export interface User {
   id: string;
   acronym: string; // 3 letters
   name: string;
+  role: UserRole;
   isActive?: boolean; // Control access
   showEasterEgg?: boolean; // Control Bug appearance
+  isAnalyst?: boolean; // Flag if user is test executor (analyst)
   testColumnSettings?: TestColumnSettings; // Configurações de coluna de teste
   testFilters?: FilterState; // Filtros fixos da tela de testes
   dailyGoal?: number; // Meta diária de testes
@@ -152,11 +154,11 @@ export interface BugReport {
 }
 
 // Enum keys para as colunas de teste
-export type TestColumnKey = 
-  | 'stepsText' | 'browser' | 'bank' | 'backoffice' | 'mobile' 
-  | 'analyst' | 'automated' | 'bcsCode' | 'useCase' | 'minimum' 
-  | 'priority' | 'testId' | 'module' | 'objective' | 'estimatedTime' 
-  | 'prerequisite' | 'description' | 'acceptanceCriteria' | 'result' 
+export type TestColumnKey =
+  | 'stepsText' | 'browser' | 'bank' | 'backoffice' | 'mobile'
+  | 'analyst' | 'automated' | 'bcsCode' | 'useCase' | 'minimum'
+  | 'priority' | 'testId' | 'module' | 'objective' | 'estimatedTime'
+  | 'prerequisite' | 'description' | 'acceptanceCriteria' | 'result'
   | 'errorStatus' | 'observation' | 'gap';
 
 export type TestColumnSettings = Record<TestColumnKey, boolean> & {
@@ -164,8 +166,8 @@ export type TestColumnSettings = Record<TestColumnKey, boolean> & {
 };
 
 export const DEFAULT_COLUMN_ORDER: TestColumnKey[] = [
-  'testId', 'bank', 'backoffice', 'module', 'analyst', 'priority', 
-  'browser', 'mobile', 'automated', 'bcsCode', 'useCase', 
+  'testId', 'bank', 'backoffice', 'module', 'analyst', 'priority',
+  'browser', 'mobile', 'automated', 'bcsCode', 'useCase',
   'minimum', 'estimatedTime', 'result', 'errorStatus', 'gap'
 ];
 

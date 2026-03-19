@@ -12,6 +12,7 @@ export interface UserFormData {
   isActive?: boolean;
   password?: string;
   showEasterEgg?: boolean;
+  isAnalyst?: boolean;
 }
 
 interface UserManagementProps {
@@ -34,14 +35,15 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
     name: '',
     password: '',
     role: 'USER' as UserRole,
-    showEasterEgg: true
+    showEasterEgg: true,
+    isAnalyst: true
   });
 
   // Filter users: Admin sees all, User sees only themselves
   const visibleUsers = isAdmin ? users : users.filter(u => u.id === currentUserId);
 
   const resetForm = () => {
-    setFormData({ acronym: '', name: '', password: '', role: 'USER', showEasterEgg: true });
+    setFormData({ acronym: '', name: '', password: '', role: 'USER', showEasterEgg: true, isAnalyst: true });
     setEditingUser(null);
     setIsFormOpen(false);
   };
@@ -49,7 +51,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
   const handleStartAdd = () => {
     if (!isAdmin) return;
     setEditingUser(null);
-    setFormData({ acronym: '', name: '', password: '', role: 'USER', showEasterEgg: true });
+    setFormData({ acronym: '', name: '', password: '', role: 'USER', showEasterEgg: true, isAnalyst: true });
     setIsFormOpen(true);
   };
 
@@ -60,7 +62,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
       name: user.name,
       password: '', // Blank password unless typing a new one
       role: user.role,
-      showEasterEgg: user.showEasterEgg !== false // Default to true if undefined
+      showEasterEgg: user.showEasterEgg !== false, // Default to true if undefined
+      isAnalyst: user.isAnalyst !== false // Default to true if undefined
     });
     setIsFormOpen(true);
   };
@@ -83,7 +86,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
         password: formData.password,
         role: formData.role,
         isActive: editingUser.isActive !== false,
-        showEasterEgg: formData.showEasterEgg
+        showEasterEgg: formData.showEasterEgg,
+        isAnalyst: formData.isAnalyst
       });
     } else if (isAdmin && formData.acronym && formData.name && formData.password) {
       // Create new (Admin only)
@@ -93,7 +97,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
         password: formData.password,
         role: formData.role,
         isActive: true,
-        showEasterEgg: formData.showEasterEgg
+        showEasterEgg: formData.showEasterEgg,
+        isAnalyst: formData.isAnalyst
       });
     }
     resetForm();
@@ -248,19 +253,38 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
                   </div>
 
                   {/* BUG TOGGLE */}
-                  <div>
-                    <label className={labelClass}>Bug Animado (Mascote)</label>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, showEasterEgg: !formData.showEasterEgg })}
-                      className={`w-full py-3.5 rounded-2xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all outline-none focus:ring-4 focus:ring-indigo-500/10 ${formData.showEasterEgg
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm hover:bg-emerald-100'
-                        : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-white hover:border-slate-300'
-                        }`}
-                    >
-                      {formData.showEasterEgg ? <Bug className="w-5 h-5" /> : <BugOff className="w-5 h-5" />}
-                      {formData.showEasterEgg ? 'Ativado na Tela' : 'Desativado'}
-                    </button>
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className={labelClass}>Bug Animado (Mascote)</label>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, showEasterEgg: !formData.showEasterEgg })}
+                        className={`w-full py-3.5 rounded-2xl border-2 text-[11px] sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all outline-none focus:ring-4 focus:ring-indigo-500/10 ${formData.showEasterEgg
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm hover:bg-emerald-100'
+                          : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-white hover:border-slate-300'
+                          }`}
+                      >
+                        {formData.showEasterEgg ? <Bug className="w-5 h-5 shrink-0" /> : <BugOff className="w-5 h-5 shrink-0" />}
+                        {formData.showEasterEgg ? 'Ativado' : 'Desativado'}
+                      </button>
+                    </div>
+
+                    {/* ANALYST TOGGLE */}
+                    <div className="flex-1">
+                      <label className={labelClass}>Analista</label>
+                      <button
+                        type="button"
+                        onClick={() => isAdmin && setFormData({ ...formData, isAnalyst: !formData.isAnalyst })}
+                        disabled={!isAdmin}
+                        className={`w-full py-3.5 rounded-2xl border-2 text-[11px] sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all outline-none ${!isAdmin ? 'opacity-60 cursor-not-allowed' : 'focus:ring-4 focus:ring-indigo-500/10'} ${formData.isAnalyst
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm hover:bg-indigo-100'
+                          : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-white hover:border-slate-300'
+                          }`}
+                      >
+                        {formData.isAnalyst ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <X className="w-5 h-5 shrink-0" />}
+                        {formData.isAnalyst ? 'Sim' : 'Não'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -286,6 +310,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
               <th className="px-6 py-5 w-28">Sigla</th>
               <th className="px-6 py-5">Nome</th>
               <th className="px-6 py-5">Permissão</th>
+              <th className="px-6 py-5 text-center">Analista</th>
               <th className="px-6 py-5 text-center">Bug</th>
               <th className="px-6 py-5 w-40 text-right">Ações</th>
             </tr>
@@ -316,6 +341,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onDel
                       {user.role === 'ADMIN' ? <ShieldAlert className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
                       {user.role === 'ADMIN' ? 'Administrador' : 'Colaborador'}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {user.isAnalyst !== false ? (
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-sm" title="É Analista">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-400 border border-slate-200 shadow-sm" title="Não é Analista">
+                        <X className="w-4 h-4" />
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
                     {hasBug ? (

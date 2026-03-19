@@ -43,6 +43,7 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({
     
     // Derived Metrics
     const [achieved, setAchieved] = useState({ daily: 0, weekly: 0, monthly: 0 });
+    const [analystCount, setAnalystCount] = useState<number>(1); // To divide team goals
 
     // Extract all unique backoffices from the complete record set
     const backoffices = React.useMemo(() => {
@@ -61,6 +62,26 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({
             setGoals(savedGoals);
         }
     }, [user.settings]);
+
+    useEffect(() => {
+        // Fetch number of active analysts
+        const fetchAnalystCount = async () => {
+            try {
+                const { count, error } = await supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('is_active', true)
+                    .eq('is_analyst', true);
+                
+                if (!error && count && count > 0) {
+                    setAnalystCount(count);
+                }
+            } catch (err) {
+                console.error('Error fetching analyst count:', err);
+            }
+        };
+        fetchAnalystCount();
+    }, []);
 
     const getBusinessDaysLeft = (targetDate: string) => {
         const today = new Date();
@@ -110,31 +131,37 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({
             if (goals.sprintEndDate) {
                 const businessDays = getBusinessDaysLeft(goals.sprintEndDate);
                 if (businessDays > 0) {
-                    dailyGoal = Math.ceil(remaining / businessDays);
+                    // Divide the raw team target by the number of analysts to get INDIVIDUAL targets
+                    dailyGoal = Math.ceil((remaining / businessDays) / analystCount);
                     // Proportional weekly target based on remaining capacity
-                    weeklyGoal = Math.ceil(remaining / (businessDays / 5));
+                    weeklyGoal = Math.ceil((remaining / (businessDays / 5)) / analystCount);
                 } else {
-                    dailyGoal = remaining;
-                    weeklyGoal = remaining;
+                    dailyGoal = Math.ceil(remaining / analystCount);
+                    weeklyGoal = Math.ceil(remaining / analystCount);
                 }
             } else {
-                weeklyGoal = Math.ceil(remaining / 4);
-                dailyGoal = Math.ceil(remaining / 20);
+                weeklyGoal = Math.ceil((remaining / 4) / analystCount);
+                dailyGoal = Math.ceil((remaining / 20) / analystCount);
             }
             
+            // Note: Monthly goal should also represent the individual share? 
+            // The prompt says "As metas por equipe devem ser dividias pelo numero total de Analistas"
+            // So the monthly goal displayed / stored should also be divided.
+            const individualMonthlyGoal = Math.ceil(total / analystCount);
+
             setGoals(prev => {
-                if (prev.monthlyCount === total && prev.weeklyCount === weeklyGoal && prev.dailyCount === dailyGoal) {
+                if (prev.monthlyCount === individualMonthlyGoal && prev.weeklyCount === weeklyGoal && prev.dailyCount === dailyGoal) {
                     return prev;
                 }
                 return {
                     ...prev,
-                    monthlyCount: total,
+                    monthlyCount: individualMonthlyGoal,
                     weeklyCount: weeklyGoal,
                     dailyCount: dailyGoal
                 };
             });
         }
-    }, [testRecords, goals.isAutoCalculated, isMinimoSimActive, goals.sprintEndDate, selectedBackoffice]);
+    }, [testRecords, goals.isAutoCalculated, isMinimoSimActive, goals.sprintEndDate, selectedBackoffice, analystCount]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -255,10 +282,11 @@ const TeamGoalsTab: React.FC<TeamGoalsTabProps> = ({
                     <p className="text-xs text-indigo-800/80 leading-relaxed">
                         {goals.isAutoCalculated ? (
                             <>
-                                A meta atual reflete o volume total de <strong>{goals.monthlyCount}</strong> testes filtrados 
+                                O volume total de mercado é de <strong>{testRecords.length}</strong> testes filtrados 
                                 {selectedBackoffice !== 'Todos' && <> do backoffice <strong>{selectedBackoffice}</strong></>}
-                                {isMinimoSimActive && <> (apenas Mínimos)</>}. 
-                                Com {achieved.monthly} concluídos, restam <strong>{Math.max(0, goals.monthlyCount - achieved.monthly)}</strong>.<br/>
+                                {isMinimoSimActive && <> (apenas Mínimos)</>}.<br/>
+                                <span className="text-emerald-700 font-black">Meta dividida para {analystCount} Analistas Ativos.</span><br/>
+                                A sua meta total é de <strong>{goals.monthlyCount}</strong>. Restam <strong>{Math.max(0, goals.monthlyCount - achieved.monthly)}</strong>.<br/>
                                 {goals.sprintEndDate ? (
                                     <>
                                         Com o fim da sprint em <strong>{new Date(goals.sprintEndDate).toLocaleDateString()}</strong> ({getBusinessDaysLeft(goals.sprintEndDate)} dias úteis restantes), 

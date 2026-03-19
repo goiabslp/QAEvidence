@@ -9,7 +9,7 @@ interface TestFilterModalProps {
     onClose: () => void;
     onApply: (filters: FilterState) => void;
     onClear: () => void;
-    filterOptions: Record<string, string[]>;
+    allFiltersData: any[];
     initialFilters: FilterState;
 }
 
@@ -18,10 +18,71 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
     onClose,
     onApply,
     onClear,
-    filterOptions,
+    allFiltersData,
     initialFilters
 }) => {
     const [pendingFilters, setPendingFilters] = React.useState<FilterState>(initialFilters);
+
+    const dynamicFilterOptions = React.useMemo(() => {
+        const fields: Array<keyof FilterState> = ['backoffice', 'priority', 'minimum', 'module', 'useCase', 'analyst', 'result'];
+        
+        const options: Record<string, Set<string>> = {
+            backoffice: new Set(),
+            priority: new Set(),
+            minimum: new Set(),
+            module: new Set(),
+            useCase: new Set(),
+            analyst: new Set(),
+            result: new Set()
+        };
+
+        if (!allFiltersData || allFiltersData.length === 0) {
+            return {
+                backoffice: [], priority: [], minimum: [], module: [], useCase: [], analyst: [], result: []
+            };
+        }
+
+        // Map camelCase to snake_case since data comes from DB
+        const getSnakeKey = (key: keyof FilterState) => key === 'useCase' ? 'use_case' : key;
+
+        const activeFilters = fields.map(field => ({
+            field,
+            values: pendingFilters[field] as string[]
+        })).filter(f => f.values.length > 0);
+
+        fields.forEach(targetField => {
+            const otherFilters = activeFilters.filter(f => f.field !== targetField);
+            const targetSnakeKey = getSnakeKey(targetField);
+
+            for (let i = 0; i < allFiltersData.length; i++) {
+                const row = allFiltersData[i];
+                let matchesOther = true;
+                
+                for (let j = 0; j < otherFilters.length; j++) {
+                    const filter = otherFilters[j];
+                    const rowValue = row[getSnakeKey(filter.field)];
+                    if (!filter.values.includes(rowValue)) {
+                        matchesOther = false;
+                        break;
+                    }
+                }
+
+                if (matchesOther && row[targetSnakeKey]) {
+                    options[targetField].add(row[targetSnakeKey]);
+                }
+            }
+        });
+
+        return {
+            backoffice: Array.from(options.backoffice).sort(),
+            priority: Array.from(options.priority).sort(),
+            minimum: Array.from(options.minimum).sort(),
+            module: Array.from(options.module).sort(),
+            useCase: Array.from(options.useCase).sort(),
+            analyst: Array.from(options.analyst).sort(),
+            result: Array.from(options.result).sort()
+        };
+    }, [allFiltersData, pendingFilters]);
 
     React.useEffect(() => {
         if (isOpen) {
@@ -69,7 +130,7 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-                            {(Object.keys(filterOptions) as Array<keyof FilterState>).map((field) => {
+                            {(Object.keys(dynamicFilterOptions) as Array<keyof FilterState>).map((field) => {
                                 const columnField = field as keyof FilterState;
                                 const label = COLUMN_LABELS[columnField as TestColumnKey] || field;
                                 const selectedValues = pendingFilters[columnField];
@@ -103,7 +164,7 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
                                             placeholder="Selecione opções..."
                                             variant="filter"
                                             isMulti={!['priority', 'minimum'].includes(columnField)}
-                                            options={filterOptions[columnField]}
+                                            options={dynamicFilterOptions[columnField]}
                                             onChange={(val) => {
                                                 const isMulti = !['priority', 'minimum'].includes(columnField);
                                                 setPendingFilters(prev => {

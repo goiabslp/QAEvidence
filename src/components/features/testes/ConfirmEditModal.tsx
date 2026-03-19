@@ -8,6 +8,7 @@ interface ConfirmEditModalProps {
     fieldName: string;
     oldValue: string;
     newValue: string;
+    onChangeNewValue: (val: string) => void;
     isSaving?: boolean;
 }
 
@@ -18,6 +19,7 @@ const ConfirmEditModal: React.FC<ConfirmEditModalProps> = ({
     fieldName,
     oldValue,
     newValue,
+    onChangeNewValue,
     isSaving = false
 }) => {
     if (!isOpen) return null;
@@ -44,10 +46,10 @@ const ConfirmEditModal: React.FC<ConfirmEditModalProps> = ({
                 {/* Content */}
                 <div className="p-6 pt-4">
                     <h2 className="text-xl font-black text-slate-800 tracking-tight leading-tight">
-                        Confirmar Alteração
+                        Editar Campo
                     </h2>
                     <p className="text-sm text-slate-500 mt-1 font-medium">
-                        Você está prestes a atualizar o campo <span className="text-indigo-600 font-bold uppercase tracking-wider text-[10px] bg-indigo-50 px-1.5 py-0.5 rounded">{fieldName}</span>.
+                        Atualize o valor do campo <span className="text-indigo-600 font-bold uppercase tracking-wider text-[10px] bg-indigo-50 px-1.5 py-0.5 rounded">{fieldName}</span>.
                     </p>
 
                     <div className="mt-6 space-y-3">
@@ -66,13 +68,23 @@ const ConfirmEditModal: React.FC<ConfirmEditModalProps> = ({
                             </div>
                         </div>
 
-                        <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50 flex flex-col gap-1">
+                        <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50 flex flex-col gap-2">
                             <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
                                 <div className="w-1 h-1 rounded-full bg-indigo-400"></div> Novo Valor
                             </span>
-                            <span className="text-sm font-bold text-indigo-700 truncate">
-                                {newValue || <span className="italic text-indigo-300">Vazio</span>}
-                            </span>
+                            <textarea
+                                value={newValue}
+                                onChange={(e) => onChangeNewValue(e.target.value)}
+                                autoFocus
+                                className="w-full bg-white p-3 rounded-xl border border-indigo-200 text-sm text-slate-700 shadow-inner focus:ring-2 focus:ring-indigo-500 outline-none min-h-[80px] transition-all resize-none"
+                                placeholder={`Digite o novo valor para ${fieldName}...`}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (newValue !== oldValue) onConfirm();
+                                    }
+                                }}
+                            />
                         </div>
                     </div>
 
@@ -97,7 +109,7 @@ const ConfirmEditModal: React.FC<ConfirmEditModalProps> = ({
                     </button>
                     <button
                         onClick={onConfirm}
-                        disabled={isSaving}
+                        disabled={isSaving || newValue === oldValue}
                         className="px-4 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                         {isSaving ? (
