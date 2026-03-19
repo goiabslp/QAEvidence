@@ -1157,6 +1157,7 @@ const App: React.FC = () => {
           onOpenSettings={() => setActiveModule('TEST_SETTINGS')} 
           testColumnSettings={currentUser.testColumnSettings}
           user={currentUser}
+          onUpdateUser={setCurrentUser}
         />
       );
     }

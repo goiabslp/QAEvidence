@@ -7,9 +7,10 @@ interface DailyMetricsModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: User | null;
+    onUpdateUser?: (user: User) => void;
 }
 
-const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, user }) => {
+const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, user, onUpdateUser }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [metrics, setMetrics] = useState({
         emAndamento: 0,
@@ -132,8 +133,14 @@ const DailyMetricsModal: React.FC<DailyMetricsModalProps> = ({ isOpen, onClose, 
             setGoalSaveSuccess(true);
             setTimeout(() => setGoalSaveSuccess(false), 2000);
             
-            // We just let the parent handle the session update next time, or it updates via DB.
-            // Since we updated DB, this works fine for next login. 
+            // Update the global state immediately for the Header to react in real-time
+            if (user && onUpdateUser) {
+                onUpdateUser({
+                    ...user,
+                    dailyGoal: dailyGoal,
+                    isDailyGoalAuto: isDailyGoalAuto
+                });
+            }
         } catch (error: any) {
             console.error("Erro ao salvar meta:", error);
             alert("Erro ao salvar a meta diária.");

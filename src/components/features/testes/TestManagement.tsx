@@ -47,12 +47,14 @@ interface TestManagementProps {
     onOpenSettings: () => void;
     testColumnSettings?: TestColumnSettings;
     user: User | null;
+    onUpdateUser?: (user: User) => void;
 }
 
 const TestManagement: React.FC<TestManagementProps> = ({ 
     onOpenSettings,
     testColumnSettings: propTestColumnSettings,
-    user
+    user,
+    onUpdateUser
 }) => {
     const testColumnSettings = propTestColumnSettings || DEFAULT_COLUMN_SETTINGS;
     const [tests, setTests] = useState<ExcelTestRecord[]>([]);
@@ -1598,6 +1600,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 isOpen={isMetricsModalOpen}
                 onClose={() => setIsMetricsModalOpen(false)}
                 user={user}
+                onUpdateUser={onUpdateUser}
             />
 
             <ConfirmEditModal 
