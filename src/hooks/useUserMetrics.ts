@@ -61,11 +61,17 @@ export const useUserMetrics = (userAcronym: string | undefined) => {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'excel_test_records',
-                    filter: `analyst=eq.${userAcronym}`
+                    table: 'excel_test_records'
+                    // We remove the filter because when a test is changed to 'Pendente', 
+                    // the analyst is set to empty, making it fail the 'eq' filter.
                 },
-                () => {
-                    fetchCompletedCount();
+                (payload: any) => {
+                    // Only refetch if the new record is assigned to this user, 
+                    // OR if it was unassigned (analyst is empty), which might have been their record.
+                    const newAnalyst = payload.new?.analyst;
+                    if (newAnalyst === userAcronym || newAnalyst === '' || !newAnalyst) {
+                        fetchCompletedCount();
+                    }
                 }
             )
             .subscribe();
