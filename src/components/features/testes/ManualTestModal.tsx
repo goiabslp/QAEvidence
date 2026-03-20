@@ -7,9 +7,10 @@ interface ManualTestModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (testData: Partial<ExcelTestRecord>) => void;
+    nextIdNumber: number;
 }
 
-const ManualTestModal: React.FC<ManualTestModalProps> = ({ isOpen, onClose, onSave }) => {
+const ManualTestModal: React.FC<ManualTestModalProps> = ({ isOpen, onClose, onSave, nextIdNumber }) => {
     const [showAdvanced, setShowAdvanced] = useState(false);
     
     // Initial State excluding "ignored" and "auto-generated" statuses
@@ -45,12 +46,7 @@ const ManualTestModal: React.FC<ManualTestModalProps> = ({ isOpen, onClose, onSa
         // Validation could go here if needed
         // Generate automatic TAG ID (e.g., TST-A1B2C3)
         const generateTagId = () => {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let result = 'TST-';
-            for (let i = 0; i < 6; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
+            return `QA-${String(nextIdNumber).padStart(5, '0')}`;
         };
 
         const finalData = {
@@ -132,11 +128,11 @@ const ManualTestModal: React.FC<ManualTestModalProps> = ({ isOpen, onClose, onSa
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase flex gap-2 items-center">
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase flex gap-2 items-center">
                                     Teste ID (TAG ID)
                                 </label>
-                                <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-400 text-sm italic select-none">
-                                    Gerado automaticamente pelo sistema
+                                <div className="w-full px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-600 text-sm font-black select-none">
+                                    QA-{String(nextIdNumber).padStart(5, '0')}
                                 </div>
                             </div>
                         </div>

@@ -57,8 +57,13 @@
       @keyframes bounceSubtle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
       @keyframes float { 0%, 100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(-10px) translateX(-5px); } }
       @keyframes pulse-soft { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.95); } }
+      @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+      
       .animate-float { animation: float 3s ease-in-out infinite; }
       .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+      .animate-spin-slow { animation: spin-slow 3s linear infinite; }
+      .animate-shimmer { animation: shimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
       .will-change-transform { will-change: transform; }
     </style>
   <script type="importmap">

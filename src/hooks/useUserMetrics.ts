@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/services/supabaseClient';
 
 export const useUserMetrics = (userAcronym: string | undefined) => {
     const [completedCount, setCompletedCount] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
     const fetchCompletedCount = async () => {
         if (!userAcronym) return;
@@ -66,11 +67,12 @@ export const useUserMetrics = (userAcronym: string | undefined) => {
                     // the analyst is set to empty, making it fail the 'eq' filter.
                 },
                 (payload: any) => {
-                    // Only refetch if the new record is assigned to this user, 
-                    // OR if it was unassigned (analyst is empty), which might have been their record.
                     const newAnalyst = payload.new?.analyst;
                     if (newAnalyst === userAcronym || newAnalyst === '' || !newAnalyst) {
-                        fetchCompletedCount();
+                        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+                        debounceTimer.current = setTimeout(() => {
+                            fetchCompletedCount();
+                        }, 1000); // 1 second debounce for batch changes
                     }
                 }
             )

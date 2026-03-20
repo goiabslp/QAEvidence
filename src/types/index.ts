@@ -225,6 +225,15 @@ export interface ExcelTestRecord {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface ExcelTestHistory {
+  id: string; // Auto-generated UUID
+  name: string; // Nome da planilha encerrada
+  total_records: number; // Qtd total de testes na época
+  closed_at: string; // Data de encerramento
+  closed_by: string | null; // Quem efetuou o encerramento
+  records_data: ExcelTestRecord[]; // JSON array contendo o histórico fiel
+}
 export interface FilterState {
   backoffice: string[];
   priority: string[];

@@ -1643,6 +1643,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 isOpen={isManualModalOpen}
                 onClose={() => setIsManualModalOpen(false)}
                 onSave={handleCreateTest}
+                nextIdNumber={totalCount + 1}
             />
 
             <TestObservationModal 
