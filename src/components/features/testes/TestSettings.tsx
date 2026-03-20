@@ -121,6 +121,22 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         finished: false
     });
 
+    // --- Post-Import Processing States ---
+    const [showPostImportProcessing, setShowPostImportProcessing] = useState(false);
+    const [processingProgress, setProcessingProgress] = useState(0);
+    const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+    const [processingFinished, setProcessingFinished] = useState(false);
+
+    const processingMessages = [
+        "Organizando sua nova planilha...",
+        "Preparando os testes...",
+        "Aplicando paginação...",
+        "Sincronizando dados...",
+        "Carregando registros...",
+        "Quase pronto...",
+        "Finalizando..."
+    ];
+
     // Initial check + fetch for Dashboards
     useEffect(() => {
         const checkRecords = async () => {
@@ -245,6 +261,45 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         fetchAllData();
         fetchHistory();
     }, [activeTab]); // Run on tab change for lazy loading
+
+    // Timer logic for Post-Import Processing
+    useEffect(() => {
+        let interval: any;
+        let messageInterval: any;
+
+        if (showPostImportProcessing && !processingFinished) {
+            const startTime = Date.now();
+            const duration = 30000; // 30 seconds
+
+            interval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(Math.floor((elapsed / duration) * 100), 99);
+                setProcessingProgress(progress);
+
+                if (elapsed >= duration) {
+                    clearInterval(interval);
+                    clearInterval(messageInterval);
+                    setProcessingProgress(100);
+                    setProcessingFinished(true);
+                    
+                    // Delay a bit to show 100% and success message before closing
+                    setTimeout(() => {
+                        setShowPostImportProcessing(false);
+                        onClose(); // Close settings to refresh main list
+                    }, 2000);
+                }
+            }, 100);
+
+            messageInterval = setInterval(() => {
+                setCurrentMessageIndex(prev => (prev + 1) % processingMessages.length);
+            }, 4000); // Change message every 4 seconds
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+            if (messageInterval) clearInterval(messageInterval);
+        };
+    }, [showPostImportProcessing, processingFinished, onClose]);
 
 
     const handleToggleColumn = (key: TestColumnKey) => {
@@ -504,9 +559,15 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                 })) as ExcelTestRecord[]);
             }
 
-            // Close modal
+            // Close import status and show post-processing
             setImportStatus(prev => ({ ...prev, active: false }));
             setNewSheetName('');
+            
+            // Start the 30s processing experience
+            setShowPostImportProcessing(true);
+            setProcessingProgress(0);
+            setCurrentMessageIndex(0);
+            setProcessingFinished(false);
 
         } catch (err: any) {
             console.error("Erro ao salvar nome da planilha:", err);
@@ -1589,6 +1650,86 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                     <span className="block text-xs text-slate-500 font-medium mt-0.5">Limpa o painel global para envio de novo arquivo .xlsx.</span>
                                 </div>
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Post-Import Processing Modal */}
+            {showPostImportProcessing && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-500">
+                    <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-500 border border-white/20">
+                        <div className="p-10 text-center relative">
+                            {/* Decorative Background Elements */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
+                            
+                            <div className="w-24 h-24 bg-indigo-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8 relative group">
+                                {processingFinished ? (
+                                    <div className="w-full h-full bg-emerald-500 rounded-[2rem] flex items-center justify-center animate-in zoom-in duration-700 shadow-lg shadow-emerald-200">
+                                        <Check className="w-12 h-12 text-white" />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="absolute inset-0 border-4 border-indigo-100 rounded-[2rem] animate-pulse" />
+                                        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+                                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                                            <Activity className="w-4 h-4 text-white animate-pulse" />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            
+                            <h3 className={`text-3xl font-black tracking-tight mb-4 ${processingFinished ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                {processingFinished ? 'Ambiente pronto para uso' : 'Otimizando Experiência'}
+                            </h3>
+                            
+                            <div className="min-h-[3rem] flex items-center justify-center">
+                                <p className="text-slate-500 text-lg font-bold animate-in fade-in slide-in-from-bottom-2 duration-500 key={currentMessageIndex}">
+                                    {processingFinished ? 'Tudo pronto para você começar os testes!' : processingMessages[currentMessageIndex]}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="px-12 pb-12">
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div>
+                                        <span className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Status de Sincronização</span>
+                                        <span className="text-xs font-bold text-indigo-400">Processando camadas de dados...</span>
+                                    </div>
+                                    <span className="text-3xl font-black text-indigo-600 tabular-nums">
+                                        {processingProgress}%
+                                    </span>
+                                </div>
+                                
+                                <div className="w-full h-6 bg-slate-100 rounded-2xl overflow-hidden p-1.5 shadow-inner border border-slate-200/50">
+                                    <div 
+                                        className="h-full rounded-xl transition-all duration-300 shadow-sm relative bg-gradient-to-r from-indigo-600 to-indigo-500 shadow-indigo-200"
+                                        style={{ width: `${processingProgress}%` }}
+                                    >
+                                        <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                                        {/* Particle Effect Simulation */}
+                                        <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-r from-transparent to-white/30 animate-shimmer" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-2">
+                                    {[0, 1, 2, 3].map((i) => (
+                                        <div key={i} className={`h-1.5 rounded-full transition-all duration-1000 ${
+                                            processingProgress > (i * 25) ? 'bg-indigo-600' : 'bg-slate-200'
+                                        }`} />
+                                    ))}
+                                </div>
+
+                                <div className="flex items-center justify-center gap-3 py-4 px-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 shadow-inner">
+                                    <div className="flex gap-1.5">
+                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                        <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" />
+                                    </div>
+                                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Aguarde a estabilização completa</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

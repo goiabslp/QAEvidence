@@ -344,6 +344,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 },
                 (payload) => {
                     if (payload.eventType === 'DELETE') {
+                        setTotalCount(prev => Math.max(0, prev - 1));
                         setTests(currentTests => currentTests.filter(t => t.id !== payload.old.id));
                         return;
                     }
@@ -383,9 +384,16 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     };
 
                     if (payload.eventType === 'INSERT') {
-                        // For INSERT, we might want to check filters, but for simplicity
-                        // we add it and let the next fetch or manual refresh handle strict filtering
-                        setTests(currentTests => [mappedTest, ...currentTests]);
+                        setTotalCount(prev => prev + 1);
+                        
+                        // Only add to the current view if we are on the first page
+                        // and it matches basic search criteria (if any)
+                        if (currentPage === 1) {
+                            setTests(currentTests => {
+                                const newTests = [mappedTest, ...currentTests];
+                                return newTests.slice(0, pageSize);
+                            });
+                        }
                     } else if (payload.eventType === 'UPDATE') {
                         setTests(currentTests => {
                             const exists = currentTests.some(t => t.id === mappedTest.id);
