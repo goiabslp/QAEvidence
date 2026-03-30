@@ -72,7 +72,10 @@ export const saveEvidenceToSupabase = async (ticket: ArchivedTicket): Promise<bo
                 condition: safeString(item.testCaseDetails?.condition),
                 expected_result: safeString(item.testCaseDetails?.expectedResult),
                 failure_reason: safeString(item.testCaseDetails?.failureReason),
-                steps: item.testCaseDetails?.steps || []
+                steps: (item.testCaseDetails?.steps || []).map(step => ({
+                    stepNumber: step.stepNumber,
+                    description: step.description
+                }))
             };
 
             const { error: caseError } = await supabase.from('evidence_cases').upsert(caseData);
@@ -122,9 +125,6 @@ export const fetchEvidencesFromSupabase = async (): Promise<ArchivedTicket[]> =>
         *,
         evidence_cases (
           *
-        ),
-        evidence_images (
-          id, evidence_id, case_id, image_type
         )
       `)
             .order('archived_at', { ascending: false });

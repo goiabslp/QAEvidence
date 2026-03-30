@@ -43,6 +43,8 @@ const UserEvidenceList: React.FC<UserEvidenceListProps> = ({
         console.log("Total tickets to filter:", tickets.length);
         const filtered = tickets
             .filter(t => {
+                if (t.createdBy !== currentUser.acronym) return false;
+
                 const term = searchTerm.toLowerCase();
                 const ticketId = (t.ticketInfo.ticketId || '').toLowerCase();
                 const ticketTitle = (t.ticketInfo.ticketTitle || '').toLowerCase();
@@ -56,7 +58,7 @@ const UserEvidenceList: React.FC<UserEvidenceListProps> = ({
             })
             .sort((a, b) => (Number(b.archivedAt) || 0) - (Number(a.archivedAt) || 0));
         
-        console.log("Filtered tickets count (no user filter):", filtered.length);
+        console.log("Filtered tickets count:", filtered.length);
         return filtered;
     }, [tickets, currentUser.acronym, searchTerm]);
 
