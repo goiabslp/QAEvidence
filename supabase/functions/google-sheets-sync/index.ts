@@ -283,6 +283,112 @@ Deno.serve(async (req) => {
             });
         }
         
+        // Push Batch (System -> Google)
+        if (action === 'push_batch') {
+            const body = await req.json();
+            const { updatesArray } = body; // Array of { tagId, updates }
+            
+            if (!updatesArray || !updatesArray.length) {
+                return new Response(JSON.stringify({ success: true, message: "Nothing to update" }), { headers: corsHeaders });
+            }
+
+            const { data: config } = await supabase.from('google_sheets_config').select('*').single();
+            if (!config || !config.spreadsheet_id) {
+                return new Response(JSON.stringify({ error: "Google Sheets not configured" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+
+            const spreadsheetId = config.spreadsheet_id;
+            const authClient = await getGoogleAuthClient();
+            
+            // Get the target sheet name (always good to enforce proper sheet reference)
+            const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${config.spreadsheet_id}?fields=sheets.properties`;
+            const metaRes = await authClient.request({ url: metaUrl, method: 'GET' });
+            const sheets = (metaRes.data as any).sheets || [];
+            let targetSheetName = 'TESTES';
+            for (const sheet of sheets) {
+                if (sheet.properties.title.toUpperCase() === 'TESTES') {
+                    targetSheetName = sheet.properties.title;
+                    break;
+                }
+            }
+            
+            // Fetch the entire column L to map rows efficiently
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${targetSheetName}!A:V`;
+            const docRes = await authClient.request({ url, method: 'GET' });
+            const rows: any[] = (docRes.data as any).values || [];
+            
+            // Map tagId -> Row Index (0-based)
+            const tagToIndex = new Map<string, number>();
+            for (let i = 0; i < rows.length; i++) {
+                const id = rows[i][11]; // Column L
+                if (id) tagToIndex.set(String(id).trim(), i);
+            }
+            
+            const reqData: any[] = [];
+            const appends: any[] = [];
+            
+            for (const item of updatesArray) {
+                const { tagId, updates } = item;
+                const rowIndex = tagToIndex.get(tagId);
+                
+                if (rowIndex === undefined) {
+                    // Not found = append
+                    const newRow = Array(22).fill('');
+                    for (let i = 0; i < COLUMN_KEYS.length; i++) {
+                        newRow[i] = updates[COLUMN_KEYS[i]] || '';
+                    }
+                    newRow[11] = tagId;
+                    appends.push(newRow);
+                } else {
+                    // Update existing row
+                    const updateRow = [...rows[rowIndex]];
+                    while(updateRow.length < 22) updateRow.push('');
+                    
+                    for (let i = 0; i < COLUMN_KEYS.length; i++) {
+                        if (updates[COLUMN_KEYS[i]] !== undefined) {
+                            updateRow[i] = updates[COLUMN_KEYS[i]] || '';
+                        }
+                    }
+                    updateRow[11] = tagId; // enforce tag id
+                    
+                    const rowNumber = rowIndex + 1;
+                    reqData.push({
+                        range: `'${targetSheetName}'!A${rowNumber}:V${rowNumber}`,
+                        values: [updateRow]
+                    });
+                }
+            }
+            
+            try {
+                // Batch Update
+                if (reqData.length > 0) {
+                    await authClient.request({
+                        url: `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
+                        method: 'POST',
+                        data: {
+                            valueInputOption: 'USER_ENTERED',
+                            data: reqData
+                        }
+                    });
+                }
+                
+                // If there are appends
+                if (appends.length > 0) {
+                    await authClient.request({
+                        url: `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${targetSheetName}!A1:append?valueInputOption=USER_ENTERED`,
+                        method: 'POST',
+                        data: {
+                            values: appends
+                        }
+                    });
+                }
+                
+                return new Response(JSON.stringify({ success: true, updated: reqData.length, appended: appends.length }), { headers: corsHeaders });
+            } catch (err: any) {
+                return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+            }
+        }
+        
         if (action === 'describe') {
             const { data: config } = await supabase.from('google_sheets_config').select('*').single();
             if (!config || !config.spreadsheet_id) {

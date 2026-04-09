@@ -419,6 +419,18 @@ const TestManagement: React.FC<TestManagementProps> = ({
         };
     }, [user]);
 
+    // Helper to push updates to Google Sheets in background
+    const pushToGoogleSheets = async (updatesArray: { tagId: string, updates: any }[]) => {
+        try {
+            await supabase.functions.invoke('google-sheets-sync?action=push_batch', {
+                method: 'POST',
+                body: { updatesArray }
+            });
+        } catch (e) {
+            console.error("Failed to push to Google Sheets", e);
+        }
+    };
+
     const handleResultChange = async (testId: string, newResult: string) => {
         if (!user) return;
         
@@ -462,6 +474,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .eq('id', testId);
 
             if (error) throw error;
+            
+            // Push to Google Sheets
+            const targetTest = tests.find(t => t.id === testId);
+            if (targetTest?.test_id) {
+                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { result: newResult, analyst: newAnalyst } }]);
+            }
         } catch (error) {
             console.error('Error updating test result:', error);
             // Could revert UI here on fail
@@ -521,6 +539,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .eq('id', testId);
 
             if (error) throw error;
+            
+            // Push to Google Sheets
+            const targetTest = tests.find(t => t.id === testId);
+            if (targetTest?.test_id) {
+                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { result: newResult, analyst: newAnalyst, observation: serializedObs } }]);
+            }
         } catch (error) {
             console.error('Error saving observation:', error);
             alert('Erro ao salvar observação.');
@@ -561,8 +585,15 @@ const TestManagement: React.FC<TestManagementProps> = ({
         }));
 
         try {
+            const updatesArray: any[] = [];
+            const isPending = newResult === 'Pendente';
+            
             const updates = selectedIdArray.map(id => {
-                const isPending = newResult === 'Pendente';
+                const targetTest = tests.find(t => t.id === id);
+                if (targetTest?.test_id) {
+                    updatesArray.push({ tagId: targetTest.test_id, updates: { result: newResult, analyst: isPending ? '' : newAnalystStr } });
+                }
+                
                 return supabase
                     .from('excel_test_records')
                     .update({ 
@@ -574,6 +605,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
             });
 
             await Promise.all(updates);
+            
+            if (updatesArray.length > 0) {
+                pushToGoogleSheets(updatesArray);
+            }
+            
             setSelectedIds(new Set());
             setIsActionMenuOpen(false);
         } catch (error) {
