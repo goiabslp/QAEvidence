@@ -635,17 +635,28 @@ const TestManagement: React.FC<TestManagementProps> = ({
         ));
 
         try {
-            const updates = selectedIdArray.map(id => 
-                supabase
+            const updatesArray: any[] = [];
+            
+            const updates = selectedIdArray.map(id => {
+                const targetTest = tests.find(t => t.id === id);
+                if (targetTest?.test_id) {
+                    updatesArray.push({ tagId: targetTest.test_id, updates: { analyst: newAnalyst } });
+                }
+                return supabase
                     .from('excel_test_records')
                     .update({ 
                         analyst: newAnalyst,
                         updated_at: new Date().toISOString()
                     })
-                    .eq('id', id)
-            );
+                    .eq('id', id);
+            });
 
             await Promise.all(updates);
+            
+            if (updatesArray.length > 0) {
+                pushToGoogleSheets(updatesArray);
+            }
+            
             setSelectedIds(new Set());
             setIsActionMenuOpen(false);
         } catch (error) {
@@ -675,18 +686,28 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
         try {
             const snakeField = fieldName.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+            const updatesArray: any[] = [];
             
-            const updates = selectedIdArray.map(id => 
-                supabase
+            const updates = selectedIdArray.map(id => {
+                const targetTest = tests.find(t => t.id === id);
+                if (targetTest?.test_id) {
+                    updatesArray.push({ tagId: targetTest.test_id, updates: { [snakeField]: newValue } });
+                }
+                return supabase
                     .from('excel_test_records')
                     .update({ 
                         [snakeField]: newValue,
                         updated_at: new Date().toISOString()
                     })
-                    .eq('id', id)
-            );
+                    .eq('id', id);
+            });
 
             await Promise.all(updates);
+            
+            if (updatesArray.length > 0) {
+                pushToGoogleSheets(updatesArray);
+            }
+            
             setSelectedIds(new Set());
             setBatchEditState({ isOpen: false, field: null, newValue: '', isSaving: false });
         } catch (error) {
@@ -769,6 +790,11 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .eq('id', testId);
 
             if (error) throw error;
+            
+            const targetTest = tests.find(t => t.id === testId);
+            if (targetTest?.test_id) {
+                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { [snakeField]: value } }]);
+            }
         } catch (err) {
             console.error(`Error updating field ${field}:`, err);
         }
@@ -826,6 +852,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .eq('id', editState.testId);
 
             if (error) throw error;
+
+            // Push to Google Sheets
+            const targetTest = tests.find(t => t.id === editState.testId);
+            if (targetTest?.test_id) {
+                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { [snakeField]: editState.newValue } }]);
+            }
 
             // Update local state
             setTests(prev => prev.map(t => 
