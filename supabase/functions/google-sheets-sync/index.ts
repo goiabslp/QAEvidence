@@ -413,6 +413,24 @@ Deno.serve(async (req) => {
             return new Response(JSON.stringify({ targetSheetName, maxRows }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
+        if (action === 'get_domain_analysts') {
+            const { data: config } = await supabase.from('google_sheets_config').select('*').single();
+            if (!config || !config.spreadsheet_id) {
+                return new Response(JSON.stringify({ error: "Google Sheets not configured" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+            const authClient = await getGoogleAuthClient();
+            const spreadsheetId = config.spreadsheet_id;
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Dominio!I2:I1000`;
+            try {
+                const docRes = await authClient.request({ url, method: 'GET' });
+                const rows: any[] = (docRes.data as any).values || [];
+                const analysts = Array.from(new Set(rows.map(r => r[0]).filter(val => val && val.trim() !== '')));
+                return new Response(JSON.stringify({ analysts }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            } catch (error: any) {
+                return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+            }
+        }
+
         if (action === 'check_modified') {
             const { data: config } = await supabase.from('google_sheets_config').select('*').single();
             if (!config || !config.spreadsheet_id) {

@@ -157,6 +157,13 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .insert([snakeCaseData]);
 
             if (error) throw error;
+            
+            // Push new record to Google Sheets
+            if (snakeCaseData.tag_id || snakeCaseData.test_id) {
+                const targetTagId = snakeCaseData.tag_id || snakeCaseData.test_id;
+                pushToGoogleSheets([{ tagId: targetTagId, updates: snakeCaseData }]);
+            }
+
             setIsManualModalOpen(false);
         } catch (error) {
             console.error('Error creating manual test:', error);
@@ -204,26 +211,29 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
 
 
-    // Fetch analysts list
+    // Fetch analysts list from Google Sheets Domain Tab
+    const getMatchedAnalystStr = (acronym: string, fallbackName: string) => {
+        if (!acronym) return fallbackName;
+        const matched = analysts.find(a => a.acronym === acronym);
+        return matched ? matched.name : fallbackName;
+    };
+
     useEffect(() => {
-        const fetchAnalysts = async () => {
+        const fetchDomainAnalysts = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('acronym, full_name')
-                    .eq('is_active', true)
-                    .eq('is_analyst', true)
-                    .order('acronym');
-                
-                if (error) throw error;
-                if (data) {
-                    setAnalysts(data.map(p => ({ acronym: p.acronym, name: p.full_name })).filter(a => a.acronym && a.acronym !== 'ADM'));
+                const response = await supabase.functions.invoke('google-sheets-sync?action=get_domain_analysts', { method: 'GET' });
+                if (response.data && response.data.analysts) {
+                    const compAnalysts = response.data.analysts.map((raw: string) => {
+                        const acronym = raw.includes('-') ? raw.split('-')[0].trim() : raw.substring(0, 3).toUpperCase();
+                        return { acronym, name: raw };
+                    });
+                    setAnalysts(compAnalysts);
                 }
             } catch (err) {
-                console.error('Error fetching analysts:', err);
+                console.error("Error fetching domain analysts:", err);
             }
         };
-        fetchAnalysts();
+        fetchDomainAnalysts();
     }, []);
 
     // Reset pagination when filters change
@@ -421,21 +431,40 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
     // Helper to push updates to Google Sheets in background
     const pushToGoogleSheets = async (updatesArray: { tagId: string, updates: any }[]) => {
+        const translatedArray = updatesArray.map(item => {
+            const mappedUpdates = { ...item.updates };
+            if ('result' in mappedUpdates) {
+                const r = String(mappedUpdates.result || '').trim().toLowerCase();
+                if (r === 'pendente' || r === '') mappedUpdates.result = '';
+                else if (r === 'sucesso') mappedUpdates.result = 'OK';
+                else if (r === 'erro') mappedUpdates.result = 'ERRO';
+                else if (r === 'em andamento') mappedUpdates.result = 'Em Andamento';
+                else if (r === 'impedimento') mappedUpdates.result = 'Impedimento';
+            }
+            return { tagId: item.tagId, updates: mappedUpdates };
+        });
+
         try {
-            await supabase.functions.invoke('google-sheets-sync?action=push_batch', {
-                method: 'POST',
-                body: { updatesArray }
+            const response = await supabase.functions.invoke('google-sheets-sync?action=push_batch', {
+                body: { updatesArray: translatedArray }
             });
-        } catch (e) {
-            console.error("Failed to push to Google Sheets", e);
+            
+            if (response.error) {
+                console.error("Supabase function error (push_batch):", response.error);
+            } else {
+                console.log("Variável enviada ao push_batch com sucesso:", translatedArray);
+            }
+        } catch (err) {
+            console.error("Failed to invoke push_batch:", err);
         }
     };
 
     const handleResultChange = async (testId: string, newResult: string) => {
         if (!user) return;
         
+        const targetTest = tests.find(t => t.id === testId);
         const isPending = newResult === 'Pendente';
-        const newAnalyst = isPending ? '' : `${user.acronym} - ${user.name}`;
+        const newAnalyst = isPending ? (targetTest?.analyst || '') : getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
 
         // Optimistic UI update
         setTests(prev => prev.map(t => 
@@ -477,8 +506,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
             
             // Push to Google Sheets
             const targetTest = tests.find(t => t.id === testId);
-            if (targetTest?.test_id) {
-                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { result: newResult, analyst: newAnalyst } }]);
+            if (targetTest?.testId) {
+                pushToGoogleSheets([{ tagId: targetTest.testId, updates: { result: newResult, analyst: newAnalyst } }]);
             }
         } catch (error) {
             console.error('Error updating test result:', error);
@@ -490,9 +519,10 @@ const TestManagement: React.FC<TestManagementProps> = ({
         if (!user || !observationModal.testId) return;
 
         const testId = observationModal.testId;
-        const newResult = observationModal.status || tests.find(t => t.id === testId)?.result || 'Pendente';
+        const targetTest = tests.find(t => t.id === testId);
+        const newResult = observationModal.status || targetTest?.result || 'Pendente';
         const isPending = newResult === 'Pendente';
-        const newAnalyst = isPending ? '' : user.acronym;
+        const newAnalyst = isPending ? (targetTest?.analyst || '') : getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
 
         // Create structured observation
         const newObs: StructuredObservation = {
@@ -542,8 +572,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
             
             // Push to Google Sheets
             const targetTest = tests.find(t => t.id === testId);
-            if (targetTest?.test_id) {
-                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { result: newResult, analyst: newAnalyst, observation: serializedObs } }]);
+            if (targetTest?.testId) {
+                pushToGoogleSheets([{ tagId: targetTest.testId, updates: { result: newResult, analyst: newAnalyst, observation: serializedObs } }]);
             }
         } catch (error) {
             console.error('Error saving observation:', error);
@@ -557,7 +587,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
         if (!user || selectedIds.size === 0) return;
         
         setIsUpdatingBatch(true);
-        const newAnalystStr = `${user.acronym} - ${user.name}`;
+        const newAnalystStr = getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
         const selectedIdArray = Array.from(selectedIds);
         
         // Optimistic UI update
@@ -567,7 +597,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 return { 
                     ...t, 
                     result: newResult, 
-                    analyst: isPending ? '' : newAnalystStr 
+                    analyst: isPending ? t.analyst : newAnalystStr 
                 };
             }
             return t;
@@ -578,7 +608,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 return { 
                     ...t, 
                     result: newResult, 
-                    analyst: isPending ? '' : newAnalystStr 
+                    analyst: isPending ? t.analyst : newAnalystStr 
                 };
             }
             return t;
@@ -590,15 +620,17 @@ const TestManagement: React.FC<TestManagementProps> = ({
             
             const updates = selectedIdArray.map(id => {
                 const targetTest = tests.find(t => t.id === id);
-                if (targetTest?.test_id) {
-                    updatesArray.push({ tagId: targetTest.test_id, updates: { result: newResult, analyst: isPending ? '' : newAnalystStr } });
+                const currentAnalyst = targetTest?.analyst || '';
+                
+                if (targetTest?.testId) {
+                    updatesArray.push({ tagId: targetTest.testId, updates: { result: newResult, analyst: isPending ? currentAnalyst : newAnalystStr } });
                 }
                 
                 return supabase
                     .from('excel_test_records')
                     .update({ 
                         result: newResult,
-                        analyst: isPending ? '' : newAnalystStr,
+                        analyst: isPending ? currentAnalyst : newAnalystStr,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', id);
@@ -639,8 +671,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
             
             const updates = selectedIdArray.map(id => {
                 const targetTest = tests.find(t => t.id === id);
-                if (targetTest?.test_id) {
-                    updatesArray.push({ tagId: targetTest.test_id, updates: { analyst: newAnalyst } });
+                if (targetTest?.testId) {
+                    updatesArray.push({ tagId: targetTest.testId, updates: { analyst: newAnalyst } });
                 }
                 return supabase
                     .from('excel_test_records')
@@ -690,8 +722,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
             
             const updates = selectedIdArray.map(id => {
                 const targetTest = tests.find(t => t.id === id);
-                if (targetTest?.test_id) {
-                    updatesArray.push({ tagId: targetTest.test_id, updates: { [snakeField]: newValue } });
+                if (targetTest?.testId) {
+                    updatesArray.push({ tagId: targetTest.testId, updates: { [snakeField]: newValue } });
                 }
                 return supabase
                     .from('excel_test_records')
@@ -792,8 +824,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
             if (error) throw error;
             
             const targetTest = tests.find(t => t.id === testId);
-            if (targetTest?.test_id) {
-                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { [snakeField]: value } }]);
+            if (targetTest?.testId) {
+                pushToGoogleSheets([{ tagId: targetTest.testId, updates: { [snakeField]: value } }]);
             }
         } catch (err) {
             console.error(`Error updating field ${field}:`, err);
@@ -855,8 +887,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
 
             // Push to Google Sheets
             const targetTest = tests.find(t => t.id === editState.testId);
-            if (targetTest?.test_id) {
-                pushToGoogleSheets([{ tagId: targetTest.test_id, updates: { [snakeField]: editState.newValue } }]);
+            if (targetTest?.testId) {
+                pushToGoogleSheets([{ tagId: targetTest.testId, updates: { [snakeField]: editState.newValue } }]);
             }
 
             // Update local state
@@ -910,6 +942,12 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .eq('id', directEdit.testId);
 
             if (error) throw error;
+            
+            // Push to Google Sheets
+            if (test?.testId || test?.tag_id) {
+                const targetTagId = test?.testId || test?.tag_id;
+                pushToGoogleSheets([{ tagId: targetTagId, updates: { [snakeField]: directEdit.value } }]);
+            }
 
             setTests(prev => prev.map(t => 
                 t.id === directEdit.testId 
@@ -1111,12 +1149,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
     };
 
     const spreadsheetAnalystsOptions = React.useMemo(() => {
-        const uniqueAnalysts = Array.from(new Set(allFiltersData.map(t => t.analyst).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-        return uniqueAnalysts.map(raw => {
-            const acronym = raw.includes('-') ? raw.split('-')[0].trim() : raw.substring(0, 3).toUpperCase();
-            return { value: raw, label: acronym };
-        });
-    }, [allFiltersData]);
+        return analysts.map(a => ({ value: a.name, label: a.name }));
+    }, [analysts]);
 
     return (
         <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative animate-in fade-in zoom-in-95 duration-200">

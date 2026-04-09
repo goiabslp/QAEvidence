@@ -128,7 +128,13 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
                     key={val}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 animate-in zoom-in-95 duration-150 ${getSemanticStyle(field, val)}`}
                 >
-                    {normalizedOptions.find(o => o.value === val)?.label || val}
+                    { (() => {
+                        const lbl = normalizedOptions.find(o => o.value === val)?.label || val;
+                        if ((field === 'analyst' || field === 'analista') && lbl && lbl !== '--') {
+                            return lbl.includes('-') ? lbl.split('-')[0].trim() : lbl.substring(0,3).toUpperCase();
+                        }
+                        return lbl;
+                    })() }
                     <div 
                         onClick={(e) => {
                             e.stopPropagation();
@@ -143,7 +149,13 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
           </div>
         ) : showSelectedValue ? (
           <span className="truncate flex-1">
-            {normalizedOptions.find(o => o.value === selectedValues[0])?.label || selectedValues[0] || '--'}
+            { (() => {
+                 const lbl = normalizedOptions.find(o => o.value === selectedValues[0])?.label || selectedValues[0] || '--';
+                 if ((field === 'analyst' || field === 'analista') && lbl !== '--') {
+                     return lbl.includes('-') ? lbl.split('-')[0].trim() : lbl.substring(0,3).toUpperCase();
+                 }
+                 return lbl;
+             })() }
           </span>
         ) : (
           <span className="truncate flex-1 font-black underline decoration-indigo-300 decoration-2 underline-offset-4">
