@@ -31,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggl
   }, []);
   return (
     <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="max-w-[96%] mx-auto px-2 sm:px-4 lg:px-6">
         <div className="flex justify-between items-center h-12 relative">
           {/* Left Side: Logo & Menu */}
           <div className="flex items-center gap-3 z-20" ref={menuRef}>

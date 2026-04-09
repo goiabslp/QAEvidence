@@ -464,7 +464,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
         
         const targetTest = tests.find(t => t.id === testId);
         const isPending = newResult === 'Pendente';
-        const newAnalyst = isPending ? (targetTest?.analyst || '') : getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
+        const newAnalyst = getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
 
         // Optimistic UI update
         setTests(prev => prev.map(t => 
@@ -522,32 +522,28 @@ const TestManagement: React.FC<TestManagementProps> = ({
         const targetTest = tests.find(t => t.id === testId);
         const newResult = observationModal.status || targetTest?.result || 'Pendente';
         const isPending = newResult === 'Pendente';
-        const newAnalyst = isPending ? (targetTest?.analyst || '') : getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
+        const newAnalyst = getMatchedAnalystStr(user.acronym, `${user.acronym} - ${user.name}`);
 
-        // Create structured observation
-        const newObs: StructuredObservation = {
-            text: observationText,
-            userAcronym: user.acronym,
-            userName: user.name,
-            timestamp: new Date().toISOString()
-        };
-
-        // Fetch current observation to append if it's already structured
-        let currentObs: any[] = [];
-        const test = tests.find(t => t.id === testId);
-        if (test?.observation?.startsWith('[') && test?.observation?.endsWith(']')) {
+        // Create formatted observation string
+        let currentObsText = targetTest?.observation || '';
+        if (typeof currentObsText === 'string' && currentObsText.startsWith('[') && currentObsText.endsWith(']')) {
             try {
-                currentObs = JSON.parse(test.observation);
-            } catch (e) {}
+                const parsed = JSON.parse(currentObsText);
+                currentObsText = parsed.map((p: any) => `${p.userAcronym} - ${p.text} - ${new Date(p.timestamp).toLocaleDateString('pt-BR')}`).join('\n');
+            } catch(e) {}
         }
-
-        const updatedObs = [...currentObs, newObs];
-        const serializedObs = JSON.stringify(updatedObs);
+        
+        let finalObs = currentObsText;
+        if (observationText.trim()) {
+            const dateStr = new Date().toLocaleDateString('pt-BR');
+            const newObsBlock = `${user.acronym} - ${observationText.trim()} - ${dateStr}`;
+            finalObs = currentObsText ? `${currentObsText}\n${newObsBlock}` : newObsBlock;
+        }
 
         // Optimistic UI update
         setTests(prev => prev.map(t => 
             t.id === testId 
-                ? { ...t, result: newResult, analyst: newAnalyst, observation: serializedObs } 
+                ? { ...t, result: newResult, analyst: newAnalyst, observation: finalObs } 
                 : t
         ));
         setAllFiltersData(prev => prev.map(t => 
@@ -563,7 +559,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 .update({ 
                     result: newResult,
                     analyst: newAnalyst,
-                    observation: serializedObs,
+                    observation: finalObs,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', testId);
@@ -571,9 +567,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
             if (error) throw error;
             
             // Push to Google Sheets
-            const targetTest = tests.find(t => t.id === testId);
             if (targetTest?.testId) {
-                pushToGoogleSheets([{ tagId: targetTest.testId, updates: { result: newResult, analyst: newAnalyst, observation: serializedObs } }]);
+                pushToGoogleSheets([{ tagId: targetTest.testId, updates: { result: newResult, analyst: newAnalyst, observation: finalObs } }]);
             }
         } catch (error) {
             console.error('Error saving observation:', error);
@@ -1600,7 +1595,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                                                 {(() => {
                                                                     if (!test.observation) return <div className="bg-white p-4 rounded-2xl border border-slate-200 text-sm text-slate-400 italic shadow-sm">Nenhuma observação registrada.</div>;
                                                                     
-                                                                    if (test.observation.startsWith('[') && test.observation.endsWith(']')) {
+                                                                    if (typeof test.observation === 'string' && test.observation.startsWith('[') && test.observation.endsWith(']')) {
                                                                         try {
                                                                             const history = JSON.parse(test.observation) as StructuredObservation[];
                                                                             return history.map((obs, idx) => (

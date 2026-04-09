@@ -9,8 +9,7 @@ import EvidenceList from './components/features/evidence/EvidenceList';
 import UserEvidenceList from './components/features/evidence/UserEvidenceList';
 import Login from './components/features/auth/Login';
 import UserManagement, { UserFormData } from './components/features/users/UserManagement';
-import EvidenceManagement from './components/features/evidence/EvidenceManagement';
-import DashboardMetrics from './components/features/dashboard/DashboardMetrics';
+
 import BugReportForm from './components/features/bugs/BugReportForm';
 import EasterEggBug from './components/features/bugs/EasterEggBug';
 import TestManagement from './components/features/testes/TestManagement';
@@ -1350,7 +1349,7 @@ const App: React.FC = () => {
         enabled={currentUser?.showEasterEgg !== false}
       />
 
-      <main className={`flex-grow w-full mx-auto ${activeModule === 'HOME' ? 'max-w-7xl px-4 sm:px-6 lg:px-8 py-0' : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-10 pb-12'}`}>
+      <main className={`flex-grow w-full mx-auto ${activeModule === 'HOME' ? 'max-w-[96%] px-2 sm:px-4 lg:px-6 py-0' : 'max-w-[96%] px-2 sm:px-4 lg:px-6 py-10 pb-12'}`}>
         {currentUser && (
           <div className="mb-8 flex justify-between items-center hidden">
             {/* The inline module tabs were removed. Navigation happens in the Header Menu. */}
@@ -1378,30 +1377,10 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex bg-slate-200/50 p-1 rounded-xl">
-                  <button
-                    onClick={() => setAdminTab('users')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${adminTab === 'users' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
-                  >
-                    Usuários
-                  </button>
-                  <button
-                    onClick={() => setAdminTab('evidences')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${adminTab === 'evidences' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
-                  >
-                    Evidências
-                  </button>
-                  <button
-                    onClick={() => setAdminTab('dashboard')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${adminTab === 'dashboard' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
-                  >
-                    Dashboard
-                  </button>
-                </div>
+
               </div>
 
               <div className="p-6">
-                {adminTab === 'users' && (
                   <UserManagement
                     users={users}
                     onAddUser={handleAddUser}
@@ -1409,19 +1388,6 @@ const App: React.FC = () => {
                     onUpdateUser={handleUpdateUser}
                     currentUserId={currentUser.id}
                   />
-                )}
-                {adminTab === 'evidences' && (
-                  <EvidenceManagement
-                    tickets={ticketHistory}
-                    users={users}
-                    onDeleteTicket={(t) => setTicketToDelete(t)}
-                    currentUser={currentUser}
-                    onOpenTicket={handleOpenArchivedTicket}
-                  />
-                )}
-                {adminTab === 'dashboard' && (
-                  <DashboardMetrics tickets={ticketHistory} users={users} currentUser={currentUser} />
-                )}
               </div>
             </div>
           ) : (

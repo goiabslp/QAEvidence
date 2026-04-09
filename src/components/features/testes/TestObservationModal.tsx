@@ -25,26 +25,27 @@ const TestObservationModal: React.FC<TestObservationModalProps> = ({
   userName
 }) => {
   const [text, setText] = useState('');
-  const [history, setHistory] = useState<StructuredObservation[]>([]);
+  const [historyText, setHistoryText] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen) {
-      if (initialValue.startsWith('[') && initialValue.endsWith(']')) {
+      setText(''); // Always clear input for new comment
+      
+      if (typeof initialValue === 'string' && initialValue.startsWith('[') && initialValue.endsWith(']')) {
         try {
           const parsed = JSON.parse(initialValue);
           if (Array.isArray(parsed)) {
-            setHistory(parsed);
-            // Pre-fill with empty or current text if we want to add new
-            setText('');
+            const converted = parsed.map((p: any) => `${p.userAcronym} - ${p.text} - ${new Date(p.timestamp).toLocaleDateString('pt-BR')}`).join('\n');
+            setHistoryText(converted);
           } else {
-            setText(initialValue);
+            setHistoryText(initialValue);
           }
         } catch (e) {
-          setText(initialValue);
+          setHistoryText(initialValue);
         }
       } else {
-        setText(initialValue);
+        setHistoryText(initialValue);
       }
       
       setTimeout(() => {
@@ -129,21 +130,13 @@ const TestObservationModal: React.FC<TestObservationModalProps> = ({
               </div>
 
               {/* History Preview (if exists) */}
-              {history.length > 0 && (
+              {historyText && (
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Histórico Recente</h4>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Histrico do Registro</h4>
                   <div className="max-h-32 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                    {history.map((obs, idx) => (
-                      <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[10px] font-black text-indigo-600">{obs.userAcronym}</span>
-                          <span className="text-[10px] font-bold text-slate-400">
-                            {new Date(obs.timestamp).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-600 line-clamp-2">{obs.text}</p>
-                      </div>
-                    )).reverse()}
+                    <pre className="text-xs text-slate-600 whitespace-pre-wrap font-sans bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      {historyText}
+                    </pre>
                   </div>
                 </div>
               )}

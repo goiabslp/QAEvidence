@@ -611,6 +611,88 @@ Deno.serve(async (req) => {
             }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
         
+        if (action === 'cleanup_deleted') {
+            const reqSheetName = url.searchParams.get('sheetName') || 'TestesMin';
+            
+            const { data: config } = await supabase.from('google_sheets_config').select('*').single();
+            if (!config || !config.spreadsheet_id) {
+                return new Response(JSON.stringify({ error: "Google Sheets not configured" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            }
+
+            const spreadsheetId = config.spreadsheet_id;
+            const authClient = await getGoogleAuthClient();
+
+            // 1. Fetch all Tag IDs from Google Sheets Column L (excluding header potentially, but we just use all non-empty)
+            const encodedSheetName = encodeURIComponent(reqSheetName);
+            const fetchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheetName}!L1:L`;
+            const docRes = await authClient.request({ url: fetchUrl, method: 'GET' });
+            
+            const rows: any[] = (docRes.data as any).values || [];
+            const googleIds = new Set<string>();
+            for (const row of rows) {
+                if (row && row[0]) {
+                    const id = String(row[0]).trim();
+                    if (id && !id.toLowerCase().includes('teste id')) {
+                        googleIds.add(id);
+                    }
+                }
+            }
+
+            // 2. Fetch all IDs from Supabase in loop
+            let hasMore = true;
+            let offset = 0;
+            const limit = 1000;
+            const idsToDelete: string[] = [];
+
+            while (hasMore) {
+                const { data: dbRecords, error } = await supabase
+                    .from('excel_test_records')
+                    .select('test_id')
+                    .range(offset, offset + limit - 1);
+                
+                if (error || !dbRecords || dbRecords.length === 0) {
+                    hasMore = false;
+                    break;
+                }
+
+                for (const rec of dbRecords) {
+                    const dbId = rec.test_id?.trim();
+                    if (dbId && !googleIds.has(dbId)) {
+                        idsToDelete.push(dbId);
+                    }
+                }
+
+                if (dbRecords.length < limit) {
+                    hasMore = false;
+                } else {
+                    offset += limit;
+                }
+            }
+
+            // 3. Delete from Supabase in chunks
+            let deletedCount = 0;
+            const chunkSize = 200;
+            for (let i = 0; i < idsToDelete.length; i += chunkSize) {
+                const chunk = idsToDelete.slice(i, i + chunkSize);
+                const { error: delErr } = await supabase
+                    .from('excel_test_records')
+                    .delete()
+                    .in('test_id', chunk);
+                
+                if (!delErr) {
+                    deletedCount += chunk.length;
+                }
+            }
+
+            await supabase.from('google_sheets_logs').insert({
+                action: 'CLEANUP_DELETED_RECORDS',
+                status: 'SUCCESS',
+                details: { deletedCount, totalGoogleIds: googleIds.size }
+            });
+
+            return new Response(JSON.stringify({ success: true, deletedCount }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        
         return new Response('Invalid action', { status: 400, headers: corsHeaders });
 
     } catch (error: any) {

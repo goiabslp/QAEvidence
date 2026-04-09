@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, ChevronDown, Tag } from 'lucide-react';
 
 export interface ModernSelectOption {
@@ -61,6 +62,7 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [direction, setDirection] = useState<'down' | 'up'>('down');
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +74,11 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        (!menuRef.current || !menuRef.current.contains(event.target as Node))
+      ) {
         setIsOpen(false);
       }
     };
@@ -85,17 +91,37 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
       if (isOpen && dropdownRef.current) {
           const rect = dropdownRef.current.getBoundingClientRect();
           const windowHeight = window.innerHeight;
-          // Approximate height of the dropdown menu (adjust if needed, or measure dynamically after first render)
           const menuHeight = 250; 
           const spaceBelow = windowHeight - rect.bottom;
           const spaceAbove = rect.top;
 
+          let newDir: 'down' | 'up' = 'down';
           if (spaceBelow < menuHeight && spaceAbove > spaceBelow) {
-              setDirection('up');
-          } else {
-              setDirection('down');
+              newDir = 'up';
           }
+          setDirection(newDir);
+          
+          setMenuStyle({
+              position: 'fixed',
+              top: newDir === 'down' ? rect.bottom + 8 : 'auto',
+              bottom: newDir === 'up' ? window.innerHeight - rect.top + 8 : 'auto',
+              left: rect.left,
+              width: variant === 'listing' ? 192 : rect.width,
+              zIndex: 2147483647
+          });
       }
+  }, [isOpen, variant]);
+
+  // Close on scroll when open to prevent detaching
+  useEffect(() => {
+      const handleScroll = (e: Event) => {
+          if (menuRef.current && menuRef.current.contains(e.target as Node)) return;
+          setIsOpen(false);
+      };
+      if (isOpen) {
+          window.addEventListener('scroll', handleScroll, true);
+      }
+      return () => window.removeEventListener('scroll', handleScroll, true);
   }, [isOpen]);
 
   const handleToggle = (optValue: string) => {
@@ -106,9 +132,9 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
   const isListing = variant === 'listing';
 
   return (
-    <div className={`relative ${isListing ? 'w-fit' : ''}`} ref={dropdownRef}>
+    <div className={`relative ${isListing ? 'w-fit' : ''}`} ref={dropdownRef} onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); }}>
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); setIsOpen(!isOpen); }}
         className={`flex items-center gap-2 cursor-pointer transition-all duration-300 ${
           isListing 
             ? `px-4 py-2 w-fit rounded-xl border-2 shadow-sm text-sm font-bold ${
@@ -168,16 +194,16 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
         </div>
       </div>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div 
             ref={menuRef}
-            className={`absolute z-[9999] mt-2 mb-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden ${
+            style={menuStyle}
+            onClick={(e) => e.stopPropagation()}
+            className={`bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden ${
                 direction === 'up' 
-                    ? 'bottom-full origin-bottom animate-in slide-in-from-bottom-2 fade-in' 
-                    : 'top-full origin-top animate-in slide-in-from-top-2 fade-in'
-            } duration-200 ${
-                isListing ? 'left-0 w-48' : 'left-0 right-0'
-            }`}
+                    ? 'origin-bottom animate-in slide-in-from-bottom-2 fade-in' 
+                    : 'origin-top animate-in slide-in-from-top-2 fade-in'
+            } duration-200`}
         >
           <div className="max-h-60 overflow-y-auto p-2 space-y-1 custom-scrollbar">
             {normalizedOptions.length === 0 ? (
@@ -212,7 +238,8 @@ const ModernSelect: React.FC<ModernSelectProps> = ({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
