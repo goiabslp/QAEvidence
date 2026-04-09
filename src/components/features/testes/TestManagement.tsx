@@ -390,7 +390,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         // and it matches basic search criteria (if any)
                         if (currentPage === 1) {
                             setTests(currentTests => {
-                                const newTests = [mappedTest, ...currentTests];
+                                const newTests = [{ ...mappedTest } as ExcelTestRecord, ...currentTests];
                                 return newTests.slice(0, pageSize);
                             });
                         }
@@ -398,7 +398,14 @@ const TestManagement: React.FC<TestManagementProps> = ({
                         setTests(currentTests => {
                             const exists = currentTests.some(t => t.id === mappedTest.id);
                             if (exists) {
-                                return currentTests.map(t => t.id === mappedTest.id ? mappedTest : t);
+                                return currentTests.map(t => {
+                                    if (t.id === mappedTest.id) {
+                                        // Use Object.entries to only override with defined/updated fields from payload.new
+                                        const cleanMapped = Object.fromEntries(Object.entries(mappedTest).filter(([_, v]) => v !== undefined));
+                                        return { ...t, ...cleanMapped } as ExcelTestRecord;
+                                    }
+                                    return t;
+                                });
                             }
                             return currentTests;
                         });
@@ -416,7 +423,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
         if (!user) return;
         
         const isPending = newResult === 'Pendente';
-        const newAnalyst = isPending ? '' : user.acronym;
+        const newAnalyst = isPending ? '' : `${user.acronym} - ${user.name}`;
 
         // Optimistic UI update
         setTests(prev => prev.map(t => 
@@ -526,7 +533,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
         if (!user || selectedIds.size === 0) return;
         
         setIsUpdatingBatch(true);
-        const acronym = user.acronym;
+        const newAnalystStr = `${user.acronym} - ${user.name}`;
         const selectedIdArray = Array.from(selectedIds);
         
         // Optimistic UI update
@@ -536,7 +543,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 return { 
                     ...t, 
                     result: newResult, 
-                    analyst: isPending ? '' : acronym 
+                    analyst: isPending ? '' : newAnalystStr 
                 };
             }
             return t;
@@ -547,7 +554,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                 return { 
                     ...t, 
                     result: newResult, 
-                    analyst: isPending ? '' : acronym 
+                    analyst: isPending ? '' : newAnalystStr 
                 };
             }
             return t;
@@ -560,7 +567,7 @@ const TestManagement: React.FC<TestManagementProps> = ({
                     .from('excel_test_records')
                     .update({ 
                         result: newResult,
-                        analyst: isPending ? '' : acronym,
+                        analyst: isPending ? '' : newAnalystStr,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', id);
@@ -1035,6 +1042,14 @@ const TestManagement: React.FC<TestManagementProps> = ({
         );
     };
 
+    const spreadsheetAnalystsOptions = React.useMemo(() => {
+        const uniqueAnalysts = Array.from(new Set(allFiltersData.map(t => t.analyst).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+        return uniqueAnalysts.map(raw => {
+            const acronym = raw.includes('-') ? raw.split('-')[0].trim() : raw.substring(0, 3).toUpperCase();
+            return { value: raw, label: acronym };
+        });
+    }, [allFiltersData]);
+
     return (
         <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-8 relative animate-in fade-in zoom-in-95 duration-200">
             <div className="p-8 space-y-8">
@@ -1371,15 +1386,14 @@ const TestManagement: React.FC<TestManagementProps> = ({
                                                 if (columnKey === 'analyst') {
                                                     if (!testColumnSettings.analyst) return null;
                                                     return renderField('analyst', test, (val) => {
-                                                        const analystObj = analysts.find(a => a.acronym === val);
-                                                        const tooltipName = analystObj ? analystObj.name : val;
+                                                        const tooltipName = val; // val is already exactly as typed in the sheets
                                                         return (
                                                          <div className="relative group/tooltip flex items-center w-fit">
                                                             <ModernSelect
                                                                 value={val || ''}
                                                                 field="analyst"
                                                                 placeholder="--"
-                                                                options={analysts.map(a => a.acronym)}
+                                                                options={spreadsheetAnalystsOptions}
                                                                 onChange={(newVal) => handleSelectChange(test.id, 'analyst', newVal)}
                                                             />
                                                             {/* Tooltip */}

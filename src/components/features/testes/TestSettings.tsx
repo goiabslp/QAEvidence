@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, ChevronLeft, Upload, Loader2, FileSpreadsheet, AlertCircle, Check, Square, ArrowUp, ArrowDown, LayoutDashboard, Target, Layers, Activity, Calendar, Clock, XCircle, RotateCcw, Archive, History, RefreshCw, FolderOpen, Trash2, AlertTriangle } from 'lucide-react';
+import { Settings, ChevronLeft, Upload, Loader2, FileSpreadsheet, AlertCircle, Check, Square, ArrowUp, ArrowDown, LayoutDashboard, Target, Layers, Activity, Calendar, Clock, XCircle, RotateCcw, Archive, History, RefreshCw, FolderOpen, Trash2, AlertTriangle, Link2, Cloud, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/services/supabaseClient';
 import { User, ExcelTestRecord, ExcelTestHistory, TestColumnKey, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER } from '../../../types';
@@ -81,6 +81,18 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
     const [newSheetName, setNewSheetName] = useState('');
     const [currentSheetName, setCurrentSheetName] = useState('Gestão de Testes');
     const SETTINGS_RECORD_ID = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+    // --- Google Sheets Config State ---
+    const [googleConfig, setGoogleConfig] = useState<{ id?: string, spreadsheet_url?: string, spreadsheet_id?: string, status: string, last_sync_at?: string } | null>(null);
+    const [isSavingGoogle, setIsSavingGoogle] = useState(false);
+    const [googleUrlInput, setGoogleUrlInput] = useState('');
+    const [syncStatus, setSyncStatus] = useState({
+        active: false,
+        progress: 0,
+        message: '',
+        finished: false,
+        error: ''
+    });
 
     // --- Column Visibility State ---
     const [settings, setSettings] = useState<TestColumnSettings>(() => {
@@ -257,10 +269,38 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
             }
         };
 
+        const fetchGoogleConfig = async () => {
+            if (activeTab !== 'DATA') return;
+            try {
+                const { data, error } = await supabase.from('google_sheets_config').select('*').maybeSingle();
+                if (data && !error) {
+                    setGoogleConfig(data);
+                    setGoogleUrlInput(data.spreadsheet_url || '');
+                }
+            } catch (err) {
+                console.error("Erro ao carregar google_sheets_config:", err);
+            }
+        };
+
+        let channel: any;
+        const setupGoogleRealtime = () => {
+            channel = supabase.channel('google_sheets_config_changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'google_sheets_config' }, (payload) => {
+                    setGoogleConfig(payload.new as any);
+                })
+                .subscribe();
+        };
+
         checkRecords();
         fetchAllData();
         fetchHistory();
-    }, [activeTab]); // Run on tab change for lazy loading
+        fetchGoogleConfig();
+        setupGoogleRealtime();
+
+        return () => {
+            if (channel) supabase.removeChannel(channel);
+        };
+    }, [activeTab]);
 
     // Timer logic for Post-Import Processing
     useEffect(() => {
@@ -1030,6 +1070,103 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         }
     };
 
+    const handleSaveGoogleConfig = async () => {
+        if (!googleUrlInput) return;
+        setIsSavingGoogle(true);
+        setSyncStatus({ active: true, progress: 5, message: 'Validando conexão...', finished: false, error: '' });
+
+        try {
+            const match = googleUrlInput.match(/\/d\/(.*?)\//) || googleUrlInput.match(/id=(.*?)$/);
+            let spreadsheetId = googleUrlInput;
+            if (match && match[1]) {
+                spreadsheetId = match[1];
+            }
+
+            const payload = {
+                spreadsheet_url: googleUrlInput,
+                spreadsheet_id: spreadsheetId,
+                status: 'Conectado',
+                last_sync_at: new Date().toISOString()
+            };
+
+            setSyncStatus(prev => ({ ...prev, progress: 10, message: 'Salvando credenciais e preparando ambiente...' }));
+
+            if (googleConfig?.id) {
+                await supabase.from('google_sheets_config').update(payload).eq('id', googleConfig.id);
+            } else {
+                await supabase.from('google_sheets_config').insert([payload]);
+            }
+            
+            setSyncStatus(prev => ({ ...prev, progress: 15, message: 'Autenticando Master Data na nuvem...' }));
+            
+            // Detect largest sheet
+            const { data: describeData, error: describeErr } = await supabase.functions.invoke(
+                'google-sheets-sync?action=describe', 
+                { method: 'POST' }
+            );
+
+            if (describeErr) {
+                 setSyncStatus(prev => ({ ...prev, error: 'Erro ao validar a estrutura da planilha: ' + describeErr.message, finished: false }));
+                 return;
+            }
+
+            const targetSheetName = describeData?.targetSheetName || 'TESTES';
+            const totalRowsApprox = describeData?.maxRows || 30000;
+            
+            let offset = 0;
+            const limit = 1000;
+            let keepSyncing = true;
+            let totalProcessed = 0;
+            let totalAutoGenerated = 0;
+
+            while(keepSyncing) {
+                const { data, error: syncErr } = await supabase.functions.invoke(
+                    `google-sheets-sync?action=batch&offset=${offset}&limit=${limit}&sheetName=${encodeURIComponent(targetSheetName)}`, 
+                    { method: 'POST' }
+                );
+                
+                if (syncErr) {
+                    setSyncStatus(prev => ({ ...prev, error: syncErr.message || 'Erro durante a sincronização em lote.', finished: false }));
+                    keepSyncing = false;
+                    break;
+                }
+                
+                totalProcessed += data?.recordsProcessed || 0;
+                totalAutoGenerated += data?.autoGeneratedIds || 0;
+                
+                const percent = 15 + Math.min(80, Math.floor((totalProcessed / Math.max(1, totalRowsApprox)) * 80));
+                
+                setSyncStatus(prev => ({ 
+                    ...prev, 
+                    progress: percent, 
+                    message: `Sincronizando lote (${totalProcessed} registros processados)...` 
+                }));
+                
+                if (data?.isFinished || !data) {
+                    keepSyncing = false;
+                } else {
+                    offset += limit;
+                }
+            }
+            
+            setSyncStatus(prev => {
+                if (prev.error) return prev;
+                const autoGenMsg = totalAutoGenerated > 0 ? ` Atenção: ${totalAutoGenerated} testes estavam sem identificador único (ou duplicados) e receberam um ID automaticamente direto na sua planilha.` : '';
+                return { ...prev, progress: 100, message: `Sincronização concluída! ${totalProcessed} registros vinculados com sucesso!${autoGenMsg}`, finished: true };
+            });
+
+            setTimeout(() => {
+                window.location.reload(); // Reload to fetch fresh data in all tabs
+            }, 3000);
+            
+        } catch (err: any) {
+            setSyncStatus(prev => ({ ...prev, error: err.message, finished: false }));
+        } finally {
+            setIsSavingGoogle(false);
+        }
+    };
+
+
     return (
         <div className="bg-slate-50 min-h-screen pb-12">
             {/* Header Sticky */}
@@ -1121,6 +1258,157 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                     </h3>
                                     
                                     <div className="space-y-4">
+                                        {/* Google Sheets Integration Box */}
+                                        <div className="p-4 bg-emerald-50/40 border border-emerald-100 rounded-xl flex flex-col items-start gap-4 transition-all hover:border-emerald-200 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 right-0 p-3">
+                                                {googleConfig?.status === 'Conectado' ? (
+                                                    <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-700 font-bold text-[10px] rounded-full">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                        Conectado
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-500 font-bold text-[10px] rounded-full">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                                        Off
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex items-start gap-3 w-full">
+                                                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                                    <Database className="w-5 h-5 text-emerald-600" />
+                                                </div>
+                                                <div className="flex-1 w-full">
+                                                    <h4 className="font-bold text-slate-800 text-sm mb-1">Google Planilhas - Master Data</h4>
+                                                    <p className="text-xs text-slate-500 leading-relaxed mb-3 pr-20">
+                                                        Integração em tempo real com sua planilha Google. Updates bidirecionais habilitados.
+                                                    </p>
+                                                    
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                                        <div className="relative flex-1">
+                                                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                            <input 
+                                                                type="text" 
+                                                                placeholder="Cole o link ou ID da planilha..." 
+                                                                value={googleUrlInput}
+                                                                onChange={(e) => setGoogleUrlInput(e.target.value)}
+                                                                className="w-full pl-9 pr-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition-all shadow-sm"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={handleSaveGoogleConfig}
+                                                            disabled={isSavingGoogle || !googleUrlInput}
+                                                            className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap"
+                                                        >
+                                                            {isSavingGoogle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Cloud className="w-3.5 h-3.5" />}
+                                                            {googleConfig?.status === 'Conectado' ? 'Salvar Config' : 'Conectar'}
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    {/* Webhook Script Section */}
+                                                    <div className="mt-4 w-full border-t border-emerald-100/50 pt-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <div className="w-5 h-5 rounded-md bg-emerald-100 flex items-center justify-center shrink-0">
+                                                                <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
+                                                            </div>
+                                                            <h5 className="text-xs font-bold text-slate-700">Abordagem Alternativa: Script Instalador Automático</h5>
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-500 mb-2 leading-relaxed">Como o script simples foi bloqueado pela segurança do Google, desenvolvi um <strong>Autoinstalador Seguro</strong> que solicita sua autorização oficialmente.</p>
+                                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 mb-3">
+                                                            <p className="text-[10px] text-yellow-800 font-bold mb-1">⚠️ Passo a Passo Obrigatório:</p>
+                                                            <ol className="text-[9.5px] text-yellow-700 space-y-1 ml-3 list-decimal">
+                                                                <li>Copie o robô abaixo.</li>
+                                                                <li>Cole tudo no Google Sheets (Extensões &gt; Apps Script) apagando o resto.</li>
+                                                                <li className="font-bold text-yellow-900">Clique em "Executar" no menu superior (▶️).</li>
+                                                                <li>O Google vai avisar sobre segurança: Clique em <strong>Revisar Permissões</strong> &gt; Escolha sua conta &gt; Clique em <strong>Avançado</strong> &gt; Ir para Projeto &gt; <strong>Permitir</strong>.</li>
+                                                            </ol>
+                                                        </div>
+                                                        <div className="relative group">
+                                                            <pre className="text-[9px] bg-slate-900 border border-slate-800 text-emerald-400 p-3.5 rounded-xl overflow-x-auto font-mono leading-relaxed shadow-inner">
+                                                                {`function INSTALAR_ROBO_DE_SINCRONIZACAO() {
+  var sheet = SpreadsheetApp.getActive();
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'MandarParaSistema') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger("MandarParaSistema")
+    .forSpreadsheet(sheet)
+    .onEdit()
+    .create();
+    
+  SpreadsheetApp.getUi().alert("✅ DEU CERTO!", "O Robô de Sincronização em Massa (Arraste e Cole) foi ativado com sucesso!", SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function MandarParaSistema(e) {
+  if (!e || !e.range) return;
+  var sheet = e.source.getActiveSheet();
+  if (sheet.getName().toUpperCase() !== 'TESTES') return;
+  
+  var firstRow = e.range.getRow();
+  var numRows = e.range.getNumRows();
+  
+  // Ignora cabeçalhos no topo
+  if (firstRow <= 1) {
+    numRows = numRows - (2 - firstRow);
+    firstRow = 2; 
+  }
+  if (numRows <= 0) return;
+
+  var valuesMatrix = sheet.getRange(firstRow, 1, numRows, 22).getValues();
+  var updates = [];
+
+  for (var i = 0; i < numRows; i++) {
+    var rowValues = valuesMatrix[i];
+    var tagId = rowValues[11];
+    var absoluteRow = firstRow + i;
+    
+    if (tagId) {
+      updates.push({
+        row: absoluteRow,
+        tagId: tagId,
+        values: rowValues
+      });
+    }
+  }
+  
+  if (updates.length === 0) return;
+
+  var payload = {
+    sheetName: sheet.getName(),
+    updates: updates
+  };
+  
+  var url = "https://aqlwziggdwmbrlazpuhv.supabase.co/functions/v1/google-sheets-sync?action=webhook_bulk";
+
+  var options = {
+    method: "post",
+    contentType: "application/json; charset=utf-8",
+    payload: JSON.stringify(payload)
+  };
+
+  try { UrlFetchApp.fetch(url, options); } catch (err) {}
+}`}
+                                                            </pre>
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const code = `function INSTALAR_ROBO_DE_SINCRONIZACAO() {\n  var sheet = SpreadsheetApp.getActive();\n  var triggers = ScriptApp.getProjectTriggers();\n  for (var i = 0; i < triggers.length; i++) {\n    if (triggers[i].getHandlerFunction() === 'MandarParaSistema') {\n      ScriptApp.deleteTrigger(triggers[i]);\n    }\n  }\n  ScriptApp.newTrigger("MandarParaSistema")\n    .forSpreadsheet(sheet)\n    .onEdit()\n    .create();\n    \n  SpreadsheetApp.getUi().alert("✅ DEU CERTO!", "O Robô de Sincronização em Massa (Arraste e Cole) foi ativado com sucesso!", SpreadsheetApp.getUi().ButtonSet.OK);\n}\n\nfunction MandarParaSistema(e) {\n  if (!e || !e.range) return;\n  var sheet = e.source.getActiveSheet();\n  if (sheet.getName().toUpperCase() !== 'TESTES') return;\n  \n  var firstRow = e.range.getRow();\n  var numRows = e.range.getNumRows();\n  \n  if (firstRow <= 1) {\n    numRows = numRows - (2 - firstRow);\n    firstRow = 2; \n  }\n  if (numRows <= 0) return;\n\n  var valuesMatrix = sheet.getRange(firstRow, 1, numRows, 22).getValues();\n  var updates = [];\n\n  for (var i = 0; i < numRows; i++) {\n    var rowValues = valuesMatrix[i];\n    var tagId = rowValues[11];\n    var absoluteRow = firstRow + i;\n    \n    if (tagId) {\n      updates.push({\n        row: absoluteRow,\n        tagId: tagId,\n        values: rowValues\n      });\n    }\n  }\n  \n  if (updates.length === 0) return;\n\n  var payload = {\n    sheetName: sheet.getName(),\n    updates: updates\n  };\n  \n  var url = "https://aqlwziggdwmbrlazpuhv.supabase.co/functions/v1/google-sheets-sync?action=webhook_bulk";\n\n  var options = {\n    method: "post",\n    contentType: "application/json; charset=utf-8",\n    payload: JSON.stringify(payload)\n  };\n\n  try { UrlFetchApp.fetch(url, options); } catch (err) {}\n}`;
+                                                                    navigator.clipboard.writeText(code);
+                                                                    alert('Script copiado! Volte ao Apps Script, cole, e clique em EXECUTAR (F5).');
+                                                                }}
+                                                                className="absolute top-3 right-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold rounded-lg backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-1.5"
+                                                            >
+                                                                <FileSpreadsheet className="w-3 h-3" />
+                                                                Copiar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         {/* Import Box */}
                                         <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex flex-col sm:flex-row items-start gap-3 transition-all hover:border-slate-200 shadow-sm">
                                             <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
@@ -1942,6 +2230,76 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                 </p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal de Sincronização Google Sheets */}
+            {syncStatus.active && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-300">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 flex flex-col items-center p-8 text-center animate-in zoom-in-95 duration-300 relative">
+                        
+                        {/* Status Icon */}
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 transition-colors duration-500 ${
+                            syncStatus.error ? 'bg-red-100' : (syncStatus.finished ? 'bg-emerald-100' : 'bg-indigo-50')
+                        }`}>
+                            {syncStatus.error ? (
+                                <XCircle className="w-10 h-10 text-red-600 animate-pulse" />
+                            ) : syncStatus.finished ? (
+                                <Check className="w-10 h-10 text-emerald-600 animate-bounce" />
+                            ) : (
+                                <Database className="w-10 h-10 text-indigo-600 animate-pulse" />
+                            )}
+                        </div>
+
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">
+                            {syncStatus.error ? 'Falha na Sincronização' : (syncStatus.finished ? 'Sincronização Concluída!' : 'Sincronizando Plataforma')}
+                        </h3>
+                        
+                        <p className={`mb-8 max-w-[280px] text-sm leading-relaxed ${syncStatus.error ? 'text-red-500 font-medium' : 'text-slate-500'}`}>
+                            {syncStatus.error ? syncStatus.error : syncStatus.message}
+                        </p>
+
+                        {!syncStatus.error && (
+                            <div className="w-full space-y-3">
+                                <div className="flex justify-between items-end mb-1">
+                                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mapeamento</span>
+                                    <span className="text-lg font-black text-indigo-600 tabular-nums">{syncStatus.progress}%</span>
+                                </div>
+                                
+                                {/* Progress bar background */}
+                                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-50 relative shadow-inner">
+                                    <div 
+                                        className={`h-full transition-all duration-700 ease-out relative rounded-full ${
+                                            syncStatus.finished ? 'bg-emerald-500' : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600'
+                                        }`}
+                                        style={{ width: `${syncStatus.progress}%` }}
+                                    >
+                                        {!syncStatus.finished && (
+                                            <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer" />
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-center pt-2">
+                                    {!syncStatus.finished && (
+                                        <div className="flex gap-1">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {syncStatus.error && (
+                            <button 
+                                onClick={() => setSyncStatus({ active: false, progress: 0, message: '', finished: false, error: '' })}
+                                className="mt-4 px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded-xl transition-all w-full"
+                            >
+                                Fechar alerta
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

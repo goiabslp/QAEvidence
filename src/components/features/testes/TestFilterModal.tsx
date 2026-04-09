@@ -79,7 +79,10 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
             minimum: Array.from(options.minimum).sort(),
             module: Array.from(options.module).sort(),
             useCase: Array.from(options.useCase).sort(),
-            analyst: Array.from(options.analyst).sort(),
+            analyst: Array.from(options.analyst).sort().map(val => {
+                const acronym = val.includes('-') ? val.split('-')[0].trim() : val.substring(0, 3).toUpperCase();
+                return { value: val, label: acronym };
+            }),
             result: Array.from(options.result).sort()
         };
     }, [allFiltersData, pendingFilters]);
