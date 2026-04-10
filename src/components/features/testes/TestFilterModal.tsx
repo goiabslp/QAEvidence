@@ -24,9 +24,10 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
     const [pendingFilters, setPendingFilters] = React.useState<FilterState>(initialFilters);
 
     const dynamicFilterOptions = React.useMemo(() => {
-        const fields: Array<keyof FilterState> = ['backoffice', 'priority', 'minimum', 'module', 'useCase', 'analyst', 'result'];
+        const fields: Array<keyof FilterState> = ['bank', 'backoffice', 'priority', 'minimum', 'module', 'useCase', 'analyst', 'result'];
         
         const options: Record<string, Set<string>> = {
+            bank: new Set(),
             backoffice: new Set(),
             priority: new Set(),
             minimum: new Set(),
@@ -38,16 +39,15 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
 
         if (!allFiltersData || allFiltersData.length === 0) {
             return {
-                backoffice: [], priority: [], minimum: [], module: [], useCase: [], analyst: [], result: []
+                bank: [], backoffice: [], priority: [], minimum: [], module: [], useCase: [], analyst: [], result: []
             };
         }
 
-        // Map camelCase to snake_case since data comes from DB
         const getSnakeKey = (key: keyof FilterState) => key === 'useCase' ? 'use_case' : key;
 
         const activeFilters = fields.map(field => ({
             field,
-            values: pendingFilters[field] as string[]
+            values: pendingFilters[field] ? (pendingFilters[field] as string[]) : []
         })).filter(f => f.values.length > 0);
 
         fields.forEach(targetField => {
@@ -74,6 +74,7 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
         });
 
         return {
+            bank: Array.from(options.bank).sort(),
             backoffice: Array.from(options.backoffice).sort(),
             priority: Array.from(options.priority).sort(),
             minimum: Array.from(options.minimum).sort(),
@@ -136,7 +137,7 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
                             {(Object.keys(dynamicFilterOptions) as Array<keyof FilterState>).map((field) => {
                                 const columnField = field as keyof FilterState;
                                 const label = COLUMN_LABELS[columnField as TestColumnKey] || field;
-                                const selectedValues = pendingFilters[columnField];
+                                const selectedValues = pendingFilters[columnField] || [];
                                 
                                 return (
                                     <div key={field} className="group/field relative">
@@ -171,7 +172,7 @@ const TestFilterModal: React.FC<TestFilterModalProps> = ({
                                             onChange={(val) => {
                                                 const isMulti = !['priority', 'minimum'].includes(columnField);
                                                 setPendingFilters(prev => {
-                                                    const current = [...prev[columnField]];
+                                                    const current = [...(prev[columnField] || [])];
                                                     const index = current.indexOf(val);
                                                     
                                                     if (isMulti) {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, ChevronLeft, ChevronDown, Code2, Copy, Upload, Loader2, FileSpreadsheet, AlertCircle, Check, Square, ArrowUp, ArrowDown, LayoutDashboard, Target, Layers, Activity, Calendar, Clock, XCircle, RotateCcw, Archive, History, RefreshCw, FolderOpen, Trash2, AlertTriangle, Link2, Cloud, Database } from 'lucide-react';
+import { Settings, ChevronLeft, ChevronDown, Code2, Copy, Upload, Loader2, FileSpreadsheet, AlertCircle, Check, Square, ArrowUp, ArrowDown, LayoutDashboard, Target, Layers, Activity, Calendar, Clock, XCircle, RotateCcw, Archive, History, RefreshCw, FolderOpen, Trash2, AlertTriangle, Link2, Cloud, Database, Key } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/services/supabaseClient';
 import { User, ExcelTestRecord, ExcelTestHistory, TestColumnKey, TestColumnSettings, DEFAULT_COLUMN_SETTINGS, DEFAULT_COLUMN_ORDER } from '../../../types';
@@ -93,6 +93,7 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
         finished: false,
         error: ''
     });
+    const [isEmailCopied, setIsEmailCopied] = useState(false);
 
     // --- Column Visibility State ---
     const [settings, setSettings] = useState<TestColumnSettings>(() => {
@@ -1326,6 +1327,41 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                                                             >
                                                                 {isSavingGoogle ? <Loader2 className="w-5 h-5 animate-spin" /> : <Cloud className="w-5 h-5" />}
                                                                 {googleConfig?.status === 'Conectado' ? 'Sincronizar' : 'Conectar Agora'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-col gap-2 mt-4">
+                                                        <label className="text-[11px] font-black tracking-wider text-emerald-800 uppercase ml-1">Conta de Serviço (Adicione como Editor na Planilha)</label>
+                                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                                            <div className="relative flex-1">
+                                                                <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500" />
+                                                                <input 
+                                                                    type="text" 
+                                                                    readOnly
+                                                                    value={isEmailCopied ? "✓ COPIADO COM SUCESSO!" : "qa-evidence-939@gen-lang-client-0009601384.iam.gserviceaccount.com"}
+                                                                    className={`w-full pl-11 pr-4 py-3.5 text-xs font-bold bg-slate-50/70 border-2 rounded-xl focus:outline-none shadow-inner cursor-pointer transition-colors ${
+                                                                        isEmailCopied 
+                                                                            ? "text-emerald-600 bg-emerald-50 border-emerald-300" 
+                                                                            : "text-slate-500 border-emerald-100/50 hover:bg-slate-50"
+                                                                    }`}
+                                                                    onClick={() => {
+                                                                        navigator.clipboard.writeText("qa-evidence-939@gen-lang-client-0009601384.iam.gserviceaccount.com");
+                                                                        setIsEmailCopied(true);
+                                                                        setTimeout(() => setIsEmailCopied(false), 2000);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText("qa-evidence-939@gen-lang-client-0009601384.iam.gserviceaccount.com");
+                                                                    setIsEmailCopied(true);
+                                                                    setTimeout(() => setIsEmailCopied(false), 2000);
+                                                                }}
+                                                                className="flex items-center justify-center gap-2 px-6 py-3.5 text-[11px] font-black tracking-wide uppercase text-emerald-700 bg-emerald-100/40 border border-emerald-200 rounded-xl hover:bg-emerald-100 hover:shadow-md transition-all whitespace-nowrap active:scale-95"
+                                                            >
+                                                                {isEmailCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                                                {isEmailCopied ? "Copiado!" : "Copiar"}
                                                             </button>
                                                         </div>
                                                     </div>

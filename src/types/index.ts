@@ -235,6 +235,7 @@ export interface ExcelTestHistory {
   records_data: ExcelTestRecord[]; // JSON array contendo o histórico fiel
 }
 export interface FilterState {
+  bank: string[];
   backoffice: string[];
   priority: string[];
   minimum: string[];
@@ -245,6 +246,7 @@ export interface FilterState {
 }
 
 export const INITIAL_FILTER_STATE: FilterState = {
+  bank: ['Oracle 19c'],
   backoffice: [],
   priority: [],
   minimum: [],

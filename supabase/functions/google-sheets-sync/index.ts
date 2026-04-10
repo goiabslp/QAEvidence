@@ -537,7 +537,7 @@ Deno.serve(async (req) => {
                     prerequisite: String(row[15] || ''),
                     description: String(row[16] || ''),
                     acceptance_criteria: String(row[17] || ''),
-                    result: String(row[18] || 'Pendente'),
+                    result: mapResult(String(row[18] || '')),
                     error_status: String(row[19] || ''),
                     observation: String(row[20] || ''),
                     gap: String(row[21] || ''),

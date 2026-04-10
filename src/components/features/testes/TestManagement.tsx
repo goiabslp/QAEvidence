@@ -261,13 +261,14 @@ const TestManagement: React.FC<TestManagementProps> = ({
             }
 
             // Apply Advanced filters
-            if (filterState.backoffice.length > 0) query = query.in('backoffice', filterState.backoffice);
-            if (filterState.priority.length > 0) query = query.in('priority', filterState.priority);
-            if (filterState.minimum.length > 0) query = query.in('minimum', filterState.minimum);
-            if (filterState.module.length > 0) query = query.in('module', filterState.module);
-            if (filterState.useCase.length > 0) query = query.in('use_case', filterState.useCase);
-            if (filterState.analyst.length > 0) query = query.in('analyst', filterState.analyst);
-            if (filterState.result.length > 0) query = query.in('result', filterState.result);
+            if (filterState.bank?.length > 0) query = query.in('bank', filterState.bank);
+            if (filterState.backoffice?.length > 0) query = query.in('backoffice', filterState.backoffice);
+            if (filterState.priority?.length > 0) query = query.in('priority', filterState.priority);
+            if (filterState.minimum?.length > 0) query = query.in('minimum', filterState.minimum);
+            if (filterState.module?.length > 0) query = query.in('module', filterState.module);
+            if (filterState.useCase?.length > 0) query = query.in('use_case', filterState.useCase);
+            if (filterState.analyst?.length > 0) query = query.in('analyst', filterState.analyst);
+            if (filterState.result?.length > 0) query = query.in('result', filterState.result);
 
             // Sorting (matching the logic requested before)
             query = query
@@ -1028,17 +1029,8 @@ const TestManagement: React.FC<TestManagementProps> = ({
     };
 
     const clearFilters = () => {
-        const reset = {
-            backoffice: [],
-            priority: [],
-            minimum: [],
-            module: [],
-            useCase: [],
-            analyst: [],
-            result: []
-        };
-        setFilterState(reset);
-        saveFiltersToDatabase(reset);
+        setFilterState(INITIAL_FILTER_STATE);
+        saveFiltersToDatabase(INITIAL_FILTER_STATE);
         setCurrentPage(1);
     };
 
