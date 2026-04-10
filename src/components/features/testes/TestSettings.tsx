@@ -1107,7 +1107,14 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
             );
 
             if (describeErr) {
-                 setSyncStatus(prev => ({ ...prev, error: 'Erro ao validar a estrutura da planilha: ' + describeErr.message, finished: false }));
+                 let apiError = describeErr.message;
+                 try {
+                     if (describeErr.context && typeof describeErr.context.json === 'function') {
+                         const errBody = await describeErr.context.json();
+                         apiError = errBody?.error || apiError;
+                     }
+                 } catch (e) {}
+                 setSyncStatus(prev => ({ ...prev, error: 'Erro ao validar a estrutura da planilha: ' + apiError + '. (Verifique se a Conta de Serviço foi adicionada como Editora)', finished: false }));
                  return;
             }
 
@@ -1127,7 +1134,14 @@ const TestSettings: React.FC<TestSettingsProps> = ({ onClose, user, allUsers, on
                 );
                 
                 if (syncErr) {
-                    setSyncStatus(prev => ({ ...prev, error: syncErr.message || 'Erro durante a sincronização em lote.', finished: false }));
+                     let apiError = syncErr.message;
+                     try {
+                         if (syncErr.context && typeof syncErr.context.json === 'function') {
+                             const errBody = await syncErr.context.json();
+                             apiError = errBody?.error || apiError;
+                         }
+                     } catch (e) {}
+                    setSyncStatus(prev => ({ ...prev, error: 'Erro durante a sincronização em lote: ' + apiError, finished: false }));
                     keepSyncing = false;
                     break;
                 }
