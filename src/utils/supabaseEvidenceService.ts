@@ -39,6 +39,23 @@ export const saveEvidenceToSupabase = async (ticket: ArchivedTicket): Promise<bo
         const { error: evidenceError } = await supabase.from('evidences').upsert(evidenceData);
         if (evidenceError) throw evidenceError;
 
+        // 1.1 Limpeza das imagens antigas para evitar duplicação em cada salvamento
+        await supabase.from('evidence_images').delete().eq('evidence_id', ticket.id);
+
+        // 1.2 Limpeza dos casos que foram excluídos da tela
+        const validCaseIds = ticket.items.map(item => item.id);
+        if (validCaseIds.length > 0) {
+            const { data: existingCases } = await supabase.from('evidence_cases').select('id').eq('evidence_id', ticket.id);
+            if (existingCases) {
+                const casesToDelete = existingCases.filter(c => !validCaseIds.includes(c.id)).map(c => c.id);
+                if (casesToDelete.length > 0) {
+                    await supabase.from('evidence_cases').delete().in('id', casesToDelete);
+                }
+            }
+        } else {
+            await supabase.from('evidence_cases').delete().eq('evidence_id', ticket.id);
+        }
+
         // Insert blockage images if any
         if (ticket.ticketInfo.blockageImageUrls && ticket.ticketInfo.blockageImageUrls.length > 0) {
             const blockageImagesData = ticket.ticketInfo.blockageImageUrls.map((imageUrl) => ({

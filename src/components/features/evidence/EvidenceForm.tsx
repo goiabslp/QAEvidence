@@ -135,6 +135,9 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
             blockageImages.length === 0) {
           setBlockageImages(initialTicketInfo.blockageImageUrls);
         }
+        if (initialTicketInfo.evidenceDate && initialTicketInfo.evidenceDate !== evidenceDate) {
+          setEvidenceDate(initialTicketInfo.evidenceDate);
+        }
       }
     }
   }, [initialTicketInfo, ticketId, blockageImages.length]);

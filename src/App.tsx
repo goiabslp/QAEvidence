@@ -657,8 +657,15 @@ const App: React.FC = () => {
 
     return { success: true };
   };
-  const handleDeleteEvidence = (id: string) => {
-    setEvidences(evidences.filter(e => e.id !== id));
+  const handleDeleteEvidence = async (id: string) => {
+    if (!window.confirm("Deseja realmente excluir este caso de teste?\nEsta ação será salva automaticamente no banco de dados.")) {
+      return;
+    }
+    const newEvidences = evidences.filter(e => e.id !== id);
+    setEvidences(newEvidences);
+    if (editingHistoryId) {
+      await persistCurrentTicket(newEvidences);
+    }
   };
 
   const handleTicketInfoChange = useCallback((info: TicketInfo) => {
@@ -667,18 +674,22 @@ const App: React.FC = () => {
     if (pdfError) setPdfError(null);
   }, [pdfError]);
 
-  const handleDeleteScenario = (scenarioNum: number) => {
-    if (!window.confirm(`Tem certeza que deseja excluir todo o Cenário #${scenarioNum} e seus casos de teste?\n\nEsta ação não pode ser desfeita.`)) {
+  const handleDeleteScenario = async (scenarioNum: number) => {
+    if (!window.confirm(`Tem certeza que deseja excluir todo o Cenário #${scenarioNum} e seus casos de teste?\n\nEsta ação não pode ser desfeita e será salva automaticamente.`)) {
       return;
     }
 
-    setEvidences(prev => prev.filter(e => {
+    const newEvidences = evidences.filter(e => {
       // Keep items that don't belong to any scenario (manual)
       if (!e.testCaseDetails) return true;
 
       // Remove items that match the scenario number
       return Number(e.testCaseDetails.scenarioNumber) !== Number(scenarioNum);
-    }));
+    });
+    setEvidences(newEvidences);
+    if (editingHistoryId) {
+      await persistCurrentTicket(newEvidences);
+    }
   };
 
   const handleAddCase = (originId: string) => {
@@ -931,7 +942,7 @@ const App: React.FC = () => {
     return true;
   };
 
-  const persistCurrentTicket = async () => {
+  const persistCurrentTicket = async (evidencesOverride?: EvidenceItem[]) => {
     if (!currentUser) return;
 
     // Get latest info from form ref if available
@@ -944,7 +955,7 @@ const App: React.FC = () => {
     setIsSaving(true);
     try {
       // Check for wizard draft
-      let currentEvidences = [...evidences];
+      let currentEvidences = evidencesOverride ? [...evidencesOverride] : [...evidences];
       const wizardDraft = formRef.current?.getWizardDraft ? formRef.current.getWizardDraft() : null;
 
       if (wizardDraft) {
@@ -1003,6 +1014,10 @@ const App: React.FC = () => {
       if (success) {
         setTicketHistory(updatedTicketHistory);
 
+        if (!editingHistoryId) {
+          setEditingHistoryId(finalTicket.id);
+        }
+
         // Show success feedback
         setIsSaveSuccess(true);
         setTimeout(() => setIsSaveSuccess(false), 3000);
@@ -1012,6 +1027,14 @@ const App: React.FC = () => {
         // Mark as clean after successful save
         setSavedTicketInfo(finalTicketInfo);
         setSavedEvidences(consistentEvidences);
+
+        // SYNC CURRENT STATE so isDirty becomes false
+        setEvidences(consistentEvidences);
+        if (formTicketInfoRef.current) {
+          formTicketInfoRef.current = finalTicketInfo;
+          setTicketInfoVersion(prev => prev + 1);
+        }
+        setEditingTicketInfo(finalTicketInfo);
 
         return;
       } else {
