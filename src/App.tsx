@@ -1452,6 +1452,8 @@ const App: React.FC = () => {
             navigate('/inicio');
           } else if (module === 'TICKET') {
             handleCreateNewTicket();
+          } else if (module === 'EVIDENCES') {
+            navigate('/evidencias');
           }
           if (resetToNewTicket) {
             setIsTicketFormOpen(false);
@@ -1524,6 +1526,17 @@ const App: React.FC = () => {
         ) : (
           <Routes>
              <Route path="/inicio" element={activeModule === 'HOME' ? <Home user={currentUser} onNavigate={(m) => { setActiveModule(m); if(m==='TICKET') handleCreateNewTicket(); }} /> : renderModuleContent()} />
+             <Route path="/evidencias" element={
+                <UserEvidenceList
+                  tickets={ticketHistory}
+                  currentUser={currentUser}
+                  onOpenTicket={handleOpenArchivedTicket}
+                  onDownloadPdf={handleDownloadArchivedPdf}
+                  onDeleteTicket={handleDeleteArchivedTicket}
+                  isGeneratingPdf={isGeneratingPdf}
+                  printingTicketId={printingTicket?.id || null}
+                />
+             } />
              <Route path="/:id" element={
                 <TicketLayout context={{
                   evidences,
