@@ -402,23 +402,72 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
 
             <div className="w-full bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-lg ring-1 ring-black/5 animate-slide-down transition-all duration-300">
                 {/* Header */}
-                <div className={`px-6 py-4 border-b flex justify-between items-center ${wizardTrigger ? 'bg-blue-50/80 border-blue-100' : 'bg-indigo-50/80 border-indigo-100'} backdrop-blur-sm`}>
-                    <div>
-                        <h2 className={`text-lg font-bold flex items-center gap-2 ${wizardTrigger ? 'text-blue-900' : 'text-indigo-900'}`}>
-                            {isEditMode ? <Pencil className="w-5 h-5 text-blue-600" /> : <Layers className={`${wizardTrigger ? 'text-blue-600' : 'text-indigo-600'} w-5 h-5`} />}
-                            {isEditMode ? 'Editar Caso de Teste' : (wizardTrigger ? 'Adicionar Caso ao Cenário' : 'Assistente de Cenários')}
-                        </h2>
-                        <p className="text-xs text-slate-500 mt-1">
-                            {isEditMode
-                                ? 'Atualize as informações do caso existente.'
-                                : (wizardTrigger ? 'Adicionando novo caso de teste ao cenário existente.' : 'Preenchimento rápido e padronizado.')}
-                        </p>
+                <div className={`px-5 py-3 border-b flex justify-between items-center ${wizardTrigger ? 'bg-blue-50/80 border-blue-100' : 'bg-indigo-50/80 border-indigo-100'} backdrop-blur-sm`}>
+                    <div className="flex items-center gap-4 w-full">
+                        <div className="shrink-0 hidden sm:block">
+                            <h2 className={`text-base font-bold flex items-center gap-2 ${wizardTrigger ? 'text-blue-900' : 'text-indigo-900'}`}>
+                                {isEditMode ? <Pencil className="w-4 h-4 text-blue-600" /> : <Layers className={`${wizardTrigger ? 'text-blue-600' : 'text-indigo-600'} w-4 h-4`} />}
+                                {isEditMode ? 'Editar Caso' : (wizardTrigger ? 'Adicionar' : 'Assistente')}
+                            </h2>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
+                                {isEditMode ? 'Atualize o caso.' : 'Preenchimento rápido.'}
+                            </p>
+                        </div>
+
+                        <div className="h-8 w-px bg-indigo-200/50 hidden md:block shrink-0"></div>
+
+                        {/* TELA DE TESTE NO CABEÇALHO */}
+                        <div className="flex-1 max-w-sm min-w-[200px]">
+                            <div className="flex items-center bg-white/90 rounded-full border border-indigo-100/80 p-0.5 pr-2 shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all group cursor-text" onClick={(e) => { const input = e.currentTarget.querySelector('input'); if(input) input.focus(); }}>
+                                <div className="bg-indigo-500 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm shrink-0 group-focus-within:bg-indigo-600 transition-colors">
+                                    <Monitor className="w-3 h-3" /> Tela
+                                </div>
+                                <input
+                                    type="text"
+                                    value={formData.screen}
+                                    onChange={(e) => handleInputChange('screen', e.target.value)}
+                                    onKeyDown={preventSubmit}
+                                    className="w-full bg-transparent border-none text-indigo-900 px-2 py-0.5 text-xs font-bold placeholder-indigo-300 focus:ring-0 outline-none"
+                                    placeholder="Qual a tela? (ex: Clientes)"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="hidden lg:flex items-center gap-2 xl:gap-3 ml-auto shrink-0">
+                            <div className="flex items-center bg-indigo-50 rounded-full border border-indigo-100/80 p-0.5 pr-3 shadow-sm hover:shadow-md hover:bg-indigo-100/50 transition-all cursor-default group">
+                                <div className="bg-indigo-500 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full mr-2 shadow-sm group-hover:scale-105 transition-transform">
+                                    Cenário
+                                </div>
+                                <span className="text-indigo-900 font-bold text-sm">#{currentScenarioNum}</span>
+                            </div>
+
+                            <div className="flex items-center bg-blue-50 rounded-full border border-blue-100/80 p-0.5 pr-3 shadow-sm hover:shadow-md hover:bg-blue-100/50 transition-all cursor-default group">
+                                <div className="bg-blue-500 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full mr-2 shadow-sm group-hover:scale-105 transition-transform">
+                                    Caso
+                                </div>
+                                <span className="text-blue-900 font-bold text-sm flex items-center gap-1.5">
+                                    #{caseNumOverride || 1}
+                                    {wizardTrigger && !isEditMode && <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full tracking-wide font-bold shadow-sm animate-pulse">+NOVO</span>}
+                                    {isEditMode && <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full tracking-wide font-bold shadow-sm">EDIT</span>}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center bg-slate-50 rounded-full border border-slate-200/80 p-0.5 pr-3 shadow-sm hover:shadow-md hover:bg-slate-100 transition-all cursor-default group">
+                                <div className="bg-slate-600 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full mr-2 shadow-sm flex items-center gap-1 group-hover:bg-indigo-600 transition-colors">
+                                    <Fingerprint className="w-3 h-3" /> ID
+                                </div>
+                                <span className="font-mono text-slate-700 font-bold text-xs flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 group-hover:bg-indigo-500 transition-colors"></span>
+                                    {formData.caseId}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="text-slate-400 hover:text-slate-600 p-1.5 hover:bg-white rounded-lg transition-colors ml-4"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -426,45 +475,13 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
 
                 {/* Body */}
                 <div className="p-6 bg-white">
-                    <div className="space-y-8 animate-fade-in">
-                        {/* Status Cards */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
-                                <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wider">Cenário</span>
-                                <div className="text-2xl font-bold text-indigo-700">#{currentScenarioNum}</div>
-                            </div>
-                            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50">
-                                <span className="text-[10px] text-blue-400 uppercase font-bold tracking-wider">Caso</span>
-                                <div className="text-2xl font-bold text-blue-700 flex items-center gap-2">
-                                    #{caseNumOverride || 1}
-                                    {wizardTrigger && !isEditMode && <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full tracking-wide font-semibold">+ NOVO</span>}
-                                    {isEditMode && <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full tracking-wide font-semibold">EDIT</span>}
-                                </div>
-                            </div>
-
-                            {/* MODERN UNIQUE ID DISPLAY */}
-                            <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-xl border border-slate-200 relative overflow-hidden group hover:shadow-md transition-all duration-300">
-                                <div className="absolute -right-2 -top-2 text-slate-200 group-hover:text-slate-300 transition-colors transform rotate-12">
-                                    <Fingerprint className="w-16 h-16 opacity-20" />
-                                </div>
-
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider flex items-center gap-1.5 mb-2">
-                                    <Fingerprint className="w-3 h-3" /> ID Único
-                                </span>
-
-                                <div className="relative flex items-center">
-                                    <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-slate-700 font-mono text-sm font-bold tracking-wide flex items-center gap-2 group-hover:border-indigo-200 group-hover:text-indigo-700 transition-all w-full">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                        {formData.caseId}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="space-y-6 animate-fade-in">
 
                         {/* Form Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
-                            {/* Row 1: Tela de Teste */}
-                            <div className="md:col-span-2">
+                            
+                            {/* Row 1: Tela de Teste (MOBILE ONLY) */}
+                            <div className="md:col-span-2 lg:hidden">
                                 <label className={labelClass}>Tela de Teste</label>
                                 <div className="relative">
                                     <Monitor className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
