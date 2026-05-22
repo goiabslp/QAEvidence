@@ -92,10 +92,10 @@ const UserEvidenceList: React.FC<UserEvidenceListProps> = ({
             <div className="grid grid-cols-1 gap-4">
                 {filteredTickets.map((ticket) => {
                     const status = ticket.ticketInfo.ticketStatus || TicketStatus.PENDING;
-                    const statusConfig = TICKET_STATUS_CONFIG[status];
+                    const statusConfig = TICKET_STATUS_CONFIG[status] || TICKET_STATUS_CONFIG[TicketStatus.PENDING];
                     const StatusIcon = statusConfig.icon;
                     const priority = ticket.ticketInfo.priority || TicketPriority.MEDIUM;
-                    const priorityConfig = PRIORITY_CONFIG[priority];
+                    const priorityConfig = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG[TicketPriority.MEDIUM];
 
                     const formattedDate = ticket.ticketInfo.evidenceDate
                         ? ticket.ticketInfo.evidenceDate.split('-').reverse().join('/')
