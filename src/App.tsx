@@ -1528,7 +1528,7 @@ const App: React.FC = () => {
                 <TicketLayout context={{
                   evidences,
                   users,
-                  ticketInfo: editingTicketInfo || defaultTicketInfo,
+                  ticketInfo: formTicketInfoRef.current || editingTicketInfo || defaultTicketInfo,
                   wizardTrigger,
                   invalidFields,
                   isGeneratingPdf,

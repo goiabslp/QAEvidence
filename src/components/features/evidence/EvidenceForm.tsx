@@ -22,6 +22,18 @@ interface EvidenceFormProps {
 
 const PREDEFINED_ENVS = ['Trunk V11', 'Trunk V12', 'Tag V11', 'Tag V12', 'Protheus', 'SISJURI'];
 
+const calculateDefaultSprint = () => {
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0 = Jan, 4 = May
+    const currentYear = now.getFullYear();
+    
+    const baseMonth = 4; // May
+    const baseYear = 2026;
+    const baseSprint = 198;
+
+    const monthDiff = (currentYear - baseYear) * 12 + (currentMonth - baseMonth);
+    return String(baseSprint + Math.max(0, monthDiff));
+};
 
 const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
   onSubmit,
@@ -35,7 +47,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
   onEditCase,
   invalidFields = []
 }, ref) => {
-  const [sprint, setSprint] = useState('');
+  const [sprint, setSprint] = useState(calculateDefaultSprint());
   const [ticketId, setTicketId] = useState('');
   const [isImprovement, setIsImprovement] = useState(false);
   const [ticketSummary, setTicketSummary] = useState('');
@@ -123,7 +135,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
       const isNewTicket = !isInitializedRef.current || (initialTicketInfo.ticketId && initialTicketInfo.ticketId !== ticketId);
       
       if (isNewTicket) {
-        setSprint(initialTicketInfo.sprint || '');
+        setSprint(initialTicketInfo.sprint || calculateDefaultSprint());
         setTicketId(initialTicketInfo.ticketId || '');
         setIsImprovement(initialTicketInfo.isImprovement || false);
         setTicketTitle(initialTicketInfo.ticketTitle || '');

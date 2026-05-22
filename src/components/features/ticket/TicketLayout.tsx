@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate, useParams, Navigate, useOutletContext } from 'react-router-dom';
-import { Info, History, Layers, Save, FileDown, X, Loader2, AlertCircle } from 'lucide-react';
+import { Info, History, Layers, Save, FileDown, X, Loader2, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { TicketInfo, EvidenceItem, User } from '@/types';
 import { WizardTriggerContext } from '@/App';
 
@@ -72,13 +72,30 @@ const TicketLayout: React.FC<{ context: TicketContextType }> = ({ context }) => 
         return <Navigate to={`/${id}/informacoes`} replace />;
     }
 
+    const currentIndex = tabs.findIndex(tab => pathname.startsWith(tab.path));
+    const nextTab = currentIndex >= 0 && currentIndex < tabs.length - 1 ? tabs[currentIndex + 1] : null;
+    const prevTab = currentIndex > 0 ? tabs[currentIndex - 1] : null;
+
     return (
         <div className="w-full flex flex-col items-center">
             {/* Header Tabs & Actions (Sticky, Glassmorphic, Modern) */}
-            <div className="sticky top-0 z-40 w-full bg-slate-50/85 backdrop-blur-xl border-b border-slate-200/50 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] mb-6 flex justify-center py-3 transition-all duration-300">
-                <div className="w-full max-w-[96%] flex flex-col md:flex-row justify-between items-center gap-4">
-                    {/* Tabs (Pill style, no wrapper bg) */}
-                    <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto p-1">
+            <div className="sticky top-0 z-40 w-full bg-slate-50/85 backdrop-blur-xl border-b border-slate-200/50 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] mb-6 flex flex-col items-center py-2 transition-all duration-300">
+                <div className="w-full max-w-[96%]">
+                    {/* Título do Chamado Fixo */}
+                    {context.ticketInfo?.ticketTitle && (
+                        <div className="w-full pb-2 mb-2 border-b border-slate-200/50 flex items-center gap-2 animate-fade-in">
+                            <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
+                                CHAMADO
+                            </span>
+                            <h1 className="text-slate-700 font-bold text-sm truncate" title={context.ticketInfo.ticketTitle}>
+                                {context.ticketInfo.ticketTitle}
+                            </h1>
+                        </div>
+                    )}
+                    
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-2 sm:gap-4">
+                        {/* Tabs (Pill style, no wrapper bg) */}
+                        <div className="flex gap-1.5 overflow-x-auto w-full md:w-auto p-1">
                         {tabs.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = pathname.startsWith(tab.path);
@@ -87,9 +104,9 @@ const TicketLayout: React.FC<{ context: TicketContextType }> = ({ context }) => 
                                     key={tab.path}
                                     type="button"
                                     onClick={() => navigate(tab.path)}
-                                    className={`group relative flex items-center gap-2 py-2 px-4 text-sm font-bold transition-all duration-300 rounded-full overflow-hidden whitespace-nowrap ${
+                                    className={`group relative flex items-center gap-2 py-2 px-4 text-xs tracking-wider uppercase font-black transition-all duration-300 rounded-full overflow-hidden whitespace-nowrap ${
                                         isActive
-                                            ? 'text-indigo-700 bg-indigo-100/50 shadow-sm ring-1 ring-indigo-200/50'
+                                            ? 'text-indigo-800 bg-indigo-100/60 shadow-sm ring-1 ring-indigo-200/60'
                                             : 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200/30'
                                     }`}
                                 >
@@ -151,10 +168,42 @@ const TicketLayout: React.FC<{ context: TicketContextType }> = ({ context }) => 
                     </div>
                 </div>
             </div>
+        </div>
 
             {/* Content Area */}
             <div className="w-full max-w-[96%] pb-10">
                 <Outlet context={context} />
+                
+                {/* Botões de Navegação */}
+                <div className="mt-8 flex justify-between items-center pt-6 border-t border-slate-200/60">
+                    {prevTab ? (
+                        <button
+                            onClick={() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                navigate(prevTab.path);
+                            }}
+                            className="group flex items-center gap-2 px-6 py-3 bg-white text-slate-600 font-bold text-sm rounded-xl shadow-sm hover:bg-slate-50 hover:text-indigo-600 hover:shadow-md transition-all active:scale-95 border border-slate-200 hover:border-indigo-200"
+                        >
+                            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                            Voltar para {prevTab.label}
+                        </button>
+                    ) : (
+                        <div></div>
+                    )}
+
+                    {nextTab && (
+                        <button
+                            onClick={() => {
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                navigate(nextTab.path);
+                            }}
+                            className="group flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-300 transition-all active:scale-95 border border-indigo-500"
+                        >
+                            Avançar para {nextTab.label}
+                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
