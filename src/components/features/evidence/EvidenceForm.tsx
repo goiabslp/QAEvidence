@@ -131,12 +131,13 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
 
   useEffect(() => {
     if (initialTicketInfo) {
-      // If NOT already initialized or if initialTicketInfo has changed significantly (different ticket)
-      const isNewTicket = !isInitializedRef.current || (initialTicketInfo.ticketId && initialTicketInfo.ticketId !== ticketId);
+      const cleanInitialId = initialTicketInfo.ticketId?.replace('#', '') || '';
+      const cleanCurrentId = ticketId.replace('#', '') || '';
+      const isNewTicket = !isInitializedRef.current || (cleanInitialId && cleanInitialId !== cleanCurrentId);
       
       if (isNewTicket) {
         setSprint(initialTicketInfo.sprint || calculateDefaultSprint());
-        setTicketId(initialTicketInfo.ticketId || '');
+        setTicketId(cleanInitialId);
         setIsImprovement(initialTicketInfo.isImprovement || false);
         setTicketTitle(initialTicketInfo.ticketTitle || '');
         setTicketSummary(initialTicketInfo.ticketSummary || '');
@@ -162,7 +163,6 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
         setIsTitleManuallyEdited(false);
         isInitializedRef.current = true;
       } else {
-        // If already initialized but blockageImageUrls arrived later (progressive load)
         if (initialTicketInfo.blockageImageUrls && 
             initialTicketInfo.blockageImageUrls.length > 0 && 
             blockageImages.length === 0) {
@@ -173,7 +173,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
         }
       }
     }
-  }, [initialTicketInfo, ticketId, blockageImages.length]);
+  }, [initialTicketInfo, blockageImages.length]);
   useEffect(() => {
     if (wizardTrigger) {
       setIsTicketInfoExpanded(false);

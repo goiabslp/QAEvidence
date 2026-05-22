@@ -21,7 +21,6 @@ const TicketInfoPage: React.FC = () => {
     // and match EvidenceFormProps
     return (
         <EvidenceForm
-            key={ticketInfo?.ticketId || 'new'}
             ref={formRef}
             evidences={evidences}
             onSubmit={() => {}} // Not used directly for ticket info saving
