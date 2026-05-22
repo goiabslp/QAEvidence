@@ -499,8 +499,8 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
 
             <div className="w-full bg-white rounded-2xl border border-indigo-100 overflow-hidden shadow-lg ring-1 ring-black/5 animate-slide-down transition-all duration-300">
                 {/* Header */}
-                <div className={`px-5 py-3 border-b flex justify-between items-center relative ${wizardTrigger ? 'bg-blue-50/80 border-blue-100' : 'bg-indigo-50/80 border-indigo-100'} backdrop-blur-sm`}>
-                    <div className="flex items-center gap-4 flex-1">
+                <div className={`px-5 py-3 border-b flex justify-between items-center ${wizardTrigger ? 'bg-blue-50/80 border-blue-100' : 'bg-indigo-50/80 border-indigo-100'} backdrop-blur-sm gap-4`}>
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
                         <div className="shrink-0 hidden sm:block">
                             <h2 className={`text-base font-bold flex items-center gap-2 ${wizardTrigger ? 'text-blue-900' : 'text-indigo-900'}`}>
                                 {isEditMode ? <Pencil className="w-4 h-4 text-blue-600" /> : <Layers className={`${wizardTrigger ? 'text-blue-600' : 'text-indigo-600'} w-4 h-4`} />}
@@ -514,7 +514,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                         <div className="h-8 w-px bg-indigo-200/50 hidden md:block shrink-0"></div>
 
                         {/* TELA DE TESTE NO CABEÇALHO */}
-                        <div className="flex-1 max-w-[200px] xl:max-w-sm">
+                        <div className="flex-1 max-w-sm min-w-[120px]">
                             <div className="flex items-center bg-white/90 rounded-full border border-indigo-100/80 p-0.5 pr-2 shadow-sm hover:shadow-md focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all group cursor-text" onClick={(e) => { const input = e.currentTarget.querySelector('input'); if(input) input.focus(); }}>
                                 <div className="bg-indigo-500 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm shrink-0 group-focus-within:bg-indigo-600 transition-colors">
                                     <Monitor className="w-3 h-3" /> Tela
@@ -532,7 +532,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                     </div>
 
                     {/* CENTERED BADGES */}
-                    <div className="hidden lg:flex items-center justify-center gap-2 absolute left-1/2 -translate-x-1/2 shrink-0 z-10 pointer-events-none">
+                    <div className="hidden lg:flex items-center justify-center gap-4 shrink-0 pointer-events-none">
                         <div className="flex items-center bg-indigo-50 rounded-full border border-indigo-100/80 p-0.5 pr-3 shadow-sm transition-all">
                             <div className="bg-indigo-500 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full mr-2 shadow-sm">
                                 Cenário
@@ -562,7 +562,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                    <div className="flex items-center justify-end gap-2 md:gap-4 flex-1 shrink-0">
                         {/* AI BUTTON */}
                         <button
                             type="button"
