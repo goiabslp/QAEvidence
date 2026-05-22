@@ -1307,7 +1307,9 @@ const App: React.FC = () => {
               onSave={handleSaveAndClose}
               onPdf={handlePdfFlow}
               onClose={handleCloseEvidence}
-              disabled={isGeneratingPdf || isSaving || !isDirty}
+              isSaving={isSaving}
+              isGeneratingPdf={isGeneratingPdf}
+              isDirty={isDirty}
               pdfError={pdfError}
               isSaveSuccess={isSaveSuccess}
             />
