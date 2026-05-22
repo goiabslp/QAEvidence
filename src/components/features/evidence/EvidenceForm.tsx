@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { TestStatus, Severity, EvidenceItem, TicketInfo, TicketPriority, TicketStatus } from '@/types';
 import { PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from '@/constants';
-import TestScenarioWizard from '../wizard/TestScenarioWizard';
 import CustomDatePicker from '@/components/common/CustomDatePicker';
 import { UploadCloud, Ticket, FileText, X, Check, Plus, ChevronDown, History, ChevronUp, Monitor, AlertCircle, CheckCircle2, XCircle, MinusCircle, Clock, RotateCcw, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, Trash2, Crop, Clipboard, Image as ImageIcon, Pencil, Sparkles, Code, Brain, HelpCircle, Square, Save } from 'lucide-react';
 import { WizardTriggerContext } from '@/App';
@@ -80,7 +79,29 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
 
   const [error, setError] = useState<string | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [expandedHistoryRows, setExpandedHistoryRows] = useState<Set<string>>(new Set());
+
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isPriorityOpen, setIsPriorityOpen] = useState(false);
+  const [isOriginOpen, setIsOriginOpen] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const priorityDropdownRef = useRef<HTMLDivElement>(null);
+  const originDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setIsStatusOpen(false);
+      }
+      if (priorityDropdownRef.current && !priorityDropdownRef.current.contains(event.target as Node)) {
+        setIsPriorityOpen(false);
+      }
+      if (originDropdownRef.current && !originDropdownRef.current.contains(event.target as Node)) {
+        setIsOriginOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const envInputRef = useRef<HTMLInputElement>(null);
   const envDropdownRef = useRef<HTMLDivElement>(null);
@@ -91,7 +112,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
     getTicketInfo: () => currentTicketInfo,
     getWizardDraft: () => wizardRef.current?.getDraft ? wizardRef.current.getDraft() : null,
     isWizardOpen: () => wizardRef.current?.isOpen ? wizardRef.current.isOpen() : false,
-    getExpandedRows: () => Array.from(expandedHistoryRows)
+    getExpandedRows: () => []
   }));
 
   const isInitializedRef = useRef(false);
@@ -342,16 +363,6 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
     setBlockageImages(blockageImages.filter((_, i) => i !== index));
   };
 
-  const toggleHistoryRow = (id: string) => {
-    const newSet = new Set(expandedHistoryRows);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setExpandedHistoryRows(newSet);
-  };
-
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticketId || !ticketTitle) {
@@ -376,17 +387,6 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
     setError(null);
     setShowConfirmationModal(false);
   };
-
-  const historyItems = evidences
-    .filter(ev => ev.testCaseDetails)
-    .sort((a, b) => {
-      const detailsA = a.testCaseDetails!;
-      const detailsB = b.testCaseDetails!;
-      if (detailsA.scenarioNumber !== detailsB.scenarioNumber) {
-        return detailsA.scenarioNumber - detailsB.scenarioNumber;
-      }
-      return detailsA.caseNumber - detailsB.caseNumber;
-    });
 
   const ticketInputClass = "w-full rounded-lg border border-slate-300 bg-white text-slate-700 px-3 py-2.5 text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-sm hover:border-indigo-300";
   const labelClass = "block text-xs font-bold text-indigo-900 mb-1.5 uppercase tracking-wider ml-1 flex items-center gap-1.5";
@@ -531,109 +531,195 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start py-2">
-                    <div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start py-2 mb-2">
+                    <div ref={statusDropdownRef} className="relative">
                       <label className={labelClass}>Status do Chamado</label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {Object.values(TicketStatus).map((status) => {
-                          const config = TICKET_STATUS_CONFIG[status];
-                          const Icon = config.icon;
-                          const isSelected = ticketStatus === status;
-
-                          return (
-                            <button
-                              key={status}
-                              type="button"
-                              onClick={() => setTicketStatus(status)}
-                              className={`
-                                                group flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-bold uppercase tracking-wide transition-all duration-200 shadow-sm
-                                                ${isSelected
-                                  ? `${config.color} ring-2 ring-offset-1 ring-white scale-105 z-10`
-                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-700'
-                                }
-                                            `}
-                            >
-                              <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-current' : 'text-slate-400 group-hover:text-slate-500'}`} />
-                              {config.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={labelClass}>Prioridade</label>
-                      <div className="flex gap-2 mt-2">
-                        {[
-                          { value: TicketPriority.LOW, label: 'Baixa', icon: ArrowDown, colorClass: 'hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200', activeClass: 'bg-blue-100 text-blue-700 border-blue-200 ring-2 ring-blue-50' },
-                          { value: TicketPriority.MEDIUM, label: 'Média', icon: ArrowRight, colorClass: 'hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200', activeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200 ring-2 ring-emerald-50' },
-                          { value: TicketPriority.HIGH, label: 'Alta', icon: ArrowUp, colorClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-200', activeClass: 'bg-red-100 text-red-700 border-red-200 ring-2 ring-red-50' }
-                        ].map((option) => {
-                          const Icon = option.icon;
-                          const isActive = priority === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => setPriority(option.value)}
-                              className={`flex-1 py-2 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm ${isActive
-                                ? option.activeClass
-                                : `bg-white text-slate-400 border-slate-200 ${option.colorClass}`
-                                }`}
-                            >
-                              <Icon className="w-3.5 h-3.5" />
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="w-full pt-2">
-                    <div className="flex items-center gap-2 mb-1.5 ml-1">
-                      <label className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5 text-red-400" />
-                        Origem do Erro
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setErrorOrigin('')}
-                        className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-all active:scale-90"
-                        title="Limpar seleção de Origem do Erro"
+                      <div
+                        onClick={() => setIsStatusOpen(!isStatusOpen)}
+                        className={`min-h-[42px] px-3.5 py-2 rounded-xl border font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer transition-all shadow-sm ${TICKET_STATUS_CONFIG[ticketStatus].color} ${isStatusOpen ? 'ring-2 ring-offset-2 ring-indigo-500 scale-[1.02]' : ''}`}
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const config = TICKET_STATUS_CONFIG[ticketStatus];
+                            const Icon = config.icon;
+                            return (
+                              <>
+                                <Icon className="w-4 h-4 text-current" />
+                                <span>{config.label}</span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-current opacity-70 transition-transform duration-200 ${isStatusOpen ? 'rotate-180 opacity-100' : ''}`} />
+                      </div>
+
+                      {isStatusOpen && (
+                        <div className="absolute z-50 top-[calc(100%+4px)] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          {Object.values(TicketStatus).map((status) => {
+                            const config = TICKET_STATUS_CONFIG[status];
+                            const Icon = config.icon;
+                            const isSelected = ticketStatus === status;
+                            const textColor = config.color.split(' ').find(c => c.startsWith('text-')) || 'text-slate-700';
+                            return (
+                              <div
+                                key={status}
+                                className={`flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors border-l-2 ${isSelected ? 'border-indigo-500 bg-indigo-50/30' : 'border-transparent'}`}
+                                onClick={() => {
+                                  setTicketStatus(status);
+                                  setIsStatusOpen(false);
+                                }}
+                              >
+                                <Icon className={`w-4 h-4 ${isSelected ? textColor : 'text-slate-400'}`} />
+                                <span className={`text-sm font-semibold tracking-wide uppercase ${isSelected ? textColor : 'text-slate-600'}`}>
+                                  {config.label}
+                                </span>
+                                {isSelected && <Check className={`w-4 h-4 ml-auto ${textColor}`} />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                      {[
-                        { id: 'Desenvolvimento Incompleto', label: 'Desenvolvimento Incompleto', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', active: 'bg-orange-600 text-white border-orange-700 shadow-orange-100' },
-                        { id: 'Desenvolvimento Incorreto', label: 'Desenvolvimento Incorreto', icon: Code, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', active: 'bg-red-600 text-white border-red-700 shadow-red-100' },
-                        { id: 'Entendimento Incorreto', label: 'Entendimento Incorreto', icon: Brain, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', active: 'bg-purple-600 text-white border-purple-700 shadow-purple-100' },
-                        { id: 'Indefinido', label: 'Indefinido', icon: HelpCircle, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', active: 'bg-slate-600 text-white border-slate-700 shadow-slate-100' }
-                      ].map((opt) => {
-                        const Icon = opt.icon;
-                        const isActive = errorOrigin === opt.id;
-                        return (
+
+                    <div ref={priorityDropdownRef} className="relative">
+                      <label className={labelClass}>Prioridade</label>
+                      <div
+                        onClick={() => setIsPriorityOpen(!isPriorityOpen)}
+                        className={`min-h-[42px] px-3.5 py-2 rounded-xl border font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer transition-all shadow-sm ${PRIORITY_CONFIG[priority].color} ${isPriorityOpen ? 'ring-2 ring-offset-2 ring-indigo-500 scale-[1.02]' : ''}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const config = PRIORITY_CONFIG[priority];
+                            const Icon = config.icon;
+                            return (
+                              <>
+                                <Icon className="w-4 h-4 text-current" />
+                                <span>{config.label}</span>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-current opacity-70 transition-transform duration-200 ${isPriorityOpen ? 'rotate-180 opacity-100' : ''}`} />
+                      </div>
+
+                      {isPriorityOpen && (
+                        <div className="absolute z-50 top-[calc(100%+4px)] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          {Object.values(TicketPriority).map((optValue) => {
+                            const config = PRIORITY_CONFIG[optValue];
+                            const Icon = config.icon;
+                            const isSelected = priority === optValue;
+                            const textColor = config.color.split(' ').find(c => c.startsWith('text-')) || 'text-slate-700';
+                            return (
+                              <div
+                                key={optValue}
+                                className={`flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors border-l-2 ${isSelected ? 'border-indigo-500 bg-indigo-50/30' : 'border-transparent'}`}
+                                onClick={() => {
+                                  setPriority(optValue);
+                                  setIsPriorityOpen(false);
+                                }}
+                              >
+                                <Icon className={`w-4 h-4 ${isSelected ? textColor : 'text-slate-400'}`} />
+                                <span className={`text-sm font-semibold tracking-wide uppercase ${isSelected ? textColor : 'text-slate-600'}`}>
+                                  {config.label}
+                                </span>
+                                {isSelected && <Check className={`w-4 h-4 ml-auto ${textColor}`} />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div ref={originDropdownRef} className="relative">
+                      <div className="flex items-center justify-between">
+                        <label className={labelClass}>Origem do Erro</label>
+                        {errorOrigin && (
                           <button
-                            key={opt.id}
                             type="button"
-                            onClick={() => setErrorOrigin(opt.id)}
-                            className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl border text-[11px] font-bold uppercase tracking-wide transition-all shadow-sm ${isActive
-                              ? `${opt.active} scale-[1.02] ring-2 ring-offset-1 ring-white z-10`
-                              : `bg-white ${opt.color} ${opt.border} hover:${opt.bg} hover:border-indigo-300`
-                              }`}
+                            onClick={(e) => { e.stopPropagation(); setErrorOrigin(''); }}
+                            className="p-1 mb-2 mr-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-all active:scale-90"
+                            title="Limpar seleção de Origem do Erro"
                           >
-                            <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : opt.color}`} />
-                            {opt.label}
+                            <RotateCcw className="w-3 h-3" />
                           </button>
-                        );
-                      })}
+                        )}
+                      </div>
+
+                      <div
+                        onClick={() => setIsOriginOpen(!isOriginOpen)}
+                        className={`min-h-[42px] px-3.5 py-2 rounded-xl border font-bold text-xs uppercase tracking-wider flex items-center justify-between cursor-pointer transition-all shadow-sm ${
+                          (() => {
+                            const opt = [
+                              { id: 'Desenvolvimento Incompleto', label: 'Desenvolvimento Incompleto', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                              { id: 'Desenvolvimento Incorreto', label: 'Desenvolvimento Incorreto', icon: Code, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
+                              { id: 'Entendimento Incorreto', label: 'Entendimento Incorreto', icon: Brain, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+                              { id: 'Indefinido', label: 'Indefinido', icon: HelpCircle, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' }
+                            ].find(o => o.id === errorOrigin);
+                            if (opt) {
+                              return `${opt.bg} ${opt.color} ${opt.border} ${isOriginOpen ? 'ring-2 ring-offset-2 ring-indigo-500 scale-[1.01]' : ''}`;
+                            }
+                            return `bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 ${isOriginOpen ? 'ring-2 ring-offset-2 ring-indigo-500 scale-[1.01]' : ''}`;
+                          })()
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const opt = [
+                              { id: 'Desenvolvimento Incompleto', label: 'Desenvolvimento Incompleto', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                              { id: 'Desenvolvimento Incorreto', label: 'Desenvolvimento Incorreto', icon: Code, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
+                              { id: 'Entendimento Incorreto', label: 'Entendimento Incorreto', icon: Brain, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+                              { id: 'Indefinido', label: 'Indefinido', icon: HelpCircle, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' }
+                            ].find(o => o.id === errorOrigin);
+                            
+                            if (opt) {
+                              const Icon = opt.icon;
+                              return (
+                                <>
+                                  <Icon className="w-4 h-4 text-current" />
+                                  <span>{opt.label}</span>
+                                </>
+                              );
+                            }
+                            return <span>Selecione a Origem do Erro</span>;
+                          })()}
+                        </div>
+                        <ChevronDown className={`w-4 h-4 text-current opacity-70 transition-transform duration-200 ${isOriginOpen ? 'rotate-180 opacity-100' : ''}`} />
+                      </div>
+
+                      {isOriginOpen && (
+                        <div className="absolute z-50 top-[calc(100%+4px)] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                          {[
+                            { id: 'Desenvolvimento Incompleto', label: 'Desenvolvimento Incompleto', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                            { id: 'Desenvolvimento Incorreto', label: 'Desenvolvimento Incorreto', icon: Code, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' },
+                            { id: 'Entendimento Incorreto', label: 'Entendimento Incorreto', icon: Brain, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+                            { id: 'Indefinido', label: 'Indefinido', icon: HelpCircle, color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' }
+                          ].map((opt) => {
+                            const Icon = opt.icon;
+                            const isSelected = errorOrigin === opt.id;
+                            return (
+                              <div
+                                key={opt.id}
+                                className={`flex items-center gap-2.5 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors border-l-2 ${isSelected ? 'border-indigo-500 bg-indigo-50/30' : 'border-transparent'}`}
+                                onClick={() => {
+                                  setErrorOrigin(opt.id);
+                                  setIsOriginOpen(false);
+                                }}
+                              >
+                                <Icon className={`w-4 h-4 ${isSelected ? opt.color : 'text-slate-400'}`} />
+                                <span className={`text-sm font-semibold tracking-wide uppercase ${isSelected ? opt.color : 'text-slate-600'}`}>
+                                  {opt.label}
+                                </span>
+                                {isSelected && <Check className={`w-4 h-4 ml-auto ${opt.color}`} />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
+                  <div className="flex flex-col md:flex-row gap-6">
+                    <div className="w-full md:w-1/4">
                       <label className={labelClass}>
                         Solicitante
                         {isInvalid('Solicitante') && <AlertCircle className="w-3.5 h-3.5 text-red-500 animate-pulse" />}
@@ -646,7 +732,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
                         placeholder="Ex: YEB, LVM..."
                       />
                     </div>
-                    <div>
+                    <div className="w-full md:w-1/4">
                       <label className={labelClass}>
                         Analista de Teste
                         {isInvalid('Analista de Teste') && <AlertCircle className="w-3.5 h-3.5 text-red-500 animate-pulse" />}
@@ -659,20 +745,7 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
                         placeholder="Analista"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className={labelClass}>Resumo do Chamado</label>
-                      <input
-                        type="text"
-                        value={ticketSummary}
-                        onChange={e => setTicketSummary(e.target.value.toUpperCase())}
-                        className={ticketInputClass}
-                        placeholder="Ex: Erro de Anexo (Máx. 3 palavras)"
-                      />
-                    </div>
-                    <div>
+                    <div className="w-full md:w-2/4">
                       <label className={labelClass}>
                         Cliente / Sistema
                         {isInvalid('Cliente / Sistema') && <AlertCircle className="w-3.5 h-3.5 text-red-500 animate-pulse" />}
@@ -687,8 +760,19 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="relative z-20 md:col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="w-full">
+                      <label className={labelClass}>Resumo do Chamado</label>
+                      <input
+                        type="text"
+                        value={ticketSummary}
+                        onChange={e => setTicketSummary(e.target.value.toUpperCase())}
+                        className={ticketInputClass}
+                        placeholder="Ex: Erro de Anexo (Máx. 3 palavras)"
+                      />
+                    </div>
+
+                    <div className="relative z-20 w-full">
                       <label className={labelClass}>
                         Ambiente do Commit / Teste
                         {isInvalid('Ambiente do Commit / Teste') && <AlertCircle className="w-3.5 h-3.5 text-red-500 animate-pulse" />}
@@ -756,16 +840,6 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
                           </div>
                         </div>
                       )}
-                    </div>
-                    <div>
-                      <label className={labelClass}>Versão do Ambiente</label>
-                      <input
-                        type="text"
-                        value={environmentVersion}
-                        onChange={e => setEnvironmentVersion(e.target.value.toUpperCase())}
-                        className={ticketInputClass}
-                        placeholder="v1.0.0"
-                      />
                     </div>
                   </div>
 
@@ -857,127 +931,8 @@ const EvidenceForm = forwardRef<any, EvidenceFormProps>(({
               )}
             </div>
 
-            {historyItems.length > 0 && (
-              <div className="space-y-4 pt-4 border-t border-dashed border-slate-200">
-                <div className="flex items-center gap-3 pb-2">
-                  <div className="p-1.5 bg-slate-100 rounded-md">
-                    <History className="w-4 h-4 text-slate-600" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                    Histórico de Teste
-                  </h3>
-                </div>
-
-                <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                        <tr>
-                          <th className="px-4 py-3 w-10">#</th>
-                          <th className="px-4 py-3">Código ID</th>
-                          <th className="px-4 py-3">Tela</th>
-                          <th className="px-4 py-3 w-1/3">Funcionalidade</th>
-                          <th className="px-4 py-3 text-center">Status</th>
-                          <th className="px-4 py-3 text-right w-24"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {historyItems.map((item) => {
-                          const details = item.testCaseDetails!;
-                          const isExpanded = expandedHistoryRows.has(item.id);
-
-                          return (
-                            <React.Fragment key={item.id}>
-                              <tr className={`hover:bg-slate-50 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-50' : ''}`} onClick={() => toggleHistoryRow(item.id)}>
-                                <td className="px-4 py-3 text-slate-400 text-xs font-mono">{details.scenarioNumber}.{details.caseNumber}</td>
-                                <td className="px-4 py-3 font-mono text-xs font-medium text-slate-600">{details.caseId}</td>
-                                <td className="px-4 py-3 text-slate-800 flex items-center gap-2">
-                                  <Monitor className="w-3 h-3 text-slate-400" />
-                                  {details.screen}
-                                </td>
-                                <td className="px-4 py-3 text-slate-700 truncate max-w-xs" title={details.objective}>
-                                  {details.objective}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${item.status === TestStatus.PASS ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                    item.status === TestStatus.FAIL ? 'bg-red-100 text-red-800 border border-red-200' :
-                                      item.status === TestStatus.BLOCKED ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                                        item.status === TestStatus.PENDING ? 'bg-slate-100 text-slate-600 border border-slate-200' :
-                                          item.status === TestStatus.SKIPPED ? 'bg-gray-100 text-gray-800 border border-gray-200' :
-                                            'bg-slate-100 text-slate-800 border border-slate-200'
-                                    }`}>
-                                    {item.status === TestStatus.PASS && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                    {item.status === TestStatus.FAIL && <XCircle className="w-3 h-3 mr-1" />}
-                                    {item.status === TestStatus.BLOCKED && <AlertCircle className="w-3 h-3 mr-1" />}
-                                    {item.status === TestStatus.SKIPPED && <Clock className="w-3 h-3 mr-1" />}
-                                    {item.status === TestStatus.PENDING && <Clock className="w-3 h-3 mr-1" />}
-
-                                    {item.status === TestStatus.PASS ? 'Sucesso' :
-                                      item.status === TestStatus.FAIL ? 'Falha' :
-                                        item.status === TestStatus.BLOCKED ? 'Impedimento' :
-                                          item.status === TestStatus.SKIPPED ? 'Pendente' :
-                                            item.status === TestStatus.PENDING ? 'Pendente' :
-                                              'Pendente'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                  {onEditCase && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); onEditCase(item.id); }}
-                                      className="text-slate-400 hover:text-indigo-600 p-1 hover:bg-slate-100 rounded transition-colors"
-                                      title="Editar Caso"
-                                    >
-                                      <Pencil className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  <button type="button" className="text-slate-400 hover:text-indigo-600">
-                                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                  </button>
-                                </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr className="bg-slate-50/50 shadow-inner">
-                                  <td colSpan={6} className="px-4 py-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs px-2">
-                                      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                        <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Pré-Requisito</span>
-                                        <p className="text-slate-800">{details.preRequisite || 'N/A'}</p>
-                                      </div>
-                                      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                                        <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Descrição do Teste</span>
-                                        <p className="text-slate-800">{details.condition || 'N/A'}</p>
-                                      </div>
-                                      <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 shadow-sm">
-                                        <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Resultado Esperado</span>
-                                        <p className="text-indigo-900">{details.expectedResult || 'N/A'}</p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div ref={wizardSectionRef} className="space-y-4">
-
-              <div className="mb-6">
-                <TestScenarioWizard
-                  ref={wizardRef}
-                  onSave={onWizardSave}
-                  baseTicketInfo={currentTicketInfo}
-                  wizardTrigger={wizardTrigger}
-                  onClearTrigger={onClearTrigger}
-                  existingEvidences={evidences}
-                />
-              </div>
+            <div className="mb-6">
+                {/* O TestScenarioWizard foi movido para TicketScenariosPage */}
             </div>
 
             {error && (

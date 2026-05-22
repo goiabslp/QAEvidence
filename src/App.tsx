@@ -15,6 +15,11 @@ import EasterEggBug from './components/features/bugs/EasterEggBug';
 import TestManagement from './components/features/testes/TestManagement';
 import MenuTutorial from './components/common/MenuTutorial';
 import Home from './components/features/home/Home';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import TicketLayout, { TicketContextType } from './components/features/ticket/TicketLayout';
+import TicketInfoPage from './components/features/ticket/TicketInfoPage';
+import TicketHistoryPage from './components/features/ticket/TicketHistoryPage';
+import TicketScenariosPage from './components/features/ticket/TicketScenariosPage';
 import { EvidenceItem, TicketInfo, TestCaseDetails, ArchivedTicket, TestStatus, User, UserRole, TicketPriority, BugReport, TicketStatus } from './types';
 import { STATUS_CONFIG, PRIORITY_CONFIG, TICKET_STATUS_CONFIG } from './constants';
 import { FileCheck, AlertTriangle, Archive, Calendar, User as UserIcon, Layers, ListChecks, CheckCircle2, XCircle, AlertCircle, ShieldCheck, CheckCheck, FileText, X, Save, FileDown, Loader2, Clock, LayoutDashboard, Hash, ArrowRight, Download, Trash2, ChevronLeft, ChevronRight, ChevronDown, Lock, ClipboardCheck, Activity, History, Bug, Monitor } from 'lucide-react';
@@ -28,9 +33,10 @@ import DeleteTicketModal from '@/components/features/evidence/DeleteTicketModal'
 import TicketHistoryCarousel from '@/components/features/evidence/TicketHistoryCarousel';
 import TestSettings from '@/components/features/testes/TestSettings';
 import { supabase } from '@/services/supabaseClient';
-import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase, fetchEvidenceImages } from '@/utils/supabaseEvidenceService';
+import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase, fetchEvidenceImages, createDraftTicketInSupabase } from '@/utils/supabaseEvidenceService';
 import ValidationModal from './components/common/ValidationModal';
 import DiscardChangesModal from './components/common/DiscardChangesModal';
+import DraftLoadingModal from './components/common/DraftLoadingModal';
 
 declare const html2pdf: any;
 
@@ -44,6 +50,9 @@ export interface WizardTriggerContext {
 }
 
 const App: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // --- AUTHENTICATION & USER STATE ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -53,6 +62,14 @@ const App: React.FC = () => {
 
   // --- MODULE STATE ---
   const [activeModule, setActiveModule] = useState<'HOME' | 'TICKET' | 'BUGS' | 'EVIDENCES' | 'TESTS' | 'TEST_SETTINGS'>('HOME');
+
+  useEffect(() => {
+    if (location.pathname === '/' || location.pathname === '/inicio') {
+      setActiveModule('HOME');
+    } else if (location.pathname.includes('/informacoes') || location.pathname.includes('/historico') || location.pathname.includes('/cenarios')) {
+      setActiveModule('TICKET');
+    }
+  }, [location.pathname]);
 
   // --- DATA STATE ---
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
@@ -66,6 +83,7 @@ const App: React.FC = () => {
   const [editingTicketInfo, setEditingTicketInfo] = useState<TicketInfo | null>(null);
   const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
   const [isTicketFormOpen, setIsTicketFormOpen] = useState(false);
+  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
 
   const [users, setUsers] = useState<User[]>([]);
 
@@ -355,11 +373,14 @@ const App: React.FC = () => {
     const currentInfo = formTicketInfoRef.current;
     if (!currentInfo) return false;
 
-    // If it's a completely NEW ticket (no saved state)
-    if (!savedTicketInfo && savedEvidences.length === 0) {
+    // Check if it is a completely NEW draft ticket (no items saved yet, and either no editing history or not saved in history)
+    const isDraft = !editingHistoryId || !ticketHistory.some(t => t.id === editingHistoryId);
+
+    if (isDraft && savedEvidences.length === 0) {
+      // For new drafts, we ignore the auto-generated title and check if the user actually typed something
       const hasMeaningfulText = Boolean(
         currentInfo.ticketId || 
-        currentInfo.ticketTitle || 
+        currentInfo.ticketSummary ||
         currentInfo.requester || 
         currentInfo.clientSystem || 
         currentInfo.ticketDescription || 
@@ -378,7 +399,7 @@ const App: React.FC = () => {
     const infoChanged = !isDeepEqual(currentInfo, savedTicketInfo);
 
     return itemsChanged || infoChanged;
-  }, [evidences, savedEvidences, savedTicketInfo, ticketInfoVersion, currentUser]);
+  }, [evidences, savedEvidences, savedTicketInfo, ticketInfoVersion, currentUser, editingHistoryId, ticketHistory]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -816,6 +837,7 @@ const App: React.FC = () => {
     setIsTicketFormOpen(true);
     setFormKey(prev => prev + 1);
 
+    navigate(`/${ticket.id}/informacoes`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // 2. Load images in background
@@ -871,6 +893,36 @@ const App: React.FC = () => {
     const ticket = ticketHistory.find(t => t.id === ticketId);
     if (ticket) {
       setTicketToDelete(ticket);
+    }
+  };
+
+  const handleCreateNewTicket = async () => {
+    setIsCreatingDraft(true);
+    
+    // Create draft in Supabase to acquire a unique ID alongside an artificial minimum delay
+    // to give the UI an interactive, premium feeling while loading
+    const [draftId] = await Promise.all([
+      createDraftTicketInSupabase(currentUser?.acronym || ''),
+      new Promise(resolve => setTimeout(resolve, 2000))
+    ]);
+
+    setIsCreatingDraft(false);
+    setIsTicketFormOpen(true);
+    
+    const info = currentUser ? getDefaultTicketInfo(currentUser.acronym) : null;
+    setSavedTicketInfo(info);
+    setSavedEvidences([]);
+    setEditingTicketInfo(info);
+    setEvidences([]);
+    formTicketInfoRef.current = info;
+    
+    if (draftId) {
+      setEditingHistoryId(draftId);
+      navigate(`/${draftId}/informacoes`);
+    } else {
+      alert("Aviso: Não foi possível gerar um ID prévio no banco de dados. Continuando em modo offline (ID será gerado ao salvar).");
+      setEditingHistoryId(null);
+      navigate(`/novo/informacoes`);
     }
   };
 
@@ -1017,9 +1069,9 @@ const App: React.FC = () => {
       }));
 
       let updatedTicketHistory = [...ticketHistory];
-      let finalTicket: ArchivedTicket;
+      let finalTicket = editingHistoryId ? updatedTicketHistory.find(t => t.id === editingHistoryId) : undefined;
 
-      if (editingHistoryId) {
+      if (finalTicket) {
         updatedTicketHistory = ticketHistory.map(t => {
           if (t.id === editingHistoryId) {
             return {
@@ -1035,7 +1087,7 @@ const App: React.FC = () => {
         finalTicket = updatedTicketHistory.find(t => t.id === editingHistoryId)!;
       } else {
         finalTicket = {
-          id: crypto.randomUUID(),
+          id: editingHistoryId || crypto.randomUUID(),
           ticketInfo: finalTicketInfo,
           items: consistentEvidences,
           archivedAt: Date.now(),
@@ -1112,7 +1164,9 @@ const App: React.FC = () => {
     formTicketInfoRef.current = null;
     setIsTicketFormOpen(false);
     setFormKey(prev => prev + 1);
+    setActiveModule('HOME');
 
+    navigate('/inicio');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1285,18 +1339,13 @@ const App: React.FC = () => {
               Comece criando um novo registro de evidência de teste ou selecione um do histórico abaixo.
             </p>
             <button
-              onClick={() => {
-                setIsTicketFormOpen(true);
-                const info = editingTicketInfo || defaultTicketInfo;
-                setSavedTicketInfo(info);
-                setSavedEvidences([]);
-              }}
+              onClick={handleCreateNewTicket}
               className="group relative overflow-hidden rounded-full bg-gradient-to-br from-indigo-600 to-indigo-700 px-8 py-4 text-white shadow-xl shadow-indigo-900/20 transition-all duration-300 hover:shadow-indigo-900/40 hover:-translate-y-1 active:scale-95"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
               <div className="relative flex items-center justify-center gap-2 font-bold text-base tracking-widest uppercase">
                 <FileText className="w-5 h-5" />
-                Novo Chamado
+                Nova Evidência
               </div>
             </button>
           </div>
@@ -1373,6 +1422,8 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <DraftLoadingModal isOpen={isCreatingDraft} />
+      
       <ValidationModal
         isOpen={showValidationModal}
         onClose={() => setShowValidationModal(false)}
@@ -1397,6 +1448,11 @@ const App: React.FC = () => {
             return;
           }
           setActiveModule(module);
+          if (module === 'HOME') {
+            navigate('/inicio');
+          } else if (module === 'TICKET') {
+            handleCreateNewTicket();
+          }
           if (resetToNewTicket) {
             setIsTicketFormOpen(false);
             setSavedTicketInfo(currentUser ? getDefaultTicketInfo(currentUser.acronym) : null);
@@ -1466,7 +1522,46 @@ const App: React.FC = () => {
             </div>
           )
         ) : (
-          renderModuleContent()
+          <Routes>
+             <Route path="/inicio" element={activeModule === 'HOME' ? <Home user={currentUser} onNavigate={(m) => { setActiveModule(m); if(m==='TICKET') handleCreateNewTicket(); }} /> : renderModuleContent()} />
+             <Route path="/:id" element={
+                <TicketLayout context={{
+                  evidences,
+                  users,
+                  ticketInfo: editingTicketInfo || defaultTicketInfo,
+                  wizardTrigger,
+                  invalidFields,
+                  isGeneratingPdf,
+                  isSaving,
+                  ticketHistory,
+                  isHistoryExpanded,
+                  onTicketInfoChange: handleTicketInfoChange,
+                  onWizardSave: handleWizardSave,
+                  onClearTrigger: () => setWizardTrigger(null),
+                  onAddCase: handleAddCase,
+                  onEditCase: handleEditCase,
+                  onCopyCase: handleCopyCase,
+                  onDeleteEvidence: handleDeleteEvidence,
+                  onDeleteScenario: handleDeleteScenario,
+                  setIsHistoryExpanded,
+                  onOpenArchivedTicket: handleOpenArchivedTicket,
+                  onDownloadArchivedPdf: handleDownloadArchivedPdf,
+                  setTicketToDelete,
+                  formRef,
+                  isDirty,
+                  pdfError,
+                  isSaveSuccess,
+                  onSave: handleSaveAndClose,
+                  onPdf: handlePdfFlow,
+                  onClose: handleCloseEvidence
+                }} />
+             }>
+               <Route path="informacoes" element={<TicketInfoPage />} />
+               <Route path="historico" element={<TicketHistoryPage />} />
+               <Route path="cenarios" element={<TicketScenariosPage />} />
+             </Route>
+             <Route path="*" element={<Navigate to="/inicio" replace />} />
+          </Routes>
         )}
 
         <PdfConfirmationModal
@@ -1492,6 +1587,11 @@ const App: React.FC = () => {
                 executeCloseEvidence();
               } else if (pendingNavigation.type === 'MODULE') {
                 setActiveModule(pendingNavigation.module);
+                if (pendingNavigation.module === 'HOME') {
+                  navigate('/inicio');
+                } else if (pendingNavigation.module === 'TICKET') {
+                  handleCreateNewTicket();
+                }
                 if (pendingNavigation.reset) {
                   setIsTicketFormOpen(false);
                   setSavedTicketInfo(currentUser ? getDefaultTicketInfo(currentUser.acronym) : null);

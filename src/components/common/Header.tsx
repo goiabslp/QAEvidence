@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout, showAdminPanel, onToggl
                           }`}
                       >
                         <FileText className={`w-4 h-4 ${activeModule === 'TICKET' ? 'text-indigo-600' : 'text-slate-400'}`} />
-                        Novo Chamado
+                        Nova Evidência
                       </button>
                       <button
                         onClick={() => {

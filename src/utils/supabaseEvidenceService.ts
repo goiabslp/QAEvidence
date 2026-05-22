@@ -9,6 +9,46 @@ const safeString = (val: any): string => {
     return String(val);
 };
 
+/**
+ * Creates an empty draft record in Supabase to acquire a unique ID.
+ */
+export const createDraftTicketInSupabase = async (acronym: string): Promise<string | null> => {
+    try {
+        const generatedId = crypto.randomUUID();
+        const evidenceData = {
+            id: generatedId,
+            ticket_title: 'Rascunho de Chamado',
+            ticket_status: 'Pendente',
+            created_by: acronym,
+            archived_at: Date.now(),
+            ticket_id: 'DRAFT',
+            sprint: '',
+            client_system: '',
+            requester: '',
+            analyst: '',
+            request_date: '',
+            priority: '',
+            error_origin: '',
+            environment: '',
+            environment_version: '',
+            evidence_date: '',
+            ticket_description: '',
+            solution: '',
+            blockage_reason: ''
+        };
+
+        const { error } = await supabase
+            .from('evidences')
+            .insert(evidenceData);
+
+        if (error) throw error;
+        return generatedId;
+    } catch (error) {
+        console.error('Error creating draft in Supabase:', error);
+        return null;
+    }
+};
+
 export const saveEvidenceToSupabase = async (ticket: ArchivedTicket): Promise<boolean> => {
     try {
         // 1. Insert into `evidences` table
