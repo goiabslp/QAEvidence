@@ -727,6 +727,42 @@ const App: React.FC = () => {
     });
   };
 
+  const handleCopyCase = async (id: string) => {
+    const origin = evidences.find(e => e.id === id);
+    if (!origin || !origin.testCaseDetails) return;
+
+    const scenarioNum = origin.testCaseDetails.scenarioNumber;
+
+    const existingCases = evidences.filter(e => e.testCaseDetails?.scenarioNumber === scenarioNum);
+    const maxCaseNum = existingCases.reduce((max, curr) => {
+      return Math.max(max, curr.testCaseDetails?.caseNumber || 0);
+    }, 0);
+
+    const nextCaseNum = maxCaseNum + 1;
+
+    const newEvidenceId = crypto.randomUUID();
+    
+    // Create a deep copy of test case details to avoid mutating the original
+    const newCaseDetails: TestCaseDetails = JSON.parse(JSON.stringify(origin.testCaseDetails));
+    newCaseDetails.caseNumber = nextCaseNum;
+    const randomNum = Math.floor(Math.random() * 90000) + 10000;
+    newCaseDetails.caseId = `QA-${randomNum}`;
+
+    const newEvidence: EvidenceItem = {
+      ...origin,
+      id: newEvidenceId,
+      timestamp: Date.now(),
+      testCaseDetails: newCaseDetails,
+    };
+
+    const newEvidences = [...evidences, newEvidence];
+    setEvidences(newEvidences);
+    
+    if (editingHistoryId) {
+      await persistCurrentTicket(newEvidences);
+    }
+  };
+
   const handleCancelEdit = () => {
     if (!editingHistoryId && evidences.length > 0) {
       if (!window.confirm('Tem certeza que deseja limpar todos os dados e reiniciar o fluxo?')) {
@@ -1295,6 +1331,7 @@ const App: React.FC = () => {
                       onDelete={handleDeleteEvidence}
                       onAddCase={handleAddCase}
                       onEditCase={handleEditCase}
+                      onCopyCase={handleCopyCase}
                     />
                   </div>
                 </div>

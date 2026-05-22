@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { EvidenceItem, TestStatus, TicketPriority } from '@/types';
 import { STATUS_CONFIG, SEVERITY_COLORS, PRIORITY_CONFIG } from '@/constants';
-import { Trash2, ExternalLink, Calendar, User, Tag, Monitor, ChevronDown, ChevronUp, Plus, Layers, FileText, ChevronRight, Pencil, ListChecks, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Trash2, ExternalLink, Calendar, User, Tag, Monitor, ChevronDown, ChevronUp, Plus, Layers, FileText, ChevronRight, Pencil, ListChecks, Image as ImageIcon, AlertTriangle, Copy } from 'lucide-react';
 
 // Sub-component for Scenario Section to optimize rendering
 const ScenarioItem = React.memo(({ 
@@ -15,6 +15,7 @@ const ScenarioItem = React.memo(({
     readOnly, 
     onAddCase, 
     onEditCase, 
+    onCopyCase,
     onDelete 
 }: any) => {
     const firstItem = group.items[0];
@@ -92,6 +93,7 @@ const ScenarioItem = React.memo(({
                             toggleCaseDetails={toggleCaseDetails}
                             readOnly={readOnly}
                             onEditCase={onEditCase}
+                            onCopyCase={onCopyCase}
                             onDelete={onDelete}
                         />
                     ))}
@@ -107,6 +109,7 @@ const CaseItem = React.memo(({
     toggleCaseDetails, 
     readOnly, 
     onEditCase, 
+    onCopyCase,
     onDelete 
 }: any) => {
     const { testCaseDetails } = evidence;
@@ -160,6 +163,15 @@ const CaseItem = React.memo(({
                                     <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded-full mr-1 border border-slate-100" title={`${testCaseDetails?.steps?.length} passos`}>
                                         <ListChecks className="w-3 h-3" />
                                     </span>
+                                )}
+                                {onCopyCase && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onCopyCase(evidence.id); }}
+                                        className="text-slate-500 hover:text-emerald-600 p-2 rounded-lg hover:bg-emerald-50 transition-colors"
+                                        title="Copiar Caso"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                    </button>
                                 )}
                                 {onEditCase && (
                                     <button
@@ -272,6 +284,7 @@ interface EvidenceListProps {
   onDelete: (id: string) => void;
   onAddCase?: (id: string) => void;
   onEditCase?: (id: string) => void;
+  onCopyCase?: (id: string) => void;
   onDeleteScenario?: (scenarioNum: number) => void;
   readOnly?: boolean;
 }
@@ -290,7 +303,7 @@ interface ManualItem {
 
 type GroupedItem = ScenarioGroup | ManualItem;
 
-const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, onAddCase, onEditCase, onDeleteScenario, readOnly = false }) => {
+const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, onAddCase, onEditCase, onCopyCase, onDeleteScenario, readOnly = false }) => {
   const [expandedScenarios, setExpandedScenarios] = useState<Set<number>>(new Set());
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
 
@@ -387,6 +400,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, o
                 readOnly={readOnly}
                 onAddCase={onAddCase}
                 onEditCase={onEditCase}
+                onCopyCase={onCopyCase}
                 onDelete={onDelete}
             />
           );
