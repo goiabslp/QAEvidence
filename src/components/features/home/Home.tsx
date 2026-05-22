@@ -1,10 +1,10 @@
 import React from 'react';
-import { FileText, ListChecks, ArrowRight } from 'lucide-react';
+import { FileText, ListChecks, ArrowRight, Clock } from 'lucide-react';
 import { User } from '../../../types';
 
 interface HomeProps {
     user: User;
-    onNavigate: (module: 'TICKET' | 'TESTS') => void;
+    onNavigate: (module: 'TICKET' | 'TESTS' | 'EVIDENCES') => void;
 }
 
 const Home: React.FC<HomeProps> = ({ user, onNavigate }) => {
@@ -23,11 +23,11 @@ const Home: React.FC<HomeProps> = ({ user, onNavigate }) => {
                 </p>
             </div>
 
-            <div className="flex flex-col items-center justify-center w-full max-w-md mx-auto">
+            <div className="flex flex-col md:flex-row items-stretch justify-center w-full max-w-4xl mx-auto gap-6">
                 {/* Card 1: Nova Evidência */}
                 <button
                     onClick={() => onNavigate('TICKET')}
-                    className="group relative flex flex-col items-center text-center p-8 bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1 overflow-hidden w-full"
+                    className="group relative flex flex-col items-center justify-between text-center p-8 bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1 overflow-hidden w-full max-w-md flex-1"
                 >
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/0 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                     
@@ -43,8 +43,33 @@ const Home: React.FC<HomeProps> = ({ user, onNavigate }) => {
                         Acesse o módulo para registrar ou editar um ticket de QA Evidence.
                     </p>
                     
-                    <div className="flex items-center gap-2 text-indigo-600 font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                    <div className="flex items-center gap-2 text-indigo-600 font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 mt-auto">
                         Acessar módulo 
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                </button>
+
+                {/* Card 2: Minhas Evidências */}
+                <button
+                    onClick={() => onNavigate('EVIDENCES')}
+                    className="group relative flex flex-col items-center justify-between text-center p-8 bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all duration-300 hover:-translate-y-1 overflow-hidden w-full max-w-md flex-1"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/0 to-emerald-50/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    
+                    <div className="w-20 h-20 bg-emerald-100 rounded-2xl flex items-center justify-center mb-6 text-emerald-600 group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-inner">
+                        <Clock className="w-10 h-10" />
+                    </div>
+                    
+                    <h3 className="text-2xl font-bold text-slate-800 mb-3 group-hover:text-emerald-900 transition-colors">
+                        Minhas Evidências
+                    </h3>
+                    
+                    <p className="text-slate-500 mb-8 max-w-[250px] leading-relaxed group-hover:text-slate-600 transition-colors">
+                        Acesse seu histórico completo para visualizar, excluir ou baixar PDFs das suas evidências.
+                    </p>
+                    
+                    <div className="flex items-center gap-2 text-emerald-600 font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 mt-auto">
+                        Acessar histórico
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     </div>
                 </button>

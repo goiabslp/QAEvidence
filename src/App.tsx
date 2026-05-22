@@ -1525,7 +1525,7 @@ const App: React.FC = () => {
           )
         ) : (
           <Routes>
-             <Route path="/inicio" element={activeModule === 'HOME' ? <Home user={currentUser} onNavigate={(m) => { setActiveModule(m); if(m==='TICKET') handleCreateNewTicket(); }} /> : renderModuleContent()} />
+             <Route path="/inicio" element={activeModule === 'HOME' ? <Home user={currentUser} onNavigate={(m) => { setActiveModule(m); if(m==='TICKET') handleCreateNewTicket(); else if(m==='EVIDENCES') navigate('/evidencias'); }} /> : renderModuleContent()} />
              <Route path="/evidencias" element={
                 <UserEvidenceList
                   tickets={ticketHistory}
