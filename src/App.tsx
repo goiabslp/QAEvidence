@@ -32,7 +32,8 @@ import PdfConfirmationModal from '@/components/features/evidence/PdfConfirmation
 import DeleteTicketModal from '@/components/features/evidence/DeleteTicketModal';
 import TicketHistoryCarousel from '@/components/features/evidence/TicketHistoryCarousel';
 import TestSettings from '@/components/features/testes/TestSettings';
-import { supabase } from '@/services/supabaseClient';
+import { supabase, isSupabaseConfigured } from '@/services/supabaseClient';
+import SupabaseConfigErrorScreen from '@/components/common/SupabaseConfigErrorScreen';
 import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase, fetchEvidenceImages, createDraftTicketInSupabase } from '@/utils/supabaseEvidenceService';
 import ValidationModal from './components/common/ValidationModal';
 import DiscardChangesModal from './components/common/DiscardChangesModal';
@@ -52,6 +53,10 @@ export interface WizardTriggerContext {
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  if (!isSupabaseConfigured) {
+    return <SupabaseConfigErrorScreen />;
+  }
 
   // --- AUTHENTICATION & USER STATE ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
