@@ -3,6 +3,7 @@ import { useTicketContext } from './TicketLayout';
 import TicketHistoryCarousel from '../evidence/TicketHistoryCarousel';
 import { Archive, History, Monitor, CheckCircle2, XCircle, AlertCircle, Clock, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import { TestStatus } from '@/types';
+import { formatGherkin } from '@/utils/gherkinUtils';
 
 const TicketHistoryPage: React.FC = () => {
     const { 
@@ -131,11 +132,11 @@ const TicketHistoryPage: React.FC = () => {
                                                                 </div>
                                                                 <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                                                     <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Descrição do Teste</span>
-                                                                    <p className="text-slate-800">{details.condition || 'N/A'}</p>
+                                                                    <p className="text-slate-800">{formatGherkin(details.condition)}</p>
                                                                 </div>
                                                                 <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 shadow-sm">
                                                                     <span className="block font-bold text-indigo-900 uppercase mb-1 text-[10px]">Resultado Esperado</span>
-                                                                    <p className="text-indigo-900">{details.expectedResult || 'N/A'}</p>
+                                                                    <p className="text-indigo-900">{formatGherkin(details.expectedResult)}</p>
                                                                 </div>
                                                             </div>
                                                         </td>

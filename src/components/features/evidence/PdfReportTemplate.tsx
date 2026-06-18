@@ -3,6 +3,7 @@ import { EvidenceItem, TicketInfo, ArchivedTicket, TestStatus, User, TicketPrior
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/constants';
 import { History, ListChecks } from 'lucide-react';
 import EvidenceList from './EvidenceList';
+import { formatGherkin } from '@/utils/gherkinUtils';
 
 interface PdfReportTemplateProps {
     reportRef: React.RefObject<HTMLDivElement>;
@@ -157,11 +158,11 @@ const PdfReportTemplate: React.FC<PdfReportTemplateProps> = ({
                                                             </div>
                                                             <div className="bg-slate-50 p-2 rounded border border-slate-100">
                                                                 <span className="font-bold text-indigo-900 block mb-1 uppercase">Descrição do Teste</span>
-                                                                <p className="text-slate-700 whitespace-pre-line leading-relaxed">{details.condition || '-'}</p>
+                                                                <p className="text-slate-700 whitespace-pre-line leading-relaxed">{formatGherkin(details.condition)}</p>
                                                             </div>
                                                             <div className="bg-indigo-50 p-2 rounded border border-indigo-100">
                                                                 <span className="font-bold text-indigo-900 block mb-1 uppercase">Resultado Esperado</span>
-                                                                <p className="text-indigo-800 whitespace-pre-line leading-relaxed">{details.expectedResult || '-'}</p>
+                                                                <p className="text-indigo-800 whitespace-pre-line leading-relaxed">{formatGherkin(details.expectedResult)}</p>
                                                             </div>
                                                         </div>
                                                         

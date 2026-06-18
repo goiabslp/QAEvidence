@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { EvidenceItem, TestStatus, TicketPriority } from '@/types';
 import { STATUS_CONFIG, SEVERITY_COLORS, PRIORITY_CONFIG } from '@/constants';
 import { Trash2, ExternalLink, Calendar, User, Tag, Monitor, ChevronDown, ChevronUp, Plus, Layers, FileText, ChevronRight, Pencil, ListChecks, Image as ImageIcon, AlertTriangle, Copy } from 'lucide-react';
+import { formatGherkin } from '@/utils/gherkinUtils';
 
 // Sub-component for Scenario Section to optimize rendering
 const ScenarioItem = React.memo(({ 
@@ -216,14 +217,14 @@ const CaseItem = React.memo(({
                                 <div className="w-full h-px bg-slate-100"></div>
                                 <div>
                                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Descrição do Teste</span>
-                                    <p className="text-slate-800 mt-1 whitespace-pre-line">{testCaseDetails?.condition || '-'}</p>
+                                    <p className="text-slate-800 mt-1 whitespace-pre-line">{formatGherkin(testCaseDetails?.condition)}</p>
                                 </div>
                             </div>
                             <div className="space-y-4 border-l border-slate-100 pl-8">
                                 <div>
                                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Resultado Esperado</span>
                                     <p className="text-indigo-900 bg-indigo-50/50 p-3 rounded-lg border border-indigo-50 mt-1 leading-relaxed">
-                                        {testCaseDetails?.expectedResult || '-'}
+                                        {formatGherkin(testCaseDetails?.expectedResult)}
                                     </p>
                                 </div>
                                 <div className="flex items-center justify-between pt-2">
