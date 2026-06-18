@@ -1,7 +1,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Check, Crop, Square, Undo, RotateCcw, Save, ZoomIn } from 'lucide-react';
+import { X, Check, Crop, Square, Undo, RotateCcw, Save, ZoomIn, ArrowUpRight, Type } from 'lucide-react';
 
 interface ImageEditorProps {
   imageSrc: string;
@@ -10,7 +10,41 @@ interface ImageEditorProps {
   initialTool?: Tool;
 }
 
-type Tool = 'CROP' | 'BOX';
+type Tool = 'CROP' | 'BOX' | 'ARROW' | 'TEXT';
+
+interface TextEditingState {
+  canvasX: number;
+  canvasY: number;
+  screenX: number;
+  screenY: number;
+  value: string;
+}
+
+const drawArrow = (ctx: CanvasRenderingContext2D, fromX: number, fromY: number, toX: number, toY: number, color = '#ef4444', lineWidth = 4) => {
+  const headLength = Math.max(12, Math.round(Math.sqrt((toX - fromX) ** 2 + (toY - fromY) ** 2) * 0.1));
+  const actualHeadLength = Math.min(25, headLength);
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Desenhar corpo
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+
+  // Desenhar cabeça
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - actualHeadLength * Math.cos(angle - Math.PI / 6), toY - actualHeadLength * Math.sin(angle - Math.PI / 6));
+  ctx.lineTo(toX - actualHeadLength * Math.cos(angle + Math.PI / 6), toY - actualHeadLength * Math.sin(angle + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+};
 
 const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, initialTool }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,6 +59,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   const [cropSelection, setCropSelection] = useState<{x: number, y: number, w: number, h: number} | null>(null);
+  const [textEditing, setTextEditing] = useState<TextEditingState | null>(null);
 
   // Load initial image
   useEffect(() => {
@@ -75,6 +110,11 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
           ctx.fillRect(x, y, w, h);
         }
 
+        if (tool === 'ARROW' && isDragging) {
+          // Draw Red Arrow Preview
+          drawArrow(ctx, x, y, currentPos.x, currentPos.y);
+        }
+
         if (tool === 'CROP') {
             // Calculate selection rect (handles negative width/height dragging)
             let selX = x;
@@ -119,6 +159,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (textEditing) return; // ignore clicks while typing
     const pos = getMousePos(e);
     setIsDragging(true);
     setStartPos(pos);
@@ -131,23 +172,38 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
     setCurrentPos(getMousePos(e));
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e?: React.MouseEvent) => {
     if (!isDragging) return;
     setIsDragging(false);
 
+    const pos = currentPos;
+
+    if (tool === 'TEXT' && e) {
+      if (Math.abs(pos.x - startPos.x) < 5 && Math.abs(pos.y - startPos.y) < 5) {
+        setTextEditing({
+          canvasX: startPos.x,
+          canvasY: startPos.y,
+          screenX: e.clientX,
+          screenY: e.clientY,
+          value: ''
+        });
+      }
+      return;
+    }
+
     // If nothing was really dragged (just a click), ignore
-    if (Math.abs(currentPos.x - startPos.x) < 5 && Math.abs(currentPos.y - startPos.y) < 5) {
+    if (Math.abs(pos.x - startPos.x) < 5 && Math.abs(pos.y - startPos.y) < 5) {
         return;
     }
 
-    if (tool === 'BOX') {
+    if (tool === 'BOX' || tool === 'ARROW') {
       applyDrawingToHistory();
     } else if (tool === 'CROP') {
       // Just store the selection, wait for user to confirm "Apply Crop"
       let x = startPos.x;
       let y = startPos.y;
-      let w = currentPos.x - startPos.x;
-      let h = currentPos.y - startPos.y;
+      let w = pos.x - startPos.x;
+      let h = pos.y - startPos.y;
 
       if (w < 0) { x = x + w; w = Math.abs(w); }
       if (h < 0) { y = y + h; h = Math.abs(h); }
@@ -160,10 +216,6 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 1. Get current state (which includes the drawing because we were rendering in loop, 
-    // but wait, the render loop relies on history[step]. 
-    // We need to manually draw the final shape on a fresh context to save it properly)
-    
     const img = new Image();
     img.src = history[historyStep];
     img.onload = () => {
@@ -186,9 +238,44 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
             ctx.strokeStyle = '#ef4444';
             ctx.lineWidth = 4;
             ctx.strokeRect(x, y, w, h);
+        } else if (tool === 'ARROW') {
+            drawArrow(ctx, x, y, currentPos.x, currentPos.y);
         }
 
         // Save
+        const newData = tempCanvas.toDataURL('image/png');
+        addToHistory(newData);
+    };
+  };
+
+  const saveTextToCanvas = () => {
+    if (!textEditing) return;
+    const text = textEditing.value.trim();
+    setTextEditing(null); // Close input
+    if (!text) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const img = new Image();
+    img.src = history[historyStep];
+    img.onload = () => {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const ctx = tempCanvas.getContext('2d');
+        if (!ctx) return;
+
+        // Draw original
+        ctx.drawImage(img, 0, 0);
+
+        // Draw Text
+        ctx.fillStyle = '#ef4444';
+        const fontSize = Math.max(20, Math.round(img.width * 0.02));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textBaseline = 'top';
+        ctx.fillText(text, textEditing.canvasX, textEditing.canvasY);
+
         const newData = tempCanvas.toDataURL('image/png');
         addToHistory(newData);
     };
@@ -249,7 +336,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
                 <div className="h-6 w-px bg-slate-600 mx-2"></div>
                 
                 {/* Tools */}
-                <div className="flex items-center bg-slate-700 rounded-lg p-1">
+                <div className="flex items-center bg-slate-700 rounded-lg p-1 gap-1">
                     <button 
                         type="button"
                         onClick={() => { setTool('CROP'); setCropSelection(null); }}
@@ -273,6 +360,30 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
                     >
                         <Square className="w-4 h-4" />
                         DESTAQUE
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => { setTool('ARROW'); setCropSelection(null); }}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                            tool === 'ARROW' 
+                            ? 'bg-red-500 text-white shadow-sm' 
+                            : 'text-slate-300 hover:text-white hover:bg-slate-600'
+                        }`}
+                    >
+                        <ArrowUpRight className="w-4 h-4" />
+                        SETA
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={() => { setTool('TEXT'); setCropSelection(null); }}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                            tool === 'TEXT' 
+                            ? 'bg-red-500 text-white shadow-sm' 
+                            : 'text-slate-300 hover:text-white hover:bg-slate-600'
+                        }`}
+                    >
+                        <Type className="w-4 h-4" />
+                        TEXTO
                     </button>
                 </div>
             </div>
@@ -312,39 +423,70 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onSave, onCancel, i
         {/* Canvas Area */}
         <div className="flex-1 overflow-auto flex items-center justify-center p-8 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
              <div className="relative shadow-2xl border border-slate-600 bg-black/50">
-                 <canvas
-                    ref={canvasRef}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    className={`max-w-full max-h-[80vh] block ${tool === 'CROP' ? 'cursor-crosshair' : 'cursor-cell'}`}
-                 />
-                 
-                 {/* Floating Action for Crop Confirmation */}
-                 {tool === 'CROP' && cropSelection && (
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-2 animate-bounce-in z-10">
-                        <button 
-                            type="button"
-                            onClick={confirmCrop}
-                            className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ring-4 ring-black/20"
-                        >
-                            <Check className="w-4 h-4" /> Confirmar Corte
-                        </button>
-                        <button 
-                            type="button"
-                            onClick={() => setCropSelection(null)}
-                            className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-full shadow-lg font-bold text-xs ring-4 ring-black/20"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-                 )}
+                  <canvas
+                     ref={canvasRef}
+                     onMouseDown={handleMouseDown}
+                     onMouseMove={handleMouseMove}
+                     onMouseUp={(e) => handleMouseUp(e)}
+                     onMouseLeave={() => handleMouseUp()}
+                     className={`max-w-full max-h-[80vh] block ${
+                       tool === 'CROP' ? 'cursor-crosshair' : tool === 'TEXT' ? 'cursor-text' : 'cursor-cell'
+                     }`}
+                  />
+                  
+                  {/* Floating Input for Text Tool */}
+                  {textEditing && (
+                    <input
+                      autoFocus
+                      type="text"
+                      value={textEditing.value}
+                      onChange={(e) => setTextEditing(prev => prev ? { ...prev, value: e.target.value } : null)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          saveTextToCanvas();
+                        } else if (e.key === 'Escape') {
+                          setTextEditing(null);
+                        }
+                      }}
+                      onBlur={saveTextToCanvas}
+                      placeholder="Digite o texto..."
+                      className="fixed z-[10000] bg-slate-950 text-[#ef4444] border-2 border-red-500 rounded-lg px-3 py-1.5 outline-none font-extrabold shadow-2xl animate-fade-in placeholder-red-300/40 text-base"
+                      style={{
+                        top: textEditing.screenY - 20,
+                        left: textEditing.screenX - 10,
+                        minWidth: '200px',
+                      }}
+                    />
+                  )}
+                  
+                  {/* Floating Action for Crop Confirmation */}
+                  {tool === 'CROP' && cropSelection && (
+                     <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-2 animate-bounce-in z-10">
+                         <button 
+                             type="button"
+                             onClick={confirmCrop}
+                             className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-full shadow-lg font-bold text-sm flex items-center gap-2 ring-4 ring-black/20"
+                         >
+                             <Check className="w-4 h-4" /> Confirmar Corte
+                         </button>
+                         <button 
+                             type="button"
+                             onClick={() => setCropSelection(null)}
+                             className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-full shadow-lg font-bold text-xs ring-4 ring-black/20"
+                         >
+                             <X className="w-4 h-4" />
+                         </button>
+                     </div>
+                  )}
              </div>
         </div>
         
         <div className="bg-slate-900 text-slate-500 text-xs text-center py-2 border-t border-slate-800">
-             {tool === 'CROP' ? 'Arraste para selecionar a área de corte.' : 'Arraste para desenhar um destaque vermelho.'}
+             {tool === 'CROP' && 'Arraste para selecionar a área de corte.'}
+             {tool === 'BOX' && 'Arraste para desenhar um destaque vermelho.'}
+             {tool === 'ARROW' && 'Arraste para desenhar uma seta vermelha.'}
+             {tool === 'TEXT' && 'Clique na imagem para adicionar um texto explicativo vermelho.'}
         </div>
     </div>,
     document.body
