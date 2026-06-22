@@ -34,9 +34,14 @@ const ScenarioItem = React.memo(({
                         <Layers className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-bold text-slate-900">
-                                Cenário #{group.scenarioNumber}
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                                <span>Cenário #{group.scenarioNumber}</span>
+                                {firstItem.testCaseDetails?.objective && (
+                                    <span className="text-slate-500 font-medium text-sm">
+                                        — {firstItem.testCaseDetails.objective.replace(/^(\s*)(\*\*)?(cenário|cenario)(\*\*)?(?:\s*:\s*|\s+)/i, '').trim()}
+                                    </span>
+                                )}
                             </h3>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${PriorityConfig.color}`}>
                                 {PriorityConfig.label}

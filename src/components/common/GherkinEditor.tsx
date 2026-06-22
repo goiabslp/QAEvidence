@@ -45,8 +45,8 @@ const GherkinEditor: React.FC<GherkinEditorProps> = ({
     if (!text) return '';
     const lines = text.split('\n');
     return lines.map((line, index) => {
-      // Regex para identificar a primeira palavra de cada linha (ignorando espaços, asteriscos e dois-pontos opcionais)
-      const match = line.match(/^(\s*)(\*\*)?([a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ-]+)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i);
+      // Regex para identificar a primeira palavra de cada linha mantendo o restante do texto inalterado
+      const match = line.match(/^(\s*)(\*\*)?([a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ-]+)(\*\*)?(.*)$/i);
       
       if (match) {
         const [, spaces, asterisksLeft, keyword, asterisksRight, rest] = match;
@@ -61,7 +61,19 @@ const GherkinEditor: React.FC<GherkinEditorProps> = ({
             <React.Fragment key={index}>
               {spaces}
               {asterisksLeft && <span className="text-transparent select-none">**</span>}
-              <span className="inline-block bg-blue-600 text-white font-extrabold text-[12px] px-1 py-0.5 rounded mr-1 align-baseline select-none uppercase tracking-wide">
+              <span 
+                className="inline-block bg-blue-600 text-white font-bold select-none uppercase tracking-wide"
+                style={{
+                  fontSize: '14px',
+                  paddingLeft: '4px',
+                  paddingRight: '4px',
+                  marginLeft: '-4px',
+                  marginRight: '-4px',
+                  borderRadius: '4px',
+                  verticalAlign: 'baseline',
+                  lineHeight: '20px',
+                }}
+              >
                 {normalizedKeyword}
               </span>
               {asterisksRight && <span className="text-transparent select-none">**</span>}
@@ -79,6 +91,28 @@ const GherkinEditor: React.FC<GherkinEditorProps> = ({
         </React.Fragment>
       );
     });
+  };
+
+  const normalizeGherkinText = (text: string): string => {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const normalizedLines = lines.map(line => {
+      // Regex para identificar DADO/dado no início da linha que não esteja seguido de "que"
+      const match = line.match(/^(\s*)(\*\*)?(dado)(\*\*)?(?:\s*:\s*|\s+)(?!que\b)(.*)$/i);
+      if (match) {
+        const [, spaces, asterisksLeft, keyword, asterisksRight, rest] = match;
+        return `${spaces}${asterisksLeft || ''}${keyword.toUpperCase()}${asterisksRight || ''} que ${rest}`;
+      }
+      return line;
+    });
+    return normalizedLines.join('\n');
+  };
+
+  const handleBlur = () => {
+    const normalized = normalizeGherkinText(value);
+    if (normalized !== value) {
+      onChange(normalized);
+    }
   };
 
   // Limpa classes de padding e texto para aplicar no container
@@ -102,8 +136,6 @@ const GherkinEditor: React.FC<GherkinEditorProps> = ({
     outline: 'none',
     boxShadow: 'none',
     boxSizing: 'border-box',
-    width: '100%',
-    height: '100%',
   };
 
   return (
@@ -111,12 +143,22 @@ const GherkinEditor: React.FC<GherkinEditorProps> = ({
       className={wrapperClassName} 
       style={{ minHeight }}
     >
-      {/* Visual Layer (Backdrop) */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .gherkin-editor-textarea::selection {
+          background-color: rgba(99, 102, 241, 0.25) !important;
+          color: transparent !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+      `}} />
+      
+      {/* Visual Layer (Backdrop) - Define a altura do container */}
       <div
         ref={backdropRef}
-        className="absolute inset-0 overflow-y-auto whitespace-pre-wrap break-words text-slate-700 pointer-events-none select-none bg-white"
+        className="relative w-full whitespace-pre-wrap break-words text-slate-700 bg-white"
         style={{
           ...sharedStyles,
+          minHeight,
+          height: 'auto',
           zIndex: 1,
         }}
       >
@@ -129,15 +171,15 @@ const GherkinEditor: React.FC<GherkinEditorProps> = ({
         )}
       </div>
 
-      {/* Editing Layer (Textarea) */}
+      {/* Editing Layer (Textarea) - Ocupa 100% da altura calculada pelo backdrop */}
       <textarea
         ref={textareaRef}
-        rows={rows}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={handleBlur}
         onScroll={handleScroll}
         onKeyDown={onKeyDown}
-        className="absolute inset-0 overflow-y-auto bg-transparent text-transparent caret-slate-700 resize-none selection:bg-indigo-500/20"
+        className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-slate-700 resize-none gherkin-editor-textarea overflow-hidden"
         placeholder={value ? '' : placeholder}
         style={{
           ...sharedStyles,
