@@ -34,7 +34,7 @@ import TicketHistoryCarousel from '@/components/features/evidence/TicketHistoryC
 import TestSettings from '@/components/features/testes/TestSettings';
 import { supabase, isSupabaseConfigured } from '@/services/supabaseClient';
 import SupabaseConfigErrorScreen from '@/components/common/SupabaseConfigErrorScreen';
-import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase, fetchEvidenceImages, createDraftTicketInSupabase } from '@/utils/supabaseEvidenceService';
+import { saveEvidenceToSupabase, fetchEvidencesFromSupabase, deleteEvidenceFromSupabase, fetchEvidenceImages } from '@/utils/supabaseEvidenceService';
 import ValidationModal from './components/common/ValidationModal';
 import DiscardChangesModal from './components/common/DiscardChangesModal';
 import DraftLoadingModal from './components/common/DraftLoadingModal';
@@ -904,12 +904,8 @@ const App: React.FC = () => {
   const handleCreateNewTicket = async () => {
     setIsCreatingDraft(true);
     
-    // Create draft in Supabase to acquire a unique ID alongside an artificial minimum delay
-    // to give the UI an interactive, premium feeling while loading
-    const [draftId] = await Promise.all([
-      createDraftTicketInSupabase(currentUser?.acronym || ''),
-      new Promise(resolve => setTimeout(resolve, 2000))
-    ]);
+    // Simulate loading to give the UI an interactive, premium feeling
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     setIsCreatingDraft(false);
     setIsTicketFormOpen(true);
@@ -921,14 +917,9 @@ const App: React.FC = () => {
     setEvidences([]);
     formTicketInfoRef.current = info;
     
-    if (draftId) {
-      setEditingHistoryId(draftId);
-      navigate(`/${draftId}/informacoes`);
-    } else {
-      alert("Aviso: Não foi possível gerar um ID prévio no banco de dados. Continuando em modo offline (ID será gerado ao salvar).");
-      setEditingHistoryId(null);
-      navigate(`/novo/informacoes`);
-    }
+    const draftId = crypto.randomUUID();
+    setEditingHistoryId(draftId);
+    navigate(`/${draftId}/informacoes`);
   };
 
   const handleDownloadArchivedPdf = async (ticket: ArchivedTicket) => {
@@ -1153,7 +1144,42 @@ const App: React.FC = () => {
     executeCloseEvidence();
   };
 
+  const cleanupEmptyDraft = async (idToCheck: string | null) => {
+    if (!idToCheck) return;
+    
+    // Verifica se de fato é um rascunho (não está no histórico com conteúdo significativo)
+    const isDraft = !ticketHistory.some(t => t.id === idToCheck);
+    if (!isDraft) return;
+
+    const currentInfo = formTicketInfoRef.current;
+    const hasMeaningfulText = currentInfo ? Boolean(
+      currentInfo.ticketId || 
+      currentInfo.ticketSummary ||
+      currentInfo.requester || 
+      currentInfo.clientSystem || 
+      currentInfo.ticketDescription || 
+      currentInfo.solution || 
+      currentInfo.blockageReason ||
+      (currentInfo.blockageImageUrls && currentInfo.blockageImageUrls.length > 0)
+    ) : false;
+
+    const isEmpty = evidences.length === 0 && !hasMeaningfulText;
+
+    if (isEmpty) {
+      console.log("Cleaning up empty draft in background:", idToCheck);
+      try {
+        await deleteEvidenceFromSupabase(idToCheck);
+        setTicketHistory(prev => prev.filter(t => t.id !== idToCheck));
+      } catch (err) {
+        console.error("Error cleaning up draft:", err);
+      }
+    }
+  };
+
   const executeCloseEvidence = () => {
+    if (editingHistoryId) {
+      cleanupEmptyDraft(editingHistoryId);
+    }
     // Reset Workspace
     setEvidences([]);
     setWizardTrigger(null);
@@ -1452,6 +1478,9 @@ const App: React.FC = () => {
             setShowDiscardModal(true);
             return;
           }
+          if (editingHistoryId) {
+            cleanupEmptyDraft(editingHistoryId);
+          }
           setActiveModule(module);
           if (module === 'HOME') {
             navigate('/inicio');
@@ -1604,6 +1633,9 @@ const App: React.FC = () => {
               if (pendingNavigation.type === 'CLOSE') {
                 executeCloseEvidence();
               } else if (pendingNavigation.type === 'MODULE') {
+                if (editingHistoryId) {
+                  cleanupEmptyDraft(editingHistoryId);
+                }
                 setActiveModule(pendingNavigation.module);
                 if (pendingNavigation.module === 'HOME') {
                   navigate('/inicio');
