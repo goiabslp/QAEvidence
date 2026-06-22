@@ -161,7 +161,7 @@ Responda APENAS com JSON seguindo o schema configurado.
           const regex = /^(\s*)(\*\*)?(DADO|QUANDO|E|ENTÃO|ENTAO|CENARIO|CENÁRIO)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i;
           const match = line.match(regex);
           if (match) {
-            const [, spaces, , keyword, , , rest] = match;
+            const [, spaces, , keyword, , rest] = match;
             let cleanedRest = (rest || '').trim();
             if (cleanedRest.toLowerCase().startsWith('eu ')) {
               cleanedRest = cleanedRest.substring(3).trim();
