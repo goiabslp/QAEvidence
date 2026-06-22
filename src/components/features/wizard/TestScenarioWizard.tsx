@@ -648,7 +648,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                                             {visiblePreReqs.map((req, idx) => (
                                                 <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-slate-200 text-xs font-medium text-slate-700 shadow-sm animate-fade-in">
                                                     <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full flex-shrink-0"></span>
-                                                    <span className="max-w-[150px] truncate" title={req}>{req}</span>
+                                                    <span title={req}>{req}</span>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemovePreReq(idx)}
