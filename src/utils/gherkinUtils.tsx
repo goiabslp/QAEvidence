@@ -11,7 +11,7 @@ export const formatGherkin = (text: string | undefined | null): React.ReactNode 
   const lines = text.split('\n');
   return lines.map((line, index) => {
     // Regex para identificar a primeira palavra de cada linha (ignorando espaços, asteriscos e dois-pontos opcionais)
-    const match = line.match(/^(\s*)(\*\*)?([^\s*:]+)(\*\*)?[\s:]*(.*)$/);
+    const match = line.match(/^(\s*)(\*\*)?([a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ-]+)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i);
     
     if (match) {
       const [, spaces, , keyword, , rest] = match;
