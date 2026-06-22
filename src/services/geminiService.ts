@@ -109,25 +109,27 @@ Transforme o texto informado em cenário de teste no padrão Gherkin, extraindo 
 Texto informado: "${story}"
 
 Regras gerais de formatação Gherkin:
-- Utilizar sempre caixa alta para: CENARIO, DADO, QUANDO, ENTÃO e E;
+- Utilizar sempre caixa alta para os prefixos: CENÁRIO, DADO, QUANDO, ENTÃO e E;
 - Sempre finalizar as linhas com ponto e vírgula (;);
 - Sempre deixar uma linha em branco entre os blocos principais (ex: DADO e QUANDO);
 - O texto deve ficar claro, objetivo e profissional;
 - Corrigir automaticamente erros ortográficos do texto enviado;
 - Organizar múltiplas ações utilizando 'E';
-- NUNCA utilize o pronome 'Eu' (ou 'Eu ' após os prefixos Gherkin DADO, QUANDO, E, ENTÃO). O texto deve começar diretamente com o verbo conjugado (ex: 'DADO: acesso a tela...' em vez de 'DADO: Eu acesso a tela...'; 'E: acesso a seção...' em vez de 'E: Eu acesso a seção...').
+- Os prefixos (DADO, QUANDO, ENTÃO, E, CENÁRIO) devem ser sempre em NEGRITO (envoltos em asteriscos duplos, ex: **DADO**, **QUANDO**, **ENTÃO**, **E**, **CENÁRIO**) e NÃO devem conter o caractere de dois-pontos (:) após o prefixo.
+- A frase que segue após o prefixo deve iniciar sempre com a primeira letra em maiúscula (ex: '**DADO** Acesso à tela...' em vez de '**DADO**: acesso à tela...').
+- NUNCA utilize o pronome 'Eu' (ou 'Eu ' após os prefixos Gherkin DADO, QUANDO, E, ENTÃO). O texto deve começar diretamente com o verbo conjugado (ex: '**DADO** Acesso à tela...' em vez de '**DADO** Eu acesso à tela...'; '**E** Acesso à seção...' em vez de '**E** Eu acesso à seção...').
 
 Com base nisso, gere um JSON com a seguinte estrutura estrita:
 1. "screen": Nome da tela informada no texto. Se não for especificada uma tela, deduza ou deixe em branco.
-2. "objective": Deve conter APENAS: "CENARIO: Resumo do cenário;"
+2. "objective": Deve conter APENAS: "**CENÁRIO** Resumo do cenário;"
 3. "description": Deve conter o contexto e ações (sem o pronome 'Eu' após o prefixo), exato nestes moldes:
-"DADO: acesso à tela de clientes;
+"**DADO** Acesso à tela de clientes;
 
-QUANDO: clico no botão de cadastrar;
+**QUANDO** Clico no botão de cadastrar;
 
-E: preencho o campo nome;"
+**E** Preencho o campo nome;"
 4. "expectedResult": Deve conter o resultado esperado (sem o pronome 'Eu' após o prefixo), exato nestes moldes:
-"ENTÃO: visualizo o cadastro realizado com sucesso;"
+"**ENTÃO** Visualizo o cadastro realizado com sucesso;"
 
 Responda APENAS com JSON seguindo o schema configurado.
 `;
@@ -153,17 +155,34 @@ Responda APENAS com JSON seguindo o schema configurado.
     if (response.text) {
       const parsed = JSON.parse(response.text) as AITestCaseResult;
 
-      const removeEuPrefix = (text: string): string => {
-        if (!text) return text;
-        // Remove "Eu " (ou qualquer variação com caixa alta/baixa) logo após DADO:, QUANDO:, E:, ENTÃO:
-        return text.replace(/^(DADO|QUANDO|E|ENTÃO):\s*[Ee]u\s+/gm, '$1: ');
+      const cleanAndFormatGherkinText = (text: string | undefined | null): string => {
+        if (!text) return "";
+        return text.split('\n').map(line => {
+          const regex = /^(\s*)(\*\*)?(DADO|QUANDO|E|ENTÃO|ENTAO|CENARIO|CENÁRIO)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i;
+          const match = line.match(regex);
+          if (match) {
+            const [, spaces, , keyword, , , rest] = match;
+            let cleanedRest = (rest || '').trim();
+            if (cleanedRest.toLowerCase().startsWith('eu ')) {
+              cleanedRest = cleanedRest.substring(3).trim();
+            }
+            if (cleanedRest.length > 0) {
+              cleanedRest = cleanedRest.charAt(0).toUpperCase() + cleanedRest.slice(1);
+            }
+            let normalizedKeyword = keyword.toUpperCase();
+            if (normalizedKeyword === 'ENTAO') normalizedKeyword = 'ENTÃO';
+            if (normalizedKeyword === 'CENARIO') normalizedKeyword = 'CENÁRIO';
+            return `${spaces}**${normalizedKeyword}**${cleanedRest ? ' ' + cleanedRest : ''}`;
+          }
+          return line;
+        }).join('\n');
       };
 
       return {
         screen: parsed.screen || "",
-        objective: parsed.objective || "",
-        description: removeEuPrefix(parsed.description || ""),
-        expectedResult: removeEuPrefix(parsed.expectedResult || "")
+        objective: cleanAndFormatGherkinText(parsed.objective || ""),
+        description: cleanAndFormatGherkinText(parsed.description || ""),
+        expectedResult: cleanAndFormatGherkinText(parsed.expectedResult || "")
       };
     }
     
