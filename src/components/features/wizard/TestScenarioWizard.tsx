@@ -3,6 +3,7 @@ import { TestCaseDetails, EvidenceItem, TestStatus, Severity, TicketInfo, TestSt
 import { Play, CheckCircle, XCircle, AlertTriangle, X, Layers, Monitor, Info, Pencil, Plus, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Fingerprint, Clock, Crop, Clipboard, ArrowUp, ArrowDown, Loader2, Square, Save, Sparkles } from 'lucide-react';
 import { WizardTriggerContext } from '@/App';
 import ImageEditor from '@/components/common/ImageEditor';
+import GherkinEditor from '@/components/common/GherkinEditor';
 import { generateTestCaseFromStory } from '@/services/geminiService';
 
 interface TestScenarioWizardProps {
@@ -613,10 +614,10 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                             {/* Row 2: Objetivo & Pré-Requisito */}
                             <div>
                                 <label className={labelClass}>Objetivo / Funcionalidade</label>
-                                <textarea
+                                <GherkinEditor
                                     rows={3}
-                                    value={formData.objective}
-                                    onChange={(e) => handleInputChange('objective', e.target.value)}
+                                    value={formData.objective || ''}
+                                    onChange={(val) => handleInputChange('objective', val)}
                                     className={inputClass}
                                     placeholder="Qual o objetivo deste teste?"
                                 />
@@ -679,24 +680,21 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                             {/* Row 3: Descrição & Resultado Esperado */}
                             <div>
                                 <label className={labelClass}>Descrição do Teste</label>
-                                <textarea
+                                <GherkinEditor
                                     rows={4}
-                                    value={formData.condition}
-                                    onChange={(e) => handleInputChange('condition', e.target.value)}
+                                    value={formData.condition || ''}
+                                    onChange={(val) => handleInputChange('condition', val)}
                                     className={inputClass}
-                                    placeholder={`DADO que estou na tela de Aprovação;
-QUANDO acesso uma solicitação;
-E seleciono um item;
-E seleciono a opção Aprovar;`}
+                                    placeholder={`DADO que estou na tela de Aprovação;\nQUANDO acesso uma solicitação;\nE seleciono um item;\nE seleciono a opção Aprovar;`}
                                 />
                             </div>
 
                             <div>
                                 <label className={labelClass}>Resultado Esperado / Critério de Aceitação</label>
-                                <textarea
+                                <GherkinEditor
                                     rows={4}
-                                    value={formData.expectedResult}
-                                    onChange={(e) => handleInputChange('expectedResult', e.target.value)}
+                                    value={formData.expectedResult || ''}
+                                    onChange={(val) => handleInputChange('expectedResult', val)}
                                     className={inputClass}
                                     placeholder="Ex: ENTÃO o item deve ser aprovado com sucesso"
                                 />
@@ -729,9 +727,9 @@ E seleciono a opção Aprovar;`}
 
                                                 {/* Content */}
                                                 <div className="flex-1 space-y-3">
-                                                    <textarea
-                                                        value={step.description}
-                                                        onChange={(e) => handleStepDescriptionChange(index, e.target.value)}
+                                                    <GherkinEditor
+                                                        value={step.description || ''}
+                                                        onChange={(val) => handleStepDescriptionChange(index, val)}
                                                         className={inputClass}
                                                         rows={2}
                                                         placeholder="Descreva o passo executado..."

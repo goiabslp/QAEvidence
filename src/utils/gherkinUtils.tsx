@@ -1,8 +1,14 @@
 import React from 'react';
 
+// Conjunto de palavras-chave oficiais do Gherkin (case-insensitive)
+const GHERKIN_KEYWORDS = new Set([
+  'DADO', 'QUANDO', 'E', 'ENTÃO', 'ENTAO', 'CENÁRIO', 'CENARIO',
+  'GIVEN', 'WHEN', 'THEN', 'AND', 'SCENARIO'
+]);
+
 /**
  * Formata um texto contendo cenários de teste Gherkin, deixando os prefixos
- * (DADO, QUANDO, E, ENTÃO, ENTAO, CENARIO, CENÁRIO) em negrito.
+ * (DADO, QUANDO, E, ENTÃO, ENTAO, CENARIO, CENÁRIO) em negrito/TAG.
  * Preserva as quebras de linha substituindo \n por elementos <br />.
  */
 export const formatGherkin = (text: string | undefined | null): React.ReactNode => {
@@ -15,30 +21,33 @@ export const formatGherkin = (text: string | undefined | null): React.ReactNode 
     
     if (match) {
       const [, spaces, , keyword, , rest] = match;
+      const upperKeyword = keyword.toUpperCase();
       
-      let cleanedRest = (rest || '').trim();
-      if (cleanedRest.toLowerCase().startsWith('eu ')) {
-        cleanedRest = cleanedRest.substring(3).trim();
+      if (GHERKIN_KEYWORDS.has(upperKeyword)) {
+        let cleanedRest = (rest || '').trim();
+        if (cleanedRest.toLowerCase().startsWith('eu ')) {
+          cleanedRest = cleanedRest.substring(3).trim();
+        }
+        
+        if (cleanedRest.length > 0) {
+          cleanedRest = cleanedRest.charAt(0).toUpperCase() + cleanedRest.slice(1);
+        }
+        
+        let normalizedKeyword = upperKeyword;
+        if (normalizedKeyword === 'ENTAO') normalizedKeyword = 'ENTÃO';
+        if (normalizedKeyword === 'CENARIO') normalizedKeyword = 'CENÁRIO';
+        
+        return (
+          <React.Fragment key={index}>
+            {spaces}
+            <span className="inline-block bg-blue-600 text-white font-extrabold text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 align-middle select-none uppercase tracking-wide">
+              {normalizedKeyword}
+            </span>
+            {cleanedRest}
+            {index < lines.length - 1 && <br />}
+          </React.Fragment>
+        );
       }
-      
-      if (cleanedRest.length > 0) {
-        cleanedRest = cleanedRest.charAt(0).toUpperCase() + cleanedRest.slice(1);
-      }
-      
-      let normalizedKeyword = keyword.toUpperCase();
-      if (normalizedKeyword === 'ENTAO') normalizedKeyword = 'ENTÃO';
-      if (normalizedKeyword === 'CENARIO') normalizedKeyword = 'CENÁRIO';
-      
-      return (
-        <React.Fragment key={index}>
-          {spaces}
-          <span className="inline-block bg-blue-600 text-white font-extrabold text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 align-middle select-none uppercase tracking-wide">
-            {normalizedKeyword}
-          </span>
-          {cleanedRest}
-          {index < lines.length - 1 && <br />}
-        </React.Fragment>
-      );
     }
     
     return (
@@ -49,3 +58,4 @@ export const formatGherkin = (text: string | undefined | null): React.ReactNode 
     );
   });
 };
+
