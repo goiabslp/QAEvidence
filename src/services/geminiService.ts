@@ -158,7 +158,7 @@ Responda APENAS com JSON seguindo o schema configurado.
       const cleanAndFormatGherkinText = (text: string | undefined | null): string => {
         if (!text) return "";
         return text.split('\n').map(line => {
-          const regex = /^(\s*)(\*\*)?(DADO|QUANDO|E|ENTÃO|ENTAO|CENARIO|CENÁRIO)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i;
+          const regex = /^(\s*)(\*\*)?([a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\-]+)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i;
           const match = line.match(regex);
           if (match) {
             const [, spaces, , keyword, , rest] = match;
