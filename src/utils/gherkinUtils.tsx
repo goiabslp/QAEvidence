@@ -32,8 +32,10 @@ export const formatGherkin = (text: string | undefined | null): React.ReactNode 
       return (
         <React.Fragment key={index}>
           {spaces}
-          <strong>{normalizedKeyword}</strong>
-          {cleanedRest ? ` ${cleanedRest}` : ''}
+          <span className="inline-block bg-blue-600 text-white font-extrabold text-[10px] px-1.5 py-0.5 rounded-md mr-1.5 align-middle select-none uppercase tracking-wide">
+            {normalizedKeyword}
+          </span>
+          {cleanedRest}
           {index < lines.length - 1 && <br />}
         </React.Fragment>
       );

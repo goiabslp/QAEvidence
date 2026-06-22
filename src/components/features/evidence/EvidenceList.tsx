@@ -257,7 +257,7 @@ const CaseItem = React.memo(({
                                                 {step.stepNumber}
                                             </span>
                                             <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-                                                {step.description || 'Passo sem descrição.'}
+                                                {step.description ? formatGherkin(step.description) : 'Passo sem descrição.'}
                                             </p>
                                         </div>
                                     </div>

@@ -174,7 +174,7 @@ const PdfReportTemplate: React.FC<PdfReportTemplateProps> = ({
                                                                     {details.steps.map((step, idx) => (
                                                                         <li key={idx} className="truncate">
                                                                             <span className="font-medium mr-1">{step.stepNumber}.</span> 
-                                                                            {step.description || 'Passo sem descrição.'}
+                                                                            {step.description ? formatGherkin(step.description) : 'Passo sem descrição.'}
                                                                             {step.imageUrl && <span className="ml-1 text-slate-400 font-mono">(Imagem anexa)</span>}
                                                                         </li>
                                                                     ))}
