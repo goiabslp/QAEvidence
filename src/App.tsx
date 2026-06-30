@@ -718,6 +718,41 @@ const App: React.FC = () => {
     }
   };
 
+  const handleEditScenarioTitle = async (scenarioNum: number, newTitle: string) => {
+    const newEvidences = evidences.map(e => {
+      if (e.testCaseDetails && Number(e.testCaseDetails.scenarioNumber) === Number(scenarioNum)) {
+        return {
+          ...e,
+          testCaseDetails: {
+            ...e.testCaseDetails,
+            objective: newTitle
+          }
+        };
+      }
+      return e;
+    });
+    setEvidences(newEvidences);
+    if (editingHistoryId) {
+      await persistCurrentTicket(newEvidences);
+    }
+  };
+
+  const handleEditCaseStatus = async (id: string, newStatus: string) => {
+    const newEvidences = evidences.map(e => {
+      if (e.id === id) {
+        return {
+          ...e,
+          status: newStatus as any
+        };
+      }
+      return e;
+    });
+    setEvidences(newEvidences);
+    if (editingHistoryId) {
+      await persistCurrentTicket(newEvidences);
+    }
+  };
+
   const handleAddCase = (originId: string) => {
     const origin = evidences.find(e => e.id === originId);
     if (!origin || !origin.testCaseDetails) return;
@@ -1590,6 +1625,8 @@ const App: React.FC = () => {
                   onCopyCase: handleCopyCase,
                   onDeleteEvidence: handleDeleteEvidence,
                   onDeleteScenario: handleDeleteScenario,
+                  onEditScenarioTitle: handleEditScenarioTitle,
+                  onEditCaseStatus: handleEditCaseStatus,
                   setIsHistoryExpanded,
                   onOpenArchivedTicket: handleOpenArchivedTicket,
                   onDownloadArchivedPdf: handleDownloadArchivedPdf,

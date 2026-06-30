@@ -15,7 +15,8 @@ const TicketScenariosPage: React.FC = () => {
         onEditCase,
         onCopyCase,
         onDeleteEvidence,
-        onDeleteScenario
+        onDeleteScenario,
+        onEditScenarioTitle
     } = useTicketContext();
 
     return (
@@ -31,6 +32,8 @@ const TicketScenariosPage: React.FC = () => {
                                 onAddCase={onAddCase}
                                 onEditCase={onEditCase}
                                 onCopyCase={onCopyCase}
+                                onDeleteScenario={onDeleteScenario}
+                                onEditScenarioTitle={onEditScenarioTitle}
                             />
                         </div>
                     </div>

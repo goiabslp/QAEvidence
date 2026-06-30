@@ -17,8 +17,12 @@ const ScenarioItem = React.memo(({
     onAddCase, 
     onEditCase, 
     onCopyCase,
-    onDelete 
+    onDelete,
+    onEditScenarioTitle
 }: any) => {
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [tempTitle, setTempTitle] = useState("");
+
     const firstItem = group.items[0];
     const priority = firstItem.ticketInfo.priority || TicketPriority.MEDIUM;
     const PriorityConfig = PRIORITY_CONFIG[priority];
@@ -37,9 +41,43 @@ const ScenarioItem = React.memo(({
                         <div className="flex items-center gap-3 flex-wrap">
                             <h3 className="text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
                                 <span>Cenário #{group.scenarioNumber}</span>
-                                {firstItem.testCaseDetails?.objective && (
-                                    <span className="text-slate-500 font-medium text-sm">
-                                        — {firstItem.testCaseDetails.objective.replace(/^(\s*)(\*\*)?(cenário|cenario)(\*\*)?(?:\s*:\s*|\s+)/i, '').trim()}
+                                {isEditingTitle ? (
+                                    <input
+                                        autoFocus
+                                        value={tempTitle}
+                                        onChange={(e) => setTempTitle(e.target.value)}
+                                        onBlur={(e) => {
+                                            e.stopPropagation();
+                                            setIsEditingTitle(false);
+                                            if (tempTitle.trim() && tempTitle.trim() !== firstItem.testCaseDetails?.objective) {
+                                                if (onEditScenarioTitle) onEditScenarioTitle(group.scenarioNumber, tempTitle.trim());
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                setIsEditingTitle(false);
+                                                if (tempTitle.trim() && tempTitle.trim() !== firstItem.testCaseDetails?.objective) {
+                                                    if (onEditScenarioTitle) onEditScenarioTitle(group.scenarioNumber, tempTitle.trim());
+                                                }
+                                            } else if (e.key === 'Escape') {
+                                                setIsEditingTitle(false);
+                                            }
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="ml-2 border border-indigo-300 rounded px-2 py-1 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[300px]"
+                                    />
+                                ) : (
+                                    <span 
+                                        className="text-slate-500 font-medium text-sm hover:text-indigo-600 hover:bg-indigo-50 px-2 py-0.5 rounded cursor-text transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (readOnly || !onEditScenarioTitle) return;
+                                            setIsEditingTitle(true);
+                                            setTempTitle(firstItem.testCaseDetails?.objective?.replace(/^(\s*)(\*\*)?(cenário|cenario)(\*\*)?(?:\s*:\s*|\s+)/i, '').trim() || "");
+                                        }}
+                                        title="Clique para editar"
+                                    >
+                                        — {firstItem.testCaseDetails?.objective ? firstItem.testCaseDetails.objective.replace(/^(\s*)(\*\*)?(cenário|cenario)(\*\*)?(?:\s*:\s*|\s+)/i, '').trim() : 'Sem objetivo'}
                                     </span>
                                 )}
                             </h3>
@@ -292,6 +330,7 @@ interface EvidenceListProps {
   onEditCase?: (id: string) => void;
   onCopyCase?: (id: string) => void;
   onDeleteScenario?: (scenarioNum: number) => void;
+  onEditScenarioTitle?: (scenarioNum: number, newTitle: string) => void;
   readOnly?: boolean;
 }
 
@@ -309,7 +348,7 @@ interface ManualItem {
 
 type GroupedItem = ScenarioGroup | ManualItem;
 
-const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, onAddCase, onEditCase, onCopyCase, onDeleteScenario, readOnly = false }) => {
+const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, onAddCase, onEditCase, onCopyCase, onDeleteScenario, onEditScenarioTitle, readOnly = false }) => {
   const [expandedScenarios, setExpandedScenarios] = useState<Set<number>>(new Set());
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
 
@@ -408,6 +447,7 @@ const EvidenceList: React.FC<EvidenceListProps> = ({ evidences = [], onDelete, o
                 onEditCase={onEditCase}
                 onCopyCase={onCopyCase}
                 onDelete={onDelete}
+                onEditScenarioTitle={onEditScenarioTitle}
             />
           );
         }

@@ -27,6 +27,8 @@ export interface TicketContextType {
     onCopyCase: (id: string) => void;
     onDeleteEvidence: (id: string) => void;
     onDeleteScenario: (scenarioNumber: number) => void;
+    onEditScenarioTitle: (scenarioNumber: number, newTitle: string) => void;
+    onEditCaseStatus: (id: string, newStatus: string) => void;
     setIsHistoryExpanded: (val: boolean) => void;
     onOpenArchivedTicket: (ticket: any) => void;
     onDownloadArchivedPdf: (ticket: any) => void;

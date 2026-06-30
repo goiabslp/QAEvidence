@@ -1,9 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTicketContext } from './TicketLayout';
 import TicketHistoryCarousel from '../evidence/TicketHistoryCarousel';
 import { Archive, History, Monitor, CheckCircle2, XCircle, AlertCircle, Clock, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import { TestStatus } from '@/types';
 import { formatGherkin } from '@/utils/gherkinUtils';
+
+const CustomStatusDropdown = ({ currentStatus, onStatusChange }: { currentStatus: TestStatus, onStatusChange: (status: TestStatus) => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const options = [
+        { value: TestStatus.PENDING, label: 'Pendente', icon: Clock, colorClass: 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200', iconColor: 'text-slate-500' },
+        { value: TestStatus.PASS, label: 'Sucesso', icon: CheckCircle2, colorClass: 'text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border-emerald-200', iconColor: 'text-emerald-600' },
+        { value: TestStatus.FAIL, label: 'Falha', icon: XCircle, colorClass: 'text-red-800 bg-red-100 hover:bg-red-200 border-red-200', iconColor: 'text-red-600' },
+        { value: TestStatus.BLOCKED, label: 'Impedimento', icon: AlertCircle, colorClass: 'text-amber-800 bg-amber-100 hover:bg-amber-200 border-amber-200', iconColor: 'text-amber-600' },
+    ];
+
+    const currentOption = options.find(o => o.value === currentStatus) || options[0];
+    const CurrentIcon = currentOption.icon;
+
+    return (
+        <div className="relative inline-block text-left" ref={dropdownRef}>
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm border ${currentOption.colorClass}`}
+            >
+                <CurrentIcon className={`w-3.5 h-3.5 mr-1.5 ${currentOption.iconColor}`} />
+                {currentOption.label}
+                <ChevronDown className={`w-3.5 h-3.5 ml-1.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''} opacity-60`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-0 mt-2 w-44 rounded-xl bg-white shadow-xl shadow-slate-200/50 border border-slate-100 ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-slide-down origin-top overflow-hidden">
+                    <div className="py-1">
+                        {options.map((option) => {
+                            const Icon = option.icon;
+                            return (
+                                <button
+                                    key={option.value}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onStatusChange(option.value);
+                                        setIsOpen(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-xs font-bold flex items-center transition-colors ${
+                                        currentStatus === option.value ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                    }`}
+                                >
+                                    <Icon className={`w-4 h-4 mr-2.5 ${currentStatus === option.value ? 'text-indigo-500' : option.iconColor}`} />
+                                    {option.label}
+                                    {currentStatus === option.value && <CheckCircle2 className="w-3.5 h-3.5 ml-auto text-indigo-500" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const TicketHistoryPage: React.FC = () => {
     const { 
@@ -14,7 +80,8 @@ const TicketHistoryPage: React.FC = () => {
         onOpenArchivedTicket,
         onDownloadArchivedPdf,
         setTicketToDelete,
-        onEditCase
+        onEditCase,
+        onEditCaseStatus
     } = useTicketContext();
 
     const [expandedHistoryRows, setExpandedHistoryRows] = useState<Set<string>>(new Set());
@@ -54,8 +121,8 @@ const TicketHistoryPage: React.FC = () => {
                         </h3>
                     </div>
 
-                    <div className="border border-slate-200 rounded-lg overflow-hidden shadow-sm bg-white">
-                        <div className="overflow-x-auto">
+                    <div className="border border-slate-200 rounded-lg overflow-visible shadow-sm bg-white">
+                        <div className="overflow-visible">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                                     <tr>
@@ -81,42 +148,18 @@ const TicketHistoryPage: React.FC = () => {
                                                         <Monitor className="w-3 h-3 text-slate-400" />
                                                         {details.screen}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-700 truncate max-w-xs" title={details.objective}>
-                                                        {details.objective}
+                                                    <td className="px-4 py-3 text-slate-700 whitespace-normal break-words" title={details.objective}>
+                                                        {details.objective ? details.objective.replace(/^(\s*)(\*\*)?(cenário|cenario)(\*\*)?(?:\s*:\s*|\s+)/i, '').trim() : ''}
                                                     </td>
                                                     <td className="px-4 py-3 text-center">
-                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${item.status === TestStatus.PASS ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                                                            item.status === TestStatus.FAIL ? 'bg-red-100 text-red-800 border border-red-200' :
-                                                                item.status === TestStatus.BLOCKED ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                                                                    item.status === TestStatus.PENDING ? 'bg-slate-100 text-slate-600 border border-slate-200' :
-                                                                        item.status === TestStatus.SKIPPED ? 'bg-gray-100 text-gray-800 border border-gray-200' :
-                                                                            'bg-slate-100 text-slate-800 border border-slate-200'
-                                                            }`}>
-                                                            {item.status === TestStatus.PASS && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                                                            {item.status === TestStatus.FAIL && <XCircle className="w-3 h-3 mr-1" />}
-                                                            {item.status === TestStatus.BLOCKED && <AlertCircle className="w-3 h-3 mr-1" />}
-                                                            {item.status === TestStatus.SKIPPED && <Clock className="w-3 h-3 mr-1" />}
-                                                            {item.status === TestStatus.PENDING && <Clock className="w-3 h-3 mr-1" />}
-
-                                                            {item.status === TestStatus.PASS ? 'Sucesso' :
-                                                                item.status === TestStatus.FAIL ? 'Falha' :
-                                                                    item.status === TestStatus.BLOCKED ? 'Impedimento' :
-                                                                        item.status === TestStatus.SKIPPED ? 'Pendente' :
-                                                                            item.status === TestStatus.PENDING ? 'Pendente' :
-                                                                                'Pendente'}
-                                                        </span>
+                                                        <CustomStatusDropdown 
+                                                            currentStatus={item.status as TestStatus} 
+                                                            onStatusChange={(newStatus) => {
+                                                                if (onEditCaseStatus) onEditCaseStatus(item.id, newStatus);
+                                                            }} 
+                                                        />
                                                     </td>
                                                     <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                                        {onEditCase && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => { e.stopPropagation(); onEditCase(item.id); }}
-                                                                className="text-slate-400 hover:text-indigo-600 p-1 hover:bg-slate-100 rounded transition-colors"
-                                                                title="Editar Caso"
-                                                            >
-                                                                <Pencil className="w-4 h-4" />
-                                                            </button>
-                                                        )}
                                                         <button type="button" className="text-slate-400 hover:text-indigo-600">
                                                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                         </button>
