@@ -113,7 +113,7 @@ Regras gerais de formatação Gherkin:
 - Sempre finalizar as linhas com ponto e vírgula (;);
 - Sempre deixar uma linha em branco entre os blocos principais (ex: DADO e QUANDO);
 - O texto deve ficar claro, objetivo e profissional;
-- Corrigir automaticamente erros ortográficos do texto enviado;
+- Corrigir e interpretar automaticamente qualquer erro de digitação, ortografia ou gramática do texto enviado antes de convertê-lo para Gherkin. Tolere e arrume palavras escritas incorretamente (ex: "fucniona" para "funciona");
 - Organizar múltiplas ações utilizando 'E';
 - Os prefixos (DADO, QUANDO, ENTÃO, E, CENÁRIO) devem ser sempre em NEGRITO (envoltos em asteriscos duplos, ex: **DADO**, **QUANDO**, **ENTÃO**, **E**, **CENÁRIO**) e NÃO devem conter o caractere de dois-pontos (:) após o prefixo.
 - A frase que segue após o prefixo deve iniciar sempre com a primeira letra em maiúscula (ex: '**DADO** Acesso à tela...' em vez de '**DADO**: acesso à tela...').
