@@ -50,6 +50,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
             
             setFormData(prev => ({
                 ...prev,
+                caseId: prev.caseId || generateCaseId(),
                 screen: result.screen || prev.screen,
                 objective: result.objective || prev.objective,
                 condition: result.description || prev.condition,
@@ -84,7 +85,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
     };
 
     const [formData, setFormData] = useState<Partial<TestCaseDetails>>({
-        caseId: generateCaseId(),
+        caseId: '',
         result: 'Pendente',
         screen: '',
         objective: '',
@@ -126,7 +127,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                 setCurrentDraftId(crypto.randomUUID());
                 setFormData(prev => ({
                     ...prev,
-                    caseId: generateCaseId(),
+                    caseId: '',
                     screen: '',
                     objective: '',
                     preRequisite: '',
@@ -144,7 +145,6 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
 
     useEffect(() => {
         if (isOpen && !wizardTrigger) {
-            setFormData(prev => ({ ...prev, caseId: prev.caseId || generateCaseId() }));
             setCaseNumOverride(null);
         }
     }, [isOpen, wizardTrigger]);
@@ -168,7 +168,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
     const resetForm = () => {
         setCurrentDraftId(crypto.randomUUID());
         setFormData({
-            caseId: generateCaseId(),
+            caseId: '',
             result: 'Pendente',
             screen: '',
             objective: '',
@@ -187,7 +187,11 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
     };
 
     const handleInputChange = (field: keyof TestCaseDetails, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => ({ 
+            ...prev, 
+            caseId: prev.caseId || generateCaseId(),
+            [field]: value 
+        }));
     };
 
     // Helper to manage pre-requisite list
@@ -396,7 +400,11 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
         if (!draft) return;
         
         // Don't auto-save if completely empty
-        if (!draft.testCaseDetails.screen && !draft.testCaseDetails.objective && (!draft.testCaseDetails.steps || draft.testCaseDetails.steps.length === 0)) {
+        if (
+            (!formData.screen || formData.screen.trim() === '') && 
+            (!formData.objective || formData.objective.trim() === '') && 
+            steps.length === 0
+        ) {
             return;
         }
 
@@ -611,8 +619,8 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                                 <Fingerprint className="w-3 h-3" /> ID
                             </div>
                             <span className="font-mono text-slate-700 font-bold text-xs flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                                {formData.caseId}
+                                <span className={`w-1.5 h-1.5 rounded-full ${formData.caseId ? 'bg-green-400' : 'bg-slate-400'}`}></span>
+                                {formData.caseId || 'Pendente'}
                             </span>
                         </div>
                     </div>
