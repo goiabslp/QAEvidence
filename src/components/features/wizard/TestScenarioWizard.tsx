@@ -56,6 +56,23 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                 expectedResult: result.expectedResult || prev.expectedResult
             }));
             
+            // Auto-generate steps from the Gherkin statements
+            const combinedStatements = [
+                ...(result.description ? result.description.split('\n') : []),
+                ...(result.expectedResult ? result.expectedResult.split('\n') : [])
+            ]
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+
+            if (combinedStatements.length > 0) {
+                const newSteps: TestStep[] = combinedStatements.map((statement, index) => ({
+                    stepNumber: index + 1,
+                    description: statement
+                }));
+                setSteps(newSteps);
+                setIsTestStarted(true);
+            }
+            
             setAiStory("");
             setIsAIModalOpen(false);
         } catch (error) {

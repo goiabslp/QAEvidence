@@ -619,12 +619,15 @@ const App: React.FC = () => {
     }));
 
     let newEvidences = [...evidences];
-    if (wizardTrigger?.mode === 'edit') {
-      const updatedItem = itemsWithUser[0];
-      newEvidences = evidences.map(ev => ev.id === updatedItem.id ? updatedItem : ev);
-    } else {
-      newEvidences = [...itemsWithUser, ...evidences];
-    }
+    
+    itemsWithUser.forEach(item => {
+      const existingIndex = newEvidences.findIndex(ev => ev.id === item.id);
+      if (existingIndex >= 0) {
+        newEvidences[existingIndex] = item;
+      } else {
+        newEvidences = [item, ...newEvidences];
+      }
+    });
 
     // Ensure they maintain the correct screen and condition if we are adding to a scenario
     const caseItem = itemsWithUser[0];

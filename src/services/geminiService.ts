@@ -157,7 +157,9 @@ Responda APENAS com JSON seguindo o schema configurado.
 
       const cleanAndFormatGherkinText = (text: string | undefined | null): string => {
         if (!text) return "";
-        return text.split('\n').map(line => {
+        // Pre-process to ensure keywords are on their own lines
+        let normalizedText = text.replace(/\s*\*\*(DADO|QUANDO|E|ENTÃO|ENTAO|CENÁRIO|CENARIO)\*\*\s*/gi, '\n**$1** ');
+        return normalizedText.split('\n').map(line => {
           const regex = /^(\s*)(\*\*)?([a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ-]+)(\*\*)?(?:(?:\s*:\s*)|(?:\s+)|$)(.*)$/i;
           const match = line.match(regex);
           if (match) {
@@ -175,7 +177,7 @@ Responda APENAS com JSON seguindo o schema configurado.
             return `${spaces}**${normalizedKeyword}**${cleanedRest ? ' ' + cleanedRest : ''}`;
           }
           return line;
-        }).join('\n');
+        }).join('\n').trim();
       };
 
       return {
