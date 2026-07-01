@@ -7,7 +7,7 @@ import GherkinEditor from '@/components/common/GherkinEditor';
 import { generateTestCaseFromStory } from '@/services/geminiService';
 
 interface TestScenarioWizardProps {
-    onSave: (items: Omit<EvidenceItem, 'createdBy'>[]) => Promise<{ success: boolean; error?: string }>;
+    onSave: (items: Omit<EvidenceItem, 'createdBy'>[], isAutoSave?: boolean) => Promise<{ success: boolean; error?: string }>;
     baseTicketInfo?: TicketInfo;
     wizardTrigger?: WizardTriggerContext | null;
     onClearTrigger?: () => void;
@@ -25,6 +25,8 @@ const labelClass = "block text-xs font-bold text-indigo-900 mb-1.5 uppercase tra
 
 const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, baseTicketInfo, wizardTrigger, onClearTrigger, existingEvidences = [] }, ref) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [currentDraftId, setCurrentDraftId] = useState(crypto.randomUUID());
+    const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [currentScenarioNum, setCurrentScenarioNum] = useState(1);
     const [caseNumOverride, setCaseNumOverride] = useState<number | null>(null);
     const [isPreReqExpanded, setIsPreReqExpanded] = useState(false);
@@ -94,6 +96,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
             setCaseNumOverride(wizardTrigger.nextCaseNumber);
 
             if (wizardTrigger.mode === 'edit' && wizardTrigger.existingDetails) {
+                setCurrentDraftId(wizardTrigger.evidenceId || crypto.randomUUID());
                 setFormData({ ...wizardTrigger.existingDetails });
                 if (wizardTrigger.existingDetails.steps && wizardTrigger.existingDetails.steps.length > 0) {
                     setSteps(wizardTrigger.existingDetails.steps);
@@ -103,6 +106,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                     setIsTestStarted(false);
                 }
             } else {
+                setCurrentDraftId(crypto.randomUUID());
                 setFormData(prev => ({
                     ...prev,
                     caseId: generateCaseId(),
@@ -145,6 +149,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
     };
 
     const resetForm = () => {
+        setCurrentDraftId(crypto.randomUUID());
         setFormData({
             caseId: generateCaseId(),
             result: 'Pendente',
@@ -351,7 +356,7 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
         const isEditMode = wizardTrigger?.mode === 'edit';
 
         return {
-            id: isEditMode && wizardTrigger?.evidenceId ? wizardTrigger.evidenceId : crypto.randomUUID(),
+            id: currentDraftId,
             title: `Cenário de Teste ${testDetails.scenarioNumber}: ${testDetails.screen}`,
             description: testDetails.objective,
             imageUrl: steps.length > 0 ? steps[steps.length - 1].imageUrl || null : null,
@@ -367,6 +372,38 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
         getDraft: getDraftData,
         isOpen: () => isOpen
     }));
+
+    const handleAutoSave = async () => {
+        if (isSaving || !isOpen) return;
+        const draft = getDraftData();
+        if (!draft) return;
+        
+        // Don't auto-save if completely empty
+        if (!draft.testCaseDetails.screen && !draft.testCaseDetails.objective && (!draft.testCaseDetails.steps || draft.testCaseDetails.steps.length === 0)) {
+            return;
+        }
+
+        setAutoSaveStatus('saving');
+        try {
+            const result = await onSave([draft], true); // true for isAutoSave
+            if (result.success) {
+                setAutoSaveStatus('saved');
+                setTimeout(() => setAutoSaveStatus('idle'), 2000);
+            } else {
+                setAutoSaveStatus('idle');
+            }
+        } catch (err) {
+            setAutoSaveStatus('idle');
+        }
+    };
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const timer = setTimeout(() => {
+            handleAutoSave();
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [formData, steps, isOpen, preReqInput]);
 
     const handleSave = async () => {
         setSaveError(null);
@@ -901,24 +938,20 @@ const TestScenarioWizard = forwardRef<any, TestScenarioWizardProps>(({ onSave, b
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-end items-center gap-4">
-                    <button
-                        type="button"
-                        onClick={handleClose}
-                        className="text-slate-600 hover:text-slate-800 px-5 py-2.5 rounded-xl hover:bg-slate-200/50 transition-colors text-sm font-semibold"
-                    >
-                        Cancelar
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-slate-900 text-white hover:bg-black px-6 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 text-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                        {isEditMode ? 'Salvar Alterações' : 'Salvar Caso'}
-                    </button>
+                <div className="bg-slate-50 px-8 py-5 border-t border-slate-200 flex justify-between items-center gap-4">
+                    <div className="flex items-center text-xs font-bold text-slate-500 min-w-[150px]">
+                        {autoSaveStatus === 'saving' && <span className="flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Salvando...</span>}
+                        {autoSaveStatus === 'saved' && <span className="flex items-center gap-1.5 text-emerald-600"><CheckCircle className="w-3.5 h-3.5" /> Salvo</span>}
+                    </div>
+                    <div className="flex justify-end items-center gap-4">
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            className="text-slate-600 hover:text-slate-800 px-5 py-2.5 rounded-xl hover:bg-slate-200/50 transition-colors text-sm font-semibold"
+                        >
+                            Fechar
+                        </button>
+                    </div>
                 </div>
             </div>
         </>

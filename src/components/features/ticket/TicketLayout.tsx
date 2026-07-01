@@ -20,7 +20,7 @@ export interface TicketContextType {
     
     // Handlers
     onTicketInfoChange: (info: TicketInfo) => void;
-    onWizardSave: (items: any[]) => Promise<any>;
+    onWizardSave: (items: any[], isAutoSave?: boolean) => Promise<any>;
     onClearTrigger: () => void;
     onAddCase: (scenarioNumber: number) => void;
     onEditCase: (id: string) => void;

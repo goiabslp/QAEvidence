@@ -9,7 +9,7 @@ import { getBrazilDateString } from '@/utils/dateUtils';
 
 interface EvidenceFormProps {
   onSubmit: (evidence: Omit<EvidenceItem, 'id' | 'timestamp' | 'createdBy'>) => void;
-  onWizardSave: (items: Omit<EvidenceItem, 'createdBy'>[]) => Promise<{ success: boolean; error?: string }>;
+  onWizardSave: (items: Omit<EvidenceItem, 'createdBy'>[], isAutoSave?: boolean) => Promise<{ success: boolean; error?: string }>;
   wizardTrigger?: WizardTriggerContext | null;
   onClearTrigger?: () => void;
   evidences?: EvidenceItem[];

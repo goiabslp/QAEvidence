@@ -606,7 +606,7 @@ const App: React.FC = () => {
     setPdfError(null);
   };
 
-  const handleWizardSave = async (items: Omit<EvidenceItem, 'createdBy'>[]): Promise<{ success: boolean; error?: string }> => {
+  const handleWizardSave = async (items: Omit<EvidenceItem, 'createdBy'>[], isAutoSave: boolean = false): Promise<{ success: boolean; error?: string }> => {
     if (!currentUser) return { success: false, error: "Usuário não autenticado." };
 
     const itemsWithUser = items.map(item => ({
@@ -678,7 +678,9 @@ const App: React.FC = () => {
     }
     setTicketHistory(updatedHistory);
 
-    setWizardTrigger(null);
+    if (!isAutoSave) {
+      setWizardTrigger(null);
+    }
     setPdfError(null);
 
     return { success: true };
